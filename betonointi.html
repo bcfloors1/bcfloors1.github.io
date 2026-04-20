@@ -314,12 +314,12 @@
         </select>
         <input type="text" id="tilaaja" placeholder="Kirjoita tilaajan nimi...">
         </div>
-        <div class="f" style="flex:2"><label>Projekti / Kohde</label><input type="text"></div>
+        <div class="f" style="flex:2"><label>Projekti / Kohde</label><input type="text" id="bp_tyomaa"></div>
       </div>
       <div class="frow">
-        <div class="f"><label>Työnumero</label><input type="text"></div>
-        <div class="f"><label>Yhteyshenkilö</label><input type="text"></div>
-        <div class="f" style="flex:2"><label>Osoite</label><input type="text"></div>
+        <div class="f"><label>Työnumero</label><input type="text" id="bp_tyonro"></div>
+        <div class="f"><label>Yhteyshenkilö</label><input type="text" id="bp_yhteys"></div>
+        <div class="f" style="flex:2"><label>Osoite</label><input type="text" id="bp_osoite"></div>
       </div>
       <div class="frow">
         <div class="f"><label>Valupäivä</label><input type="date" style="cursor:pointer;"></div>
@@ -337,7 +337,7 @@
         </div>
         <div class="f" style="flex:2">
           <label>Betonin toimittaja</label>
-          <select>
+          <select id="bp_toimittaja">
             <option value="">— Valitse —</option>
             <option>Rudus Oy</option>
             <option>Ruskonbetoni Oy</option>
@@ -891,6 +891,7 @@ fbDb.collection('projects').orderBy('tyomaa').onSnapshot(function(snap) {
     opt.setAttribute('data-tyonro', p.tyonro||'');
     opt.setAttribute('data-yhteys', p.yhteys||'');
     opt.setAttribute('data-toimittaja', p.toimittaja||'');
+    opt.setAttribute('data-osoite', p.osoite||'');
     sel.appendChild(opt);
   });
   if (cur) sel.value = cur;
@@ -901,38 +902,52 @@ function valitseProjekti(id) {
   var sel = document.getElementById('projektiValinta');
   var opt = sel.options[sel.selectedIndex];
   if (!opt) return;
+  console.log('Valittu projekti:', {
+    tilaaja: opt.getAttribute('data-tilaaja'),
+    tyomaa: opt.getAttribute('data-tyomaa'),
+    tyonro: opt.getAttribute('data-tyonro'),
+    yhteys: opt.getAttribute('data-yhteys'),
+    osoite: opt.getAttribute('data-osoite'),
+    toimittaja: opt.getAttribute('data-toimittaja')
+  });
+  console.log('bp_tyomaa:', document.getElementById('bp_tyomaa'));
+  console.log('bp_tyonro:', document.getElementById('bp_tyonro'));
+  console.log('bp_yhteys:', document.getElementById('bp_yhteys'));
 
-  // Fill tilaaja
+  // Fill tilaaja dropdown
   var tilaaja = opt.getAttribute('data-tilaaja');
   var tilaajaSel = document.querySelector('select[onchange*="tilaajaPick"]');
   if (tilaajaSel) {
+    var found = false;
     for (var i=0; i<tilaajaSel.options.length; i++) {
       if (tilaajaSel.options[i].text === tilaaja) {
-        tilaajaSel.selectedIndex = i;
-        var txt = document.getElementById('tilaaja_txt');
-        if (txt) { txt.style.display='none'; txt.value=tilaaja; }
-        break;
+        tilaajaSel.selectedIndex = i; found = true; break;
       }
     }
+    // Also fill text input
+    var tilaajaTxt = document.getElementById('tilaaja');
+    if (tilaajaTxt) tilaajaTxt.value = tilaaja;
   }
 
-  // Fill työmaa
-  var tyomaaInput = document.querySelector('input[placeholder*="Kohteen"]');
-  if (!tyomaaInput) tyomaaInput = document.querySelector('input[id*="tyomaa"]');
-  if (tyomaaInput) tyomaaInput.value = opt.getAttribute('data-tyomaa');
+  // Fill työmaa (Projekti / Kohde)
+  var tyomaa = document.getElementById('bp_tyomaa');
+  if (tyomaa) tyomaa.value = opt.getAttribute('data-tyomaa') || '';
 
   // Fill työnro
-  var tyonroInput = document.querySelector('input[id*="tyonro"]');
-  if (tyonroInput) tyonroInput.value = opt.getAttribute('data-tyonro');
+  var tyonro = document.getElementById('bp_tyonro');
+  if (tyonro) tyonro.value = opt.getAttribute('data-tyonro') || '';
 
   // Fill yhteyshenkilö
-  var yhteys = opt.getAttribute('data-yhteys');
-  var yhteysInput = document.querySelector('input[id*="yhteys"]');
-  if (yhteysInput) yhteysInput.value = yhteys;
+  var yhteys = document.getElementById('bp_yhteys');
+  if (yhteys) yhteys.value = opt.getAttribute('data-yhteys') || '';
+
+  // Fill osoite
+  var osoite = document.getElementById('bp_osoite');
+  if (osoite) osoite.value = opt.getAttribute('data-osoite') || '';
 
   // Fill betonin toimittaja
-  var toimittaja = opt.getAttribute('data-toimittaja');
-  var toimSel = document.querySelector('select[id*="toimittaja"]');
+  var toimittaja = opt.getAttribute('data-toimittaja') || '';
+  var toimSel = document.getElementById('bp_toimittaja');
   if (toimSel) {
     for (var i=0; i<toimSel.options.length; i++) {
       if (toimSel.options[i].text === toimittaja) { toimSel.selectedIndex = i; break; }
