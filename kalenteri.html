@@ -90,6 +90,43 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f8fafc;color:var(--
 .nb.p{background:var(--blue);color:white;}
 .nb.s{background:var(--gray);color:var(--text);}
 </style>
+<!-- Firebase -->
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+  import { getFirestore, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+  const firebaseConfig = {
+  apiKey: "AIzaSyB_SEcmhmzBBldkbh8CQYL7ncQGVyZIDM4",
+  authDomain: "bcfloors-a25ea.firebaseapp.com",
+  projectId: "bcfloors-a25ea",
+  storageBucket: "bcfloors-a25ea.firebasestorage.app",
+  messagingSenderId: "160878550016",
+  appId: "1:160878550016:web:9d42f64d0d02375a178ce5"
+};
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  // Expose to global scope
+  window.db = db;
+  window.fbCollection = collection;
+  window.fbOnSnapshot = onSnapshot;
+  window.fbAddDoc = addDoc;
+  window.fbUpdateDoc = updateDoc;
+  window.fbDeleteDoc = deleteDoc;
+  window.fbDoc = doc;
+  window.fbCollection = collection;
+  window.fbReady = true;
+
+  // Listen for real-time updates
+  onSnapshot(collection(db, 'jobs'), (snapshot) => {
+    window.jobs = [];
+    snapshot.forEach((d) => {
+      window.jobs.push({...d.data(), _fbId: d.id});
+    });
+    if (window.render) window.render();
+  });
+</script>
 </head>
 <body>
 <div class="hdr">
@@ -112,6 +149,9 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f8fafc;color:var(--
   <div class="legend-item"><div class="legend-dot" style="background:#e8390e"></div>Betonas Oy</div>
   <div class="legend-item"><div class="legend-dot" style="background:#22c55e"></div>Tehty</div>
   <div class="legend-item"><div class="legend-dot" style="background:#fbbf24"></div>Tuleva</div>
+</div>
+<div id="loadingBar" style="text-align:center;padding:20px;color:#006CB1;font-weight:600;">
+  Ladataan... ⏳
 </div>
 <div class="week-view" id="weekView"></div>
 <div class="month-view" id="monthView" style="display:none"></div>
@@ -181,14 +221,16 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f8fafc;color:var(--
 </div>
 
 <script>
-var jobs = JSON.parse(localStorage.getItem('bcf') || '[]');
+var jobs = []; // loaded from Firebase
 var view = 'week';
 var wOff = 0, mOff = 0, editId = null, detDate = null;
 var MN = ['Tammikuu','Helmikuu','Maaliskuu','Huhtikuu','Toukokuu','Kesäkuu','Heinäkuu','Elokuu','Syyskuu','Lokakuu','Marraskuu','Joulukuu'];
 var DL = ['Sunnuntai','Maanantai','Tiistai','Keskiviikko','Torstai','Perjantai','Lauantai'];
 var DS = ['Su','Ma','Ti','Ke','To','Pe','La'];
 
-function save() { localStorage.setItem('bcf', JSON.stringify(jobs)); }
+function save() {
+  // Firebase handles saving - no localStorage needed
+}
 
 function iso(d) {
   return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
@@ -232,7 +274,11 @@ function stats(jj){
   document.getElementById('statsBar').innerHTML=h;
 }
 
-function render(){if(view==='week')renderWeek();else renderMonth();}
+window.render = function(){
+  var lb = document.getElementById('loadingBar');
+  if (lb) lb.style.display = 'none';
+  if(view==='week')renderWeek();else renderMonth();
+}
 
 function renderWeek(){
   var days=weekDays(wOff);
@@ -344,25 +390,29 @@ function saveJob(){
   var nm=document.getElementById('f-name').value.trim(), dt=document.getElementById('f-date').value;
   if(!nm||!dt){alert('Syötä nimi ja päivämäärä!');return;}
   var j={id:editId||String(Date.now()),name:nm,date:dt,m2:document.getElementById('f-m2').value,sub:document.getElementById('f-sub').value,status:document.getElementById('f-status').value,betoni:document.getElementById('f-betoni').value,method:document.getElementById('f-method').value,note:document.getElementById('f-note').value};
-  if(editId){var i=jobs.findIndex(function(x){return x.id===editId;});if(i!==-1)jobs[i]=j;}
-  else jobs.push(j);
-  save(); closeEdit();
   var jd=new Date(dt+'T12:00:00'), n=new Date(), dd=n.getDay(), m=new Date(n);
   m.setDate(n.getDate()+(dd===0?-6:1-dd)); m.setHours(0,0,0,0);
   if(view==='week') wOff=Math.floor((jd-m)/(7*86400000));
   else mOff=(jd.getFullYear()-n.getFullYear())*12+jd.getMonth()-n.getMonth();
-  render();
+  if(editId){
+    var ex=jobs.find(function(x){return x.id===editId;});
+    if(ex&&ex._fbId) window.fbUpdateDoc(window.fbDoc(window.db,'jobs',ex._fbId),j).catch(console.error);
+  } else {
+    window.fbAddDoc(window.fbCollection(window.db,'jobs'),j).catch(console.error);
+  }
+  closeEdit();
 }
 function deleteJob(){
   if(!editId)return;
   if(!confirm('Poistetaanko?'))return;
-  jobs=jobs.filter(function(x){return x.id!==editId;});
-  save();closeEdit();render();
+  var ex=jobs.find(function(x){return x.id===editId;});
+  if(ex&&ex._fbId) window.fbDeleteDoc(window.fbDoc(window.db,'jobs',ex._fbId)).catch(console.error);
+  closeEdit();
 }
 
 document.getElementById('editOverlay').addEventListener('click',function(e){if(e.target===this)closeEdit();});
 document.getElementById('detailOverlay').addEventListener('click',function(e){if(e.target===this)closeDetail();});
-render();
+// Firebase will call render() when data loads
 </script>
 </body>
 </html>
