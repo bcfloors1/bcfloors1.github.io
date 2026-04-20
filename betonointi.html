@@ -954,6 +954,43 @@ function valitseProjekti(id) {
     }
   }
 }
+
+function tallennaProjektiksi() {
+  var tilaajaSel = document.querySelector('select[onchange*="tilaajaPick"]');
+  var tilaajaTxt = document.getElementById('tilaaja');
+  var tilaaja = (tilaajaTxt && tilaajaTxt.value) ? tilaajaTxt.value : 
+                (tilaajaSel && tilaajaSel.selectedIndex > 0 ? tilaajaSel.options[tilaajaSel.selectedIndex].text : '');
+
+  var tyomaa = document.getElementById('bp_tyomaa') ? document.getElementById('bp_tyomaa').value.trim() : '';
+  // Also check free text projekti field
+  if (!tyomaa) {
+    var kasin = document.getElementById('projektiKasin');
+    if (kasin) tyomaa = kasin.value.trim();
+  }
+
+  if (!tyomaa) { alert('Täytä ensin Projekti / Kohde kenttä!'); return; }
+
+  var tyonro = document.getElementById('bp_tyonro') ? document.getElementById('bp_tyonro').value.trim() : '';
+  var yhteys = document.getElementById('bp_yhteys') ? document.getElementById('bp_yhteys').value.trim() : '';
+  var osoite = document.getElementById('bp_osoite') ? document.getElementById('bp_osoite').value.trim() : '';
+  var toimSel = document.getElementById('bp_toimittaja');
+  var toimittaja = toimSel ? toimSel.value : '';
+
+  var p = {
+    tilaaja: tilaaja,
+    tyomaa: tyomaa,
+    osoite: osoite,
+    tyonro: tyonro,
+    yhteys: yhteys,
+    toimittaja: toimittaja
+  };
+
+  fbDb.collection('projects').add(p).then(function() {
+    alert('Projekti "' + tyomaa + '" tallennettu!');
+  }).catch(function(e) {
+    alert('Virhe tallennuksessa: ' + e.message);
+  });
+}
 </script>
 
 </body>
