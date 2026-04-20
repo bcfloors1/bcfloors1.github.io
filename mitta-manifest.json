@@ -1,0 +1,19 @@
+{
+  "name": "Mittapöytäkirja – BC Floors Oy",
+  "short_name": "Mittapöytäkirja",
+  "description": "BC Floors Oy – Mittapöytäkirja",
+  "start_url": "/mitta.html",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#006CB1",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
