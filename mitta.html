@@ -3,7 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="application-name" content="Mittapöytäkirja – BC Floors">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Mittapöytäkirja">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#006CB1">
+<meta name="description" content="BC Floors Oy – Mittapöytäkirja">
 <title>Mittapöytäkirja – BC Floors Oy</title>
+<link rel="manifest" href="mitta-manifest.json">
 <style>
 * { box-sizing: border-box; margin:0; padding:0; }
 body { padding-bottom: 0 !important; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: #f0f4f8; color: #1a2530; }
@@ -184,6 +192,8 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   .sigs { margin-top: 0 !important; }
   /* Piilota kalenterikuvake tulostuksessa */
   input[type=date]::-webkit-calendar-picker-indicator { display: none !important; }
+  #pvm { color: transparent; }
+  #pvm::after { content: attr(data-fi); color: #1a2530; }
   td, td input, td select { background: white !important; background-color: white !important; }
   td.calc { background: white !important; color: #006CB1 !important; }
   input[type=date] { -webkit-appearance: none; appearance: none; }
@@ -268,7 +278,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
     </div>
     <div class="info-field">
       <label>Päiväys</label>
-      <input type="date" id="pvm" style="cursor:pointer;" onfocus="try{this.showPicker()}catch(e){}">
+      <input type="date" id="pvm" style="cursor:pointer;" onfocus="try{this.showPicker()}catch(e){}" onchange="var p=this.value.split('-');if(p.length===3)this.setAttribute('data-fi',p[2]+'.'+p[1]+'.'+p[0]);">
     </div>
   </div>
 
@@ -342,6 +352,7 @@ document.addEventListener('DOMContentLoaded', function() {
   var today = new Date();
   var iso = today.toISOString().split('T')[0];
   document.getElementById('pvm').value = iso;
+  document.getElementById('pvm').setAttribute('data-fi', today.toLocaleDateString('fi-FI'));
   var fi = today.toLocaleDateString('fi-FI');
   document.getElementById('sig1date').textContent = fi;
   document.getElementById('sig2date').textContent = fi;
@@ -607,6 +618,17 @@ function moveRow(dir) {
     targetInput.focus();
     if (targetInput.tagName === 'INPUT') targetInput.select();
   }
+}
+
+
+function fmtFi(s) {
+  if (!s) return '';
+  // Handle YYYY-MM-DD format
+  var parts = s.split('-');
+  if (parts.length === 3 && parts[0].length === 4) {
+    return parts[2] + '.' + parts[1] + '.' + parts[0];
+  }
+  return s;
 }
 
 </script>

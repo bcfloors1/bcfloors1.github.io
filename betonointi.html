@@ -364,16 +364,12 @@
         <div class="cbrow">
           <span class="cblabel">Lujuusluokka:</span>
           <div class="cbgroup">
-            <select class="cb-select">
+            <select class="cb-select" id="lujuus">
               <option value="">— Valitse —</option>
-              <option>15 kg/m³</option>
-              <option>20 kg/m³</option>
-              <option>25 kg/m³</option>
-              <option>30 kg/m³</option>
-              <option>35 kg/m³</option>
-              <option>40 kg/m³</option>
-              <option>3,5 kg/m³</option>
-              <option>0,9 kg/m³</option>
+              <option>C25/30</option>
+              <option>C30/37</option>
+              <option>C32/40</option>
+              <option>C35/45</option>
             </select>
           </div>
         </div>
@@ -845,6 +841,15 @@ function tilaajaPick(sel) {
     var input = document.getElementById('tilaaja');
     if (input) input.value = sel.value;
   }
+}
+</script>
+
+<script>
+function fmtFi(s) {
+  if (!s) return s;
+  var p = s.split('-');
+  if (p.length === 3 && p[0].length === 4) return p[2]+'.'+p[1]+'.'+p[0];
+  return s;
 }
 </script>
 </body>

@@ -6,6 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#006CB1">
+<link rel="manifest" href="app-manifest.json">
 <title>BC Floors – Betonointipöytäkirja</title>
 <style>
 
@@ -1355,10 +1356,10 @@ function buildPDF(proj, date, sig1img, sig2img) {
   <div class="sigs">
     <div class="sig"><div class="sig-t">URAKOITSIJAN ALLEKIRJOITUS</div>
     \${sig1img ? '<img class="sig-img" src="'+sig1img+'">' : '<div class="sig-empty"></div>'}
-    <div class="sig-n">Nimi: \${g('sig1name')||'—'}</div><div class="sig-n">Päiväys: \${g('sig1date')||'—'}</div></div>
+    <div class="sig-n">Nimi: \${g('sig1name')||'—'}</div><div class="sig-n">Päiväys: \${fmtFi(g('sig1date'))||'—'}</div></div>
     <div class="sig"><div class="sig-t">TILAAJAN ALLEKIRJOITUS</div>
     \${sig2img ? '<img class="sig-img" src="'+sig2img+'">' : '<div class="sig-empty"></div>'}
-    <div class="sig-n">Nimi: \${g('sig2name')||'—'}</div><div class="sig-n">Päiväys: \${g('sig2date')||'—'}</div></div>
+    <div class="sig-n">Nimi: \${g('sig2name')||'—'}</div><div class="sig-n">Päiväys: \${fmtFi(g('sig2date'))||'—'}</div></div>
   </div>
   </div>
   <div class="ft"><span>BC Floors Oy | Betonointipöytäkirja</span><span>\${date}</span></div>`;
@@ -1533,6 +1534,17 @@ function updateMittaTotal() {
 function showMittaPreview() {
   alert('Käytä "Tulosta PDF" toimintoa selaimen valikosta tulostus-PDF:n luomiseen.');
   window.print();
+}
+
+
+function fmtFi(s) {
+  if (!s) return '';
+  // Handle YYYY-MM-DD format
+  var parts = s.split('-');
+  if (parts.length === 3 && parts[0].length === 4) {
+    return parts[2] + '.' + parts[1] + '.' + parts[0];
+  }
+  return s;
 }
 
 </script>
