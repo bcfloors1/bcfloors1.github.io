@@ -273,11 +273,12 @@
   <button class="print-btn" onclick="window.print()">&#128424; Tulosta / Tallenna PDF</button>
 </div>
 <!-- PROJEKTIN VALINTA -->
-<div style="background:#e8f4fc;border-bottom:2px solid #006CB1;padding:8px 14px;display:flex;align-items:center;gap:10px;">
+<div style="background:#e8f4fc;border-bottom:2px solid #006CB1;padding:8px 14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
   <span style="font-size:11px;font-weight:700;color:#006CB1;white-space:nowrap;">📁 PROJEKTI:</span>
-  <select id="projektiValinta" onchange="valitseProjekti(this.value)" style="flex:1;border:none;background:transparent;font-family:Arial,sans-serif;font-size:12px;color:#1a2530;outline:none;cursor:pointer;">
-    <option value="">— Valitse projekti tai täytä käsin —</option>
+  <select id="projektiValinta" onchange="valitseProjekti(this.value)" style="flex:2;min-width:160px;border:1px solid #c8d0d8;border-radius:4px;background:white;font-family:Arial,sans-serif;font-size:12px;color:#1a2530;outline:none;cursor:pointer;padding:4px 6px;">
+    <option value="">— Valitse projekti —</option>
   </select>
+  <input type="text" id="projektiKasin" placeholder="tai kirjoita projektin nimi..." style="flex:2;min-width:140px;border:1px solid #c8d0d8;border-radius:4px;font-family:Arial,sans-serif;font-size:12px;color:#1a2530;outline:none;padding:4px 6px;">
   <button onclick="tallennaProjektiksi()" style="flex-shrink:0;padding:5px 10px;background:#006CB1;color:white;border:none;border-radius:6px;font-family:Arial,sans-serif;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">💾 Tallenna projektiksi</button>
 </div>
 
@@ -325,14 +326,12 @@
         <div class="f"><label>Valupäivä</label><input type="date" style="cursor:pointer;"></div>
         <div class="f"><label>Valumiehet kpl</label><input type="number" min="0"></div>
         <div class="f"><label>Pintamiehet kpl</label><input type="number" min="0"></div>
-        <div class="f" style="flex:1.5"><label>Yhteyshenkilö</label><input type="text" placeholder="Nimi"></div>
         <div class="f">
           <label>Valumenetelmä</label>
           <select id="valumetodi">
             <option value="">— Valitse —</option>
             <option>Käsinvalu</option>
             <option>Konevalu</option>
-            
           </select>
         </div>
         <div class="f" style="flex:2">
@@ -347,6 +346,7 @@
             <option>Swerock Oy</option>
           </select>
         </div>
+        <div class="f" style="flex:1.5"><label>Yhteyshenkilö</label><input type="text" id="bp_yhteys" placeholder="Nimi"></div>
       </div>
     </div>
 
