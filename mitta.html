@@ -231,6 +231,8 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   .page { margin: 0; box-shadow: none; width: 100%; }
 }
 </style>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 </head>
 <body>
 
@@ -238,6 +240,15 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   <button class="btn-print" onclick="window.print()">🖨️ Tulosta / PDF</button>
   <button class="btn-share" onclick="shareDoc()">📤 Jaa</button>
 </div>
+<!-- PROJEKTIN VALINTA -->
+<div style="background:#e8f4fc;border-bottom:2px solid #006CB1;padding:8px 14px;display:flex;align-items:center;gap:10px;">
+  <span style="font-size:11px;font-weight:700;color:#006CB1;white-space:nowrap;">📁 PROJEKTI:</span>
+  <select id="projektiValinta" onchange="valitseProjekti(this.value)" style="flex:1;border:none;background:transparent;font-family:inherit;font-size:12px;color:#1a2530;outline:none;cursor:pointer;">
+    <option value="">— Valitse projekti tai täytä käsin —</option>
+  </select>
+  <button onclick="tallennaProjektiksi()" style="flex-shrink:0;padding:5px 10px;background:#006CB1;color:white;border:none;border-radius:6px;font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">💾 Tallenna projektiksi</button>
+</div>
+
 
 <div class="page">
 
@@ -632,5 +643,64 @@ function fmtFi(s) {
 }
 
 </script>
+
+<script>
+var fbConfig2 = {
+  apiKey: "AIzaSyB_SEcmhmzBBldkbh8CQYL7ncQGVyZIDM4",
+  authDomain: "bcfloors-a25ea.firebaseapp.com",
+  projectId: "bcfloors-a25ea",
+  storageBucket: "bcfloors-a25ea.firebasestorage.app",
+  messagingSenderId: "160878550016",
+  appId: "1:160878550016:web:9d42f64d0d02375a178ce5"
+};
+if (!firebase.apps.length) firebase.initializeApp(fbConfig2);
+var fbDb2 = firebase.firestore();
+
+fbDb2.collection('projects').orderBy('tyomaa').onSnapshot(function(snap) {
+  var sel = document.getElementById('projektiValinta');
+  sel.innerHTML = '<option value="">— Valitse projekti tai täytä käsin —</option>';
+  snap.forEach(function(d) {
+    var p = d.data();
+    var opt = document.createElement('option');
+    opt.value = d.id;
+    opt.textContent = (p.tyomaa||'') + (p.tilaaja ? ' – ' + p.tilaaja : '') + (p.tyonro ? ' ('+p.tyonro+')' : '');
+    opt.setAttribute('data-tilaaja', p.tilaaja||'');
+    opt.setAttribute('data-tyomaa', p.tyomaa||'');
+    opt.setAttribute('data-tyonro', p.tyonro||'');
+    opt.setAttribute('data-yhteys', p.yhteys||'');
+    sel.appendChild(opt);
+  });
+});
+
+function valitseProjekti(id) {
+  if (!id) return;
+  var sel = document.getElementById('projektiValinta');
+  var opt = sel.options[sel.selectedIndex];
+  if (!opt) return;
+
+  // Fill tilaaja
+  var tilaaja = opt.getAttribute('data-tilaaja');
+  var tilaajaSel = document.getElementById('tilaaja');
+  if (tilaajaSel) {
+    for (var i=0; i<tilaajaSel.options.length; i++) {
+      if (tilaajaSel.options[i].text === tilaaja) {
+        tilaajaSel.selectedIndex = i;
+        var txt = document.getElementById('tilaaja_txt');
+        if (txt) { txt.style.display='none'; txt.value=tilaaja; }
+        break;
+      }
+    }
+  }
+
+  // Fill työmaa
+  var tyomaaInput = document.getElementById('tyomaa');
+  if (tyomaaInput) tyomaaInput.value = opt.getAttribute('data-tyomaa');
+
+  // Fill työnro
+  var tyonroInput = document.getElementById('tyonro');
+  if (tyonroInput) tyonroInput.value = opt.getAttribute('data-tyonro');
+}
+</script>
+
 </body>
 </html>
