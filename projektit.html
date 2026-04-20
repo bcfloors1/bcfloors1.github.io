@@ -155,8 +155,8 @@ function renderProjects() {
     if (tags) html += '<div class="proj-tags">'+tags+'</div>';
     html += '</div>';
     html += '<div class="proj-actions">';
-    html += '<button class="proj-btn" onclick="editProject(''+p._fbId+'')">&#9998; Muokkaa</button>';
-    html += '<button class="proj-btn del" onclick="deleteProject(''+p._fbId+'')">&#128465; Poista</button>';
+    html += '<button class="proj-btn" data-id="'+p._fbId+'" onclick="editProject(this.dataset.id)">&#9998; Muokkaa</button>';
+    html += '<button class="proj-btn del" data-id="'+p._fbId+'" onclick="deleteProject(this.dataset.id)">&#128465; Poista</button>';
     html += '</div></div>';
   });
   list.innerHTML = html;
