@@ -389,24 +389,36 @@ function closeEdit(){document.getElementById('editOverlay').classList.remove('op
 function saveJob(){
   var nm=document.getElementById('f-name').value.trim(), dt=document.getElementById('f-date').value;
   if(!nm||!dt){alert('Syötä nimi ja päivämäärä!');return;}
+  if(!window.db){alert('Tietokantayhteys ei ole valmis, yritä hetken kuluttua uudelleen.');return;}
   var j={id:editId||String(Date.now()),name:nm,date:dt,m2:document.getElementById('f-m2').value,sub:document.getElementById('f-sub').value,status:document.getElementById('f-status').value,betoni:document.getElementById('f-betoni').value,method:document.getElementById('f-method').value,note:document.getElementById('f-note').value};
-  var jd=new Date(dt+'T12:00:00'), n=new Date(), dd=n.getDay(), m=new Date(n);
-  m.setDate(n.getDate()+(dd===0?-6:1-dd)); m.setHours(0,0,0,0);
-  if(view==='week') wOff=Math.floor((jd-m)/(7*86400000));
+  var jd=new Date(dt+'T12:00:00'), n=new Date(), dd=n.getDay(), m2=new Date(n);
+  m2.setDate(n.getDate()+(dd===0?-6:1-dd)); m2.setHours(0,0,0,0);
+  if(view==='week') wOff=Math.floor((jd-m2)/(7*86400000));
   else mOff=(jd.getFullYear()-n.getFullYear())*12+jd.getMonth()-n.getMonth();
   if(editId){
     var ex=jobs.find(function(x){return x.id===editId;});
-    if(ex&&ex._fbId) window.fbUpdateDoc(window.fbDoc(window.db,'jobs',ex._fbId),j).catch(console.error);
+    if(ex&&ex._fbId){
+      import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js').then(function(fs){
+        fs.updateDoc(fs.doc(window.db,'jobs',ex._fbId),j);
+      });
+    }
   } else {
-    window.fbAddDoc(window.fbCollection(window.db,'jobs'),j).catch(console.error);
+    import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js').then(function(fs){
+      fs.addDoc(fs.collection(window.db,'jobs'),j);
+    });
   }
   closeEdit();
 }
 function deleteJob(){
   if(!editId)return;
   if(!confirm('Poistetaanko?'))return;
+  if(!window.db){alert('Tietokantayhteys ei ole valmis.');return;}
   var ex=jobs.find(function(x){return x.id===editId;});
-  if(ex&&ex._fbId) window.fbDeleteDoc(window.fbDoc(window.db,'jobs',ex._fbId)).catch(console.error);
+  if(ex&&ex._fbId){
+    import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js').then(function(fs){
+      fs.deleteDoc(fs.doc(window.db,'jobs',ex._fbId));
+    });
+  }
   closeEdit();
 }
 
