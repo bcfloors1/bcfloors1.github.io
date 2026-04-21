@@ -53,10 +53,10 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f8fafc;color:var(--
 .job-note{font-size:11px;color:var(--muted);margin-top:3px;}
 .add-day-btn{width:100%;padding:7px;background:none;border:none;color:var(--blue);font-size:12px;font-weight:600;cursor:pointer;border-top:1px dashed var(--border);font-family:inherit;}
 .month-view{padding:0 0 80px;}
-.month-grid{display:grid;grid-template-columns:repeat(7,1fr);}
+.month-grid{display:grid;grid-template-columns:28px repeat(7,1fr);}
 .month-dow{text-align:center;padding:8px 2px;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;background:white;border-bottom:1px solid var(--border);}
 .month-cell{min-height:64px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);padding:4px;cursor:pointer;background:white;}
-.month-cell:nth-child(7n){border-right:none;}
+.month-cell:nth-child(8n){border-right:none;}
 .month-cell.other-month{background:#fafafa;}
 .month-cell.today-cell{background:#eff6ff;}
 .month-num{font-size:12px;font-weight:600;margin-bottom:2px;}
@@ -68,6 +68,8 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f8fafc;color:var(--
 .month-dot.done{background:var(--green-light);color:#166534;}
 .month-dot.todo{background:var(--yellow-light);color:#92400e;}
 .month-more{font-size:9px;color:var(--muted);}
+.month-wn{background:#f8fafc;border-right:2px solid var(--border);border-bottom:1px solid var(--border);padding:4px 2px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--muted);}
+.month-dow-wn{background:white;border-right:2px solid var(--border);border-bottom:1px solid var(--border);padding:8px 2px;text-align:center;font-size:10px;font-weight:700;color:var(--muted);}
 .month-cell.holiday{background:#fff5f5;}
 .month-cell.holiday .month-num{color:#dc2626;font-weight:800;}
 .holiday-name{font-size:8px;color:#dc2626;margin-bottom:1px;font-weight:600;}
@@ -370,11 +372,24 @@ function renderMonth(){
   var fd=new Date(y,mo,1), ld=new Date(y,mo+1,0);
   var sdow=fd.getDay()===0?6:fd.getDay()-1;
   var h='<div class="month-grid">';
+  h+='<div class="month-dow-wn">Vk</div>';
   ['Ma','Ti','Ke','To','Pe','La','Su'].forEach(function(n){h+='<div class="month-dow">'+n+'</div>';});
-  for(var i=0;i<sdow;i++){var pd=new Date(y,mo,-sdow+i+1);h+='<div class="month-cell other-month"><div class="month-num">'+pd.getDate()+'</div></div>';}
+  // Add week number for first row, then empty cells
+  if(sdow>0){
+    var firstDay=new Date(y,mo,1);
+    h+='<div class="month-wn">'+wkNum(firstDay)+'</div>';
+    for(var i=0;i<sdow;i++){var pd=new Date(y,mo,-sdow+i+1);h+='<div class="month-cell other-month"><div class="month-num">'+pd.getDate()+'</div></div>';}
+  } else {
+    // Month starts on Monday - add week number before first day
+    h+='<div class="month-wn">'+wkNum(new Date(y,mo,1))+'</div>';
+  }
   var holidays=getFinnishHolidays(y);
   for(var d=1;d<=ld.getDate();d++){
     var dt=new Date(y,mo,d), di=iso(dt), dj=jobs.filter(function(j){return j.date===di;}), tc=isToday(dt)?' today-cell':'';
+    // Add week number before Monday (but not first row - already handled)
+    if(dt.getDay()===1 && (d>1 || sdow===0)){
+      h+='<div class="month-wn">'+wkNum(dt)+'</div>';
+    }
     var hname=holidays[di]||'';
     var hcls=hname?' holiday':'';
     h+='<div class="month-cell'+tc+hcls+'" data-di="'+di+'" onclick="openDay(this.getAttribute(\'data-di\'))"><div class="month-num">'+d+'</div>';
@@ -391,7 +406,7 @@ function renderMonth(){
     h+='</div>';
   }
   var tot=sdow+ld.getDate(), rem=tot%7===0?0:7-tot%7;
-  for(var i=0;i<rem;i++)h+='<div class="month-cell other-month"><div class="month-num">'+(i+1)+'</div></div>';
+  if(rem>0)for(var i=0;i<rem;i++)h+='<div class="month-cell other-month"><div class="month-num">'+(i+1)+'</div></div>';
   h+='</div>';
   document.getElementById('monthView').innerHTML=h;
 }
