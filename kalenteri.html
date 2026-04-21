@@ -207,9 +207,8 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f8fafc;color:var(--
     </div>
     <div class="ff"><label>Betoni varattu</label>
       <select id="f-betoni">
-        <option value="">— Valitse —</option>
+        <option value="ei" selected>Ei</option>
         <option value="kyllä">Kyllä</option>
-        <option value="ei">Ei</option>
       </select>
     </div>
     <div class="ff"><label>Valumenetelmä</label>
@@ -466,7 +465,7 @@ function openAdd(date){
   document.getElementById('f-m2').value='';
   document.getElementById('f-sub').value='';
   document.getElementById('f-status').value='todo';
-  document.getElementById('f-betoni').value='';
+  document.getElementById('f-betoni').value='ei';
   document.getElementById('f-method').value='';
   document.getElementById('f-note').value='';
   document.getElementById('deleteBtn').style.display='none';
@@ -482,7 +481,7 @@ function openEdit(id){
   document.getElementById('f-m2').value=j.m2||'';
   document.getElementById('f-sub').value=j.sub||'';
   document.getElementById('f-status').value=j.status||'todo';
-  document.getElementById('f-betoni').value=j.betoni||'';
+  document.getElementById('f-betoni').value=j.betoni||'ei';
   document.getElementById('f-method').value=j.method||'';
   document.getElementById('f-note').value=j.note||'';
   document.getElementById('deleteBtn').style.display='block';
