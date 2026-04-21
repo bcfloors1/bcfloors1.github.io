@@ -370,14 +370,19 @@ function renderMonth(){
   var h='<div class="month-grid">';
   ['Ma','Ti','Ke','To','Pe','La','Su'].forEach(function(n){h+='<div class="month-dow">'+n+'</div>';});
   for(var i=0;i<sdow;i++){var pd=new Date(y,mo,-sdow+i+1);h+='<div class="month-cell other-month"><div class="month-num">'+pd.getDate()+'</div></div>';}
+  var holidays=getFinnishHolidays(y);
   for(var d=1;d<=ld.getDate();d++){
     var dt=new Date(y,mo,d), di=iso(dt), dj=jobs.filter(function(j){return j.date===di;}), tc=isToday(dt)?' today-cell':'';
-    h+='<div class="month-cell'+tc+'" data-di="'+di+'" onclick="openDay(this.getAttribute(\'data-di\'))"><div class="month-num">'+d+'</div>';
+    var hname=holidays[di]||'';
+    var hcls=hname?' holiday':'';
+    h+='<div class="month-cell'+tc+hcls+'" data-di="'+di+'" onclick="openDay(this.getAttribute(\'data-di\'))"><div class="month-num">'+d+'</div>';
+    if(hname)h+='<div class="holiday-name">'+hname+'</div>';
     var shown=0;
     dj.forEach(function(j){
       if(shown>=2)return;
       var cls=j.status==='done'?'done':j.sub==='BET'?'bet':j.sub==='BLG'?'blg':'todo';
-      h+='<div class="month-dot '+cls+'">'+j.name.split(',')[0].substring(0,10)+'</div>';
+      var bdot=j.betoni==='kyllä'?'<span class="betoni-dot betoni-ok"></span>':j.betoni==='ei'?'<span class="betoni-dot betoni-ei"></span>':'';
+      h+='<div class="month-dot '+cls+'" style="display:flex;align-items:center;justify-content:space-between;">'+j.name.split(',')[0].substring(0,10)+bdot+'</div>';
       shown++;
     });
     if(dj.length>2)h+='<div class="month-more">+'+(dj.length-2)+' lisää</div>';
