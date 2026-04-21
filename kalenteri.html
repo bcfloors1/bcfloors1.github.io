@@ -392,11 +392,16 @@ function renderMonth(){
     h+='<div class="month-wn">'+wkNum(new Date(y,mo,1))+'</div>';
   }
   var holidays=getFinnishHolidays(y);
+  var firstWkAdded = sdow>0; // if sdow>0 we already added first week number
   for(var d=1;d<=ld.getDate();d++){
     var dt=new Date(y,mo,d), di=iso(dt), dj=jobs.filter(function(j){return j.date===di;}), tc=isToday(dt)?' today-cell':'';
-    // Add week number before Monday (but not first row - already handled)
-    if(dt.getDay()===1 && (d>1 || sdow===0)){
-      h+='<div class="month-wn">'+wkNum(dt)+'</div>';
+    // Add week number before each Monday
+    if(dt.getDay()===1){
+      if(!firstWkAdded){
+        firstWkAdded=true;
+      } else {
+        h+='<div class="month-wn">'+wkNum(dt)+'</div>';
+      }
     }
     var hname=holidays[di]||'';
     var hcls=hname?' holiday':'';
