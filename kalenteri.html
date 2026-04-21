@@ -381,7 +381,7 @@ function renderMonth(){
     for(var i=0;i<sdow;i++){
       var pd=new Date(y,mo,-sdow+i+1), pdi=iso(pd);
       var pdj=jobs.filter(function(j){return j.date===pdi;});
-      h+='<div class="month-cell other-month" data-di="'+pdi+'" onclick="openDay(this.getAttribute('data-di'))"><div class="month-num">'+pd.getDate()+'</div>';
+      h+='<div class="month-cell other-month" data-di="'+pdi+'" onclick="openDay(this.dataset.di)"><div class="month-num">'+pd.getDate()+'</div>';
       pdj.forEach(function(j){
         var cls=j.status==='done'?'done':j.sub==='BET'?'bet':j.sub==='BLG'?'blg':'todo';
         var bdot=j.betoni==='kyllä'?'<span style="color:#22c55e;font-weight:900;font-size:10px;">✓</span>':j.betoni==='ei'?'<span style="color:#ef4444;font-weight:900;font-size:10px;">✗</span>':'';
@@ -419,7 +419,7 @@ function renderMonth(){
     for(var i=0;i<rem;i++){
       var nd=new Date(y,mo+1,i+1), ndi=iso(nd);
       var ndj=jobs.filter(function(j){return j.date===ndi;});
-      h+='<div class="month-cell other-month" data-di="'+ndi+'" onclick="openDay(this.getAttribute('data-di'))"><div class="month-num">'+(i+1)+'</div>';
+      h+='<div class="month-cell other-month" data-di="'+ndi+'" onclick="openDay(this.dataset.di)"><div class="month-num">'+(i+1)+'</div>';
       ndj.forEach(function(j){
         var cls=j.status==='done'?'done':j.sub==='BET'?'bet':j.sub==='BLG'?'blg':'todo';
         var bdot=j.betoni==='kyllä'?'<span style="color:#22c55e;font-weight:900;font-size:10px;">✓</span>':j.betoni==='ei'?'<span style="color:#ef4444;font-weight:900;font-size:10px;">✗</span>':'';
