@@ -352,6 +352,7 @@
             <option>Swerock Oy</option>
           </select>
         </div>
+        <div class="f"><label>Bet. toim. yhteyshenkilö</label><input type="text" id="bp_betoni_yhteys" placeholder="Nimi"></div>
         <div class="f" style="flex:1.5"><label>Yhteyshenkilö</label><input type="text" id="bp_yhteys" placeholder="Nimi"></div>
       </div>
     </div>
@@ -898,6 +899,7 @@ fbDb.collection('projects').orderBy('tyomaa').onSnapshot(function(snap) {
     opt.setAttribute('data-yhteys', p.yhteys||'');
     opt.setAttribute('data-toimittaja', p.toimittaja||'');
     opt.setAttribute('data-osoite', p.osoite||'');
+    opt.setAttribute('data-betoni-yhteys', p.betoniYhteys||'');
     sel.appendChild(opt);
   });
   if (cur) sel.value = cur;
@@ -959,6 +961,10 @@ function valitseProjekti(id) {
       if (toimSel.options[i].text === toimittaja) { toimSel.selectedIndex = i; break; }
     }
   }
+
+  // Fill betonin toimittajan yhteyshenkilö
+  var betoniYhteys = document.getElementById('bp_betoni_yhteys');
+  if (betoniYhteys) betoniYhteys.value = opt.getAttribute('data-betoni-yhteys') || '';
 }
 
 function tallennaProjektiksi() {

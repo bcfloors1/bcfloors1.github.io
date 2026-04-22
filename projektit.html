@@ -107,6 +107,9 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f8fafc;color:#1e293
         <option>Lujabetoni Oy</option><option>Swerock Oy</option>
       </select>
     </div>
+    <div class="ff"><label>Betonin toimittajan yhteyshenkilö</label>
+      <input type="text" id="p-betoni-yhteys" placeholder="Yhteyshenkilön nimi">
+    </div>
     <button class="btn-save" onclick="saveProject()">Tallenna</button>
   </div>
 </div>
@@ -220,7 +223,7 @@ function renderProjects() {
   var html = '';
   projects.forEach(function(p) {
     var tags = '';
-    if (p.toimittaja) tags += '<span class="ptag">'+p.toimittaja+'</span>';
+    if (p.toimittaja) tags += '<span class="ptag">'+p.toimittaja+(p.betoniYhteys?' / '+p.betoniYhteys:'')+'</span>';
     html += '<div class="proj-card">';
     html += '<div class="proj-main">';
     html += '<div class="proj-name">'+(p.tyomaa||'Nimetön kohde')+'</div>';
@@ -247,6 +250,7 @@ function openAdd() {
   document.getElementById('p-tyonro').value = '';
   document.getElementById('p-yhteys').value = '';
   document.getElementById('p-toimittaja').value = '';
+  document.getElementById('p-betoni-yhteys').value = '';
   document.getElementById('tilaaja-muu-wrap').style.display = 'none';
   document.getElementById('overlay').classList.add('open');
 }
@@ -275,6 +279,7 @@ function editProject(fbId) {
   document.getElementById('p-tyonro').value = p.tyonro || '';
   document.getElementById('p-yhteys').value = p.yhteys || '';
   document.getElementById('p-toimittaja').value = p.toimittaja || '';
+  document.getElementById('p-betoni-yhteys').value = p.betoniYhteys || '';
   document.getElementById('overlay').classList.add('open');
 }
 
@@ -301,7 +306,8 @@ function saveProject() {
     osoite: document.getElementById('p-osoite').value.trim(),
     tyonro: document.getElementById('p-tyonro').value.trim(),
     yhteys: document.getElementById('p-yhteys').value.trim(),
-    toimittaja: document.getElementById('p-toimittaja').value
+    toimittaja: document.getElementById('p-toimittaja').value,
+    betoniYhteys: document.getElementById('p-betoni-yhteys').value.trim()
   };
   if (editId) {
     db.collection('projects').doc(editId).update(p).catch(console.error);
