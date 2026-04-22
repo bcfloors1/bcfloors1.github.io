@@ -54,7 +54,7 @@
   .hdr-title { color: white; font-size: 14px; font-weight: 700; letter-spacing: 0.5px; }
   .hdr-sub { color: rgba(255,255,255,0.55); font-size: 9px; margin-top: 3px; }
 
-  .body { padding: 8px 10px; display: flex; flex-direction: column; gap: 8px; }
+  .body { padding: 4px 8px; display: flex; flex-direction: column; gap: 4px; }
 
   .sec-title {
     background: #2e6da4;
@@ -62,20 +62,20 @@
     font-size: 9px;
     font-weight: 700;
     letter-spacing: 1px;
-    padding: 4px 10px;
-    margin-bottom: 6px;
+    padding: 2px 8px;
+    margin-bottom: 3px;
   }
 
-  .frow { display: flex; gap: 4px; margin-bottom: 4px; }
+  .frow { display: flex; gap: 3px; margin-bottom: 2px; }
 
   .f {
     flex: 1;
     background: #f2f5f8;
     border: 1px solid #c8d0d8;
-    padding: 4px 6px 5px;
+    padding: 2px 5px 3px;
     display: flex;
     flex-direction: column;
-    min-height: 36px;
+    min-height: 28px;
   }
   .f label {
     font-size: 8px;
@@ -103,11 +103,11 @@
     padding-bottom: 0;
   }
   .f textarea { resize: none; height: 22px; }
-  .f.tall { min-height: 50px; }
-  .f.tall textarea { height: 36px; }
+  .f.tall { min-height: 36px; }
+  .f.tall textarea { height: 22px; }
 
   /* CHECKBOX ROWS */
-  .cbsec { padding: 2px 8px 6px; display: flex; flex-direction: column; gap: 8px; }
+  .cbsec { padding: 1px 6px 3px; display: flex; flex-direction: column; gap: 4px; }
   .cbrow { display: flex; align-items: center; flex-wrap: wrap; gap: 0; }
   .cblabel {
     font-size: 10px;
@@ -142,8 +142,8 @@
   .kyrow {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px 20px;
-    padding: 4px 8px;
+    gap: 4px 12px;
+    padding: 2px 6px;
     align-items: center;
   }
   .kyitem { display: flex; align-items: center; gap: 8px; }
@@ -169,8 +169,8 @@
   .sirote-row {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 4px 8px;
+    gap: 6px;
+    padding: 2px 6px;
     flex-wrap: wrap;
   }
   .sirote-row .kylabel { font-size: 10px; font-weight: 700; color: #006CB1; min-width: 56px; }
@@ -189,10 +189,10 @@
   /* SIGNATURES */
   .sigs {
     display: flex;
-    gap: 10px;
-    padding: 8px 10px 6px;
+    gap: 8px;
+    padding: 4px 8px 4px;
     border-top: 1px solid #c8d0d8;
-    margin-top: 4px;
+    margin-top: 2px;
   }
   .sig { flex: 1; }
   .sig-title { font-size: 9px; font-weight: 700; color: #2e6da4; margin-bottom: 6px; }
@@ -220,7 +220,7 @@
     background: white;
     width: 100%;
     max-width: 360px;
-    height: 80px;
+    height: 60px;
     display: block;
     touch-action: none;
     cursor: crosshair;
@@ -259,9 +259,10 @@
     .sig-canvas { border: 1px solid #ccc !important; }
   }
   @media print {
-    body { background: white; }
+    body { background: white; margin: 0; padding: 0; }
     .no-print { display: none !important; }
     .page { margin: 0; box-shadow: none; width: 100%; }
+    @page { size: A4 portrait; margin: 5mm; }
   }
 </style>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
