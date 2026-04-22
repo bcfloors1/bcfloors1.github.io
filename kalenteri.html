@@ -56,7 +56,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f8fafc;color:var(--
 .month-grid{display:grid;grid-template-columns:28px repeat(5,1fr);}
 .month-dow{text-align:center;padding:8px 2px;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;background:white;border-bottom:1px solid var(--border);}
 .month-cell{min-height:64px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);padding:4px;cursor:pointer;background:white;}
-.month-cell:nth-child(7n){border-right:none;}
+.month-cell:nth-child(6n){border-right:none;}
 .month-cell.other-month{background:#fafafa;}
 .month-cell.today-cell{background:#eff6ff;}
 .month-num{font-size:12px;font-weight:600;margin-bottom:2px;}
@@ -254,10 +254,10 @@ function wkNum(d) {
 }
 function weekDays(off) {
   var n=new Date(), dd=n.getDay(), m=new Date(n);
-  m.setDate(n.getDate()+(dd===0?-6:1-dd)+off*2*5); m.setHours(0,0,0,0);
-  // Return 2 weeks Mon-Fri only
+  m.setDate(n.getDate()+(dd===0?-6:1-dd)+off*3*7); m.setHours(0,0,0,0);
+  // Return 3 weeks Mon-Fri only
   var r=[];
-  for(var w=0;w<2;w++){
+  for(var w=0;w<3;w++){
     for(var i=0;i<5;i++){
       var x=new Date(m);
       x.setDate(m.getDate()+w*7+i);
@@ -353,21 +353,47 @@ window.render = function(){
 
 function renderWeek(){
   var days=weekDays(wOff);
-  document.getElementById('navLabel').textContent='Viikko '+wkNum(days[0]);
-  document.getElementById('navSub').textContent=fmt(days[0])+' - '+fmt(days[6])+' '+days[0].getFullYear();
+  var weeks=[days.slice(0,5),days.slice(5,10),days.slice(10,15)];
+  var label='Vk '+wkNum(weeks[0][0])+' – '+wkNum(weeks[2][0]);
+  document.getElementById('navLabel').textContent=label;
+  document.getElementById('navSub').textContent=fmt(weeks[0][0])+' – '+fmt(weeks[2][4])+' '+weeks[2][4].getFullYear();
   var wj=jobs.filter(function(j){return days.some(function(d){return iso(d)===j.date;});});
   stats(wj);
-  var h='';
-  days.forEach(function(d){
-    var di=iso(d), dj=jobs.filter(function(j){return j.date===di;}), tc=isToday(d)?' today':'';
-    h+='<div class="day-block"><div class="day-header'+tc+'"><span class="day-name">'+DL[d.getDay()]+'</span><span class="day-date">'+fmt(d)+'</span></div>';
-    if(!dj.length)h+='<div class="day-empty">Ei kohteita</div>';
-    else dj.forEach(function(j){h+=card(j);});
-    h+='<button class="add-day-btn" data-di="'+di+'" onclick="openAdd(this.getAttribute(\'data-di\'))">+ Lisää tälle päivälle</button></div>';
+  var holidays=getFinnishHolidays(weeks[0][0].getFullYear());
+  var h='<div style="overflow-x:auto;padding:8px 8px 80px;">';
+  h+='<table style="width:100%;border-collapse:collapse;">';
+  h+='<thead><tr>';
+  h+='<th style="width:28px;padding:4px 2px;font-size:10px;color:var(--muted);font-weight:700;text-align:center;border-bottom:2px solid var(--border);border-right:2px solid var(--border);">Vk</th>';
+  ['Ma','Ti','Ke','To','Pe'].forEach(function(d){
+    h+='<th style="padding:4px 2px;font-size:11px;color:var(--muted);font-weight:700;text-align:center;border-bottom:2px solid var(--border);">'+d+'</th>';
   });
+  h+='</tr></thead><tbody>';
+  weeks.forEach(function(week){
+    h+='<tr>';
+    h+='<td style="text-align:center;font-size:10px;font-weight:700;color:var(--muted);padding:2px;vertical-align:top;border-right:2px solid var(--border);background:var(--gray);">'+wkNum(week[0])+'</td>';
+    week.forEach(function(d){
+      var di=iso(d), dj=jobs.filter(function(j){return j.date===di;});
+      var todayBg=isToday(d)?'background:#dbeafe;':'';
+      var hname=holidays[di]||'';
+      var hbg=hname?'background:#fff5f5;':'';
+      var bg=hname?hbg:todayBg;
+      h+='<td style="vertical-align:top;padding:3px 2px;border:1px solid var(--border);'+bg+'">';
+      h+='<div style="font-size:11px;font-weight:700;color:'+(hname?'#dc2626':isToday(d)?'var(--blue)':'var(--text)')+';">'+d.getDate()+'.</div>';
+      if(hname)h+='<div style="font-size:8px;color:#dc2626;line-height:1.2;margin-bottom:2px;">'+hname+'</div>';
+      dj.forEach(function(j){
+        var bg2=j.sub==='BET'?'var(--bet-light)':j.sub==='BLG'?'var(--blg-light)':j.status==='done'?'var(--green-light)':'var(--yellow-light)';
+        var col2=j.sub==='BET'?'var(--bet)':j.sub==='BLG'?'var(--blg)':j.status==='done'?'#166534':'#92400e';
+        var bdot=j.betoni==='kyllä'?'<span style="color:#22c55e;">✓</span>':j.betoni==='ei'?'<span style="color:#ef4444;">✗</span>':'';
+        h+='<div data-id="'+j.id+'" onclick="openEdit(this.dataset.id)" style="background:'+bg2+';color:'+col2+';font-size:9px;padding:2px 3px;border-radius:3px;margin-top:2px;cursor:pointer;line-height:1.3;">'+j.name.split(',')[0].substring(0,12)+(j.m2?' '+j.m2+'m²':'')+' '+bdot+'</div>';
+      });
+      h+='<div data-di="'+di+'" onclick="openAdd(this.dataset.di)" style="font-size:11px;color:var(--blue);text-align:center;padding:1px;cursor:pointer;opacity:0.5;line-height:1;">+</div>';
+      h+='</td>';
+    });
+    h+='</tr>';
+  });
+  h+='</tbody></table></div>';
   document.getElementById('weekView').innerHTML=h;
 }
-
 function renderMonth(){
   var n=new Date(), y=n.getFullYear(), mo=n.getMonth()+mOff;
   while(mo>11){mo-=12;y++;}while(mo<0){mo+=12;y--;}
