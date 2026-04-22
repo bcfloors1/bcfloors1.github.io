@@ -360,39 +360,53 @@ function renderWeek(){
   var wj=jobs.filter(function(j){return days.some(function(d){return iso(d)===j.date;});});
   stats(wj);
   var holidays=getFinnishHolidays(weeks[0][0].getFullYear());
-  var h='<div style="overflow-x:auto;padding:8px 8px 80px;">';
-  h+='<table style="width:100%;border-collapse:collapse;">';
+  var DN=['Maanantai','Tiistai','Keskiviikko','Torstai','Perjantai'];
+  var DS2=['Ma','Ti','Ke','To','Pe'];
+
+  // Layout: rows=weekdays (Ma-Pe), cols=weeks (vk1, vk2, vk3)
+  var h='<div style="padding:8px 8px 80px;">';
+  h+='<table style="width:100%;height:calc(100vh - 280px);border-collapse:collapse;table-layout:fixed;">';
+
+  // Header row: empty corner + week numbers
   h+='<thead><tr>';
-  h+='<th style="width:28px;padding:4px 2px;font-size:10px;color:var(--muted);font-weight:700;text-align:center;border-bottom:2px solid var(--border);border-right:2px solid var(--border);">Vk</th>';
-  ['Ma','Ti','Ke','To','Pe'].forEach(function(d){
-    h+='<th style="padding:4px 2px;font-size:11px;color:var(--muted);font-weight:700;text-align:center;border-bottom:2px solid var(--border);">'+d+'</th>';
-  });
-  h+='</tr></thead><tbody>';
+  h+='<th style="width:36px;padding:4px 2px;font-size:10px;color:var(--muted);font-weight:700;border-bottom:2px solid var(--border);border-right:2px solid var(--border);background:var(--gray);"></th>';
   weeks.forEach(function(week){
+    h+='<th style="padding:4px;font-size:11px;font-weight:700;color:var(--blue);text-align:center;border-bottom:2px solid var(--border);border-right:1px solid var(--border);background:var(--gray);">Vk '+wkNum(week[0])+'<div style="font-size:9px;font-weight:400;color:var(--muted);">'+fmt(week[0])+'–'+fmt(week[4])+'</div></th>';
+  });
+  h+='</tr></thead>';
+
+  // Body: 5 rows (Ma-Pe), 3 cols (weeks)
+  h+='<tbody>';
+  for(var day=0;day<5;day++){
     h+='<tr>';
-    h+='<td style="text-align:center;font-size:10px;font-weight:700;color:var(--muted);padding:2px;vertical-align:top;border-right:2px solid var(--border);background:var(--gray);">'+wkNum(week[0])+'</td>';
-    week.forEach(function(d){
-      var di=iso(d), dj=jobs.filter(function(j){return j.date===di;});
+    // Day name column
+    h+='<td style="text-align:center;font-size:10px;font-weight:700;color:var(--muted);padding:2px;vertical-align:middle;border-right:2px solid var(--border);border-bottom:1px solid var(--border);background:var(--gray);writing-mode:vertical-rl;transform:rotate(180deg);height:calc((100vh - 340px)/5);">'+DN[day]+'</td>';
+    // 3 week columns
+    weeks.forEach(function(week){
+      var d=week[day];
+      var di=iso(d);
+      var dj=jobs.filter(function(j){return j.date===di;});
       var todayBg=isToday(d)?'background:#dbeafe;':'';
       var hname=holidays[di]||'';
       var hbg=hname?'background:#fff5f5;':'';
       var bg=hname?hbg:todayBg;
-      h+='<td style="vertical-align:top;padding:3px 2px;border:1px solid var(--border);'+bg+'">';
-      h+='<div style="font-size:11px;font-weight:700;color:'+(hname?'#dc2626':isToday(d)?'var(--blue)':'var(--text)')+';">'+d.getDate()+'.</div>';
-      if(hname)h+='<div style="font-size:8px;color:#dc2626;line-height:1.2;margin-bottom:2px;">'+hname+'</div>';
+      h+='<td style="vertical-align:top;padding:4px;border:1px solid var(--border);'+bg+'">';
+      h+='<div style="font-size:12px;font-weight:700;color:'+(hname?'#dc2626':isToday(d)?'var(--blue)':'var(--text)')+';">'+d.getDate()+'.'+(d.getMonth()+1)+'.</div>';
+      if(hname)h+='<div style="font-size:8px;color:#dc2626;margin-bottom:2px;">'+hname+'</div>';
       dj.forEach(function(j){
         var bg2=j.sub==='BET'?'var(--bet-light)':j.sub==='BLG'?'var(--blg-light)':j.status==='done'?'var(--green-light)':'var(--yellow-light)';
         var col2=j.sub==='BET'?'var(--bet)':j.sub==='BLG'?'var(--blg)':j.status==='done'?'#166534':'#92400e';
-        var bdot=j.betoni==='kyllä'?'<span style="color:#22c55e;">✓</span>':j.betoni==='ei'?'<span style="color:#ef4444;">✗</span>':'';
-        h+='<div data-id="'+j.id+'" onclick="openEdit(this.dataset.id)" style="background:'+bg2+';color:'+col2+';font-size:9px;padding:2px 3px;border-radius:3px;margin-top:2px;cursor:pointer;line-height:1.3;">'+j.name.split(',')[0].substring(0,12)+(j.m2?' '+j.m2+'m²':'')+' '+bdot+'</div>';
+        var bdot=j.betoni==='kyllä'?'<span style="color:#22c55e;font-weight:900;"> ✓</span>':'<span style="color:#ef4444;font-weight:900;"> ✗</span>';
+        h+='<div data-id="'+j.id+'" onclick="openEdit(this.dataset.id)" style="background:'+bg2+';color:'+col2+';font-size:10px;padding:3px 5px;border-radius:4px;margin-top:3px;cursor:pointer;line-height:1.3;">'+j.name.split(',')[0].substring(0,14)+(j.m2?' '+j.m2+'m²':'')+bdot+'</div>';
       });
-      h+='<div data-di="'+di+'" onclick="openAdd(this.dataset.di)" style="font-size:11px;color:var(--blue);text-align:center;padding:1px;cursor:pointer;opacity:0.5;line-height:1;">+</div>';
+      h+='<div data-di="'+di+'" onclick="openAdd(this.dataset.di)" style="font-size:13px;color:var(--blue);text-align:center;padding:2px;cursor:pointer;opacity:0.4;margin-top:2px;">+</div>';
       h+='</td>';
     });
     h+='</tr>';
-  });
+  }
   h+='</tbody></table></div>';
   document.getElementById('weekView').innerHTML=h;
+}
 }
 function renderMonth(){
   var n=new Date(), y=n.getFullYear(), mo=n.getMonth()+mOff;
