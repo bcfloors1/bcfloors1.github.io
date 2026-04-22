@@ -407,7 +407,6 @@ function renderWeek(){
   h+='</tbody></table></div>';
   document.getElementById('weekView').innerHTML=h;
 }
-}
 function renderMonth(){
   var n=new Date(), y=n.getFullYear(), mo=n.getMonth()+mOff;
   while(mo>11){mo-=12;y++;}while(mo<0){mo+=12;y--;}
