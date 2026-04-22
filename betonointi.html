@@ -54,7 +54,7 @@
   .hdr-title { color: white; font-size: 14px; font-weight: 700; letter-spacing: 0.5px; }
   .hdr-sub { color: rgba(255,255,255,0.55); font-size: 9px; margin-top: 3px; }
 
-  .body { padding: 3px 6px; display: flex; flex-direction: column; gap: 2px; }
+  .body { padding: 4px 8px; display: flex; flex-direction: column; gap: 3px; }
 
   .sec-title {
     background: #2e6da4;
@@ -66,19 +66,19 @@
     margin-bottom: 2px;
   }
 
-  .frow { display: flex; gap: 2px; margin-bottom: 1px; }
+  .frow { display: flex; gap: 3px; margin-bottom: 2px; }
 
   .f {
     flex: 1;
     background: #f2f5f8;
     border: 1px solid #c8d0d8;
-    padding: 1px 4px 2px;
+    padding: 2px 5px 3px;
     display: flex;
     flex-direction: column;
-    min-height: 22px;
+    min-height: 26px;
   }
   .f label {
-    font-size: 7px;
+    font-size: 8px;
     color: #2e6da4;
     font-weight: 700;
     letter-spacing: 0.3px;
@@ -90,7 +90,7 @@
     border: none;
     background: transparent;
     font-family: Arial, sans-serif;
-    font-size: 10px;
+    font-size: 11px;
     color: #1a2530;
     outline: none;
     width: 100%;
@@ -99,32 +99,34 @@
   }
   .f select {
     cursor: pointer;
+    -webkit-appearance: auto;
+    -moz-appearance: auto;
     appearance: auto;
     padding-bottom: 0;
   }
   .f textarea { resize: none; height: 22px; }
-  .f.tall { min-height: 28px; }
-  .f.tall textarea { height: 16px; }
+  .f.tall { min-height: 32px; }
+  .f.tall textarea { height: 20px; }
 
   /* CHECKBOX ROWS */
-  .cbsec { padding: 1px 4px 2px; display: flex; flex-direction: column; gap: 2px; }
+  .cbsec { padding: 1px 5px 3px; display: flex; flex-direction: column; gap: 3px; }
   .cbrow { display: flex; align-items: center; flex-wrap: wrap; gap: 0; }
   .cblabel {
-    font-size: 9px;
+    font-size: 10px;
     font-weight: 700;
     color: #006CB1;
-    min-width: 80px;
+    min-width: 85px;
     flex-shrink: 0;
   }
   .cbgroup { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; }
   .cbi { display: flex; align-items: center; gap: 4px; cursor: pointer; }
   .cbi input[type=checkbox] {
     width: 13px; height: 13px;
-    accent-color: #2e6da4;
+    accent-color: #2e6da4; outline-color: #2e6da4;
     cursor: pointer;
     flex-shrink: 0;
   }
-  .cbi span { font-size: 9px; user-select: none; }
+  .cbi span { font-size: 10px; user-select: none; }
 
   /* Inline select inside cbgroup */
   .cb-select {
@@ -147,7 +149,7 @@
     align-items: center;
   }
   .kyitem { display: flex; align-items: center; gap: 8px; }
-  .kylabel { font-size: 9px; font-weight: 700; color: #006CB1; min-width: 70px; }
+  .kylabel { font-size: 10px; font-weight: 700; color: #006CB1; min-width: 75px; }
   .kybtns { display: flex; gap: 4px; }
   .kybtns label {
     display: flex;
@@ -155,13 +157,13 @@
     gap: 3px;
     border: 1px solid #2e6da4;
     padding: 3px 9px;
-    font-size: 9px;
+    font-size: 10px;
     cursor: pointer;
     background: white;
     white-space: nowrap;
   }
   .kybtns input[type=radio] {
-    accent-color: #2e6da4;
+    accent-color: #2e6da4; outline-color: #2e6da4;
     width: 11px; height: 11px;
   }
 
@@ -173,7 +175,7 @@
     padding: 1px 4px;
     flex-wrap: wrap;
   }
-  .sirote-row .kylabel { font-size: 9px; font-weight: 700; color: #006CB1; min-width: 50px; }
+  .sirote-row .kylabel { font-size: 10px; font-weight: 700; color: #006CB1; min-width: 55px; }
   .sirote-select {
     font-family: Arial, sans-serif;
     font-size: 10px;
@@ -220,7 +222,7 @@
     background: white;
     width: 100%;
     max-width: 360px;
-    height: 50px;
+    height: 55px;
     display: block;
     touch-action: none;
     cursor: crosshair;
@@ -248,7 +250,7 @@
     border-bottom: 1px solid #999;
     background: transparent;
     font-family: Arial, sans-serif;
-    font-size: 10px;
+    font-size: 11px;
     color: #1a2530;
     outline: none;
     width: 160px;
@@ -257,6 +259,9 @@
   @media print {
     .sig-clear, .sig-hint { display: none !important; }
     .sig-canvas { border: 1px solid #ccc !important; }
+    /* Firefox date fix */
+    input[type=date] { color: #1a2530 !important; }
+    input[type=date]::-moz-focus-inner { border: 0; }
   }
   @media print {
     body { background: white; margin: 0; padding: 0; }
