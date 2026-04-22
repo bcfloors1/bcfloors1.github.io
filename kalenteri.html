@@ -53,10 +53,10 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f8fafc;color:var(--
 .job-note{font-size:11px;color:var(--muted);margin-top:3px;}
 .add-day-btn{width:100%;padding:7px;background:none;border:none;color:var(--blue);font-size:12px;font-weight:600;cursor:pointer;border-top:1px dashed var(--border);font-family:inherit;}
 .month-view{padding:0 0 80px;}
-.month-grid{display:grid;grid-template-columns:28px repeat(7,1fr);}
+.month-grid{display:grid;grid-template-columns:28px repeat(5,1fr);}
 .month-dow{text-align:center;padding:8px 2px;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;background:white;border-bottom:1px solid var(--border);}
 .month-cell{min-height:64px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);padding:4px;cursor:pointer;background:white;}
-.month-cell:nth-child(8n){border-right:none;}
+.month-cell:nth-child(7n){border-right:none;}
 .month-cell.other-month{background:#fafafa;}
 .month-cell.today-cell{background:#eff6ff;}
 .month-num{font-size:12px;font-weight:600;margin-bottom:2px;}
@@ -254,9 +254,16 @@ function wkNum(d) {
 }
 function weekDays(off) {
   var n=new Date(), dd=n.getDay(), m=new Date(n);
-  m.setDate(n.getDate()+(dd===0?-6:1-dd)+off*7); m.setHours(0,0,0,0);
+  m.setDate(n.getDate()+(dd===0?-6:1-dd)+off*2*5); m.setHours(0,0,0,0);
+  // Return 2 weeks Mon-Fri only
   var r=[];
-  for(var i=0;i<7;i++){var x=new Date(m);x.setDate(m.getDate()+i);r.push(x);}
+  for(var w=0;w<2;w++){
+    for(var i=0;i<5;i++){
+      var x=new Date(m);
+      x.setDate(m.getDate()+w*7+i);
+      r.push(x);
+    }
+  }
   return r;
 }
 function setView(v) {
@@ -369,34 +376,34 @@ function renderMonth(){
   var mj=jobs.filter(function(j){return j.date&&j.date.startsWith(y+'-'+String(mo+1).padStart(2,'0'));});
   stats(mj);
   var fd=new Date(y,mo,1), ld=new Date(y,mo+1,0);
-  var sdow=fd.getDay()===0?6:fd.getDay()-1;
+  // Only Mon-Fri: sdow = offset from Monday (0=Mon, 4=Fri, skip weekends)
+  var fdow=fd.getDay(); // 0=Sun,1=Mon...6=Sat
+  var sdow=fdow===0?0:fdow===6?0:fdow-1; // Mon-Fri offset, weekends start on Monday
   var h='<div class="month-grid">';
   h+='<div class="month-dow-wn">Vk</div>';
-  ['Ma','Ti','Ke','To','Pe','La','Su'].forEach(function(n){h+='<div class="month-dow">'+n+'</div>';});
-  // Add week number for first row, then cells with jobs
-  if(sdow>0){
-    var firstDay=new Date(y,mo,1);
-    h+='<div class="month-wn">'+wkNum(firstDay)+'</div>';
-    for(var i=0;i<sdow;i++){
-      var pd=new Date(y,mo,-sdow+i+1), pdi=iso(pd);
-      var pdj=jobs.filter(function(j){return j.date===pdi;});
-      h+='<div class="month-cell other-month" data-di="'+pdi+'" onclick="openDay(this.dataset.di)"><div class="month-num">'+pd.getDate()+'</div>';
-      pdj.forEach(function(j){
-        var cls=j.status==='done'?'done':j.sub==='BET'?'bet':j.sub==='BLG'?'blg':'todo';
-        var bdot=j.betoni==='kyllä'?'<span style="color:#22c55e;font-weight:900;font-size:10px;">✓</span>':j.betoni==='ei'?'<span style="color:#ef4444;font-weight:900;font-size:10px;">✗</span>':'';
-        h+='<div class="month-dot '+cls+'" style="display:flex;align-items:center;justify-content:space-between;">'+j.name.split(',')[0].substring(0,10)+bdot+'</div>';
-      });
-      h+='</div>';
-    }
-  } else {
-    h+='<div class="month-wn">'+wkNum(new Date(y,mo,1))+'</div>';
+  ['Ma','Ti','Ke','To','Pe'].forEach(function(n){h+='<div class="month-dow">'+n+'</div>';});
+  // Add week number for first row + empty Mon-Fri cells before month starts
+  var firstDay=new Date(y,mo,1);
+  h+='<div class="month-wn">'+wkNum(firstDay)+'</div>';
+  for(var i=0;i<sdow;i++){
+    var pd=new Date(y,mo,-sdow+i+1), pdi=iso(pd);
+    var pdj=jobs.filter(function(j){return j.date===pdi;});
+    h+='<div class="month-cell other-month" data-di="'+pdi+'" onclick="openDay(this.dataset.di)"><div class="month-num">'+pd.getDate()+'</div>';
+    pdj.forEach(function(j){
+      var cls=j.status==='done'?'done':j.sub==='BET'?'bet':j.sub==='BLG'?'blg':'todo';
+      var bdot=j.betoni==='kyllä'?'<span style="color:#22c55e;font-weight:900;font-size:10px;">✓</span>':j.betoni==='ei'?'<span style="color:#ef4444;font-weight:900;font-size:10px;">✗</span>':'';
+      h+='<div class="month-dot '+cls+'" style="display:flex;align-items:center;justify-content:space-between;">'+j.name.split(',')[0].substring(0,10)+bdot+'</div>';
+    });
+    h+='</div>';
   }
   var holidays=getFinnishHolidays(y);
-  var firstWkAdded = sdow>0; // if sdow>0 we already added first week number
+  var firstWkAdded = sdow>0;
   for(var d=1;d<=ld.getDate();d++){
-    var dt=new Date(y,mo,d), di=iso(dt), dj=jobs.filter(function(j){return j.date===di;}), tc=isToday(dt)?' today-cell':'';
+    var dt=new Date(y,mo,d), dow=dt.getDay();
+    if(dow===0||dow===6) continue; // skip weekends
+    var di=iso(dt), dj=jobs.filter(function(j){return j.date===di;}), tc=isToday(dt)?' today-cell':'';
     // Add week number before each Monday
-    if(dt.getDay()===1){
+    if(dow===1){
       if(!firstWkAdded){
         firstWkAdded=true;
       } else {
@@ -418,16 +425,18 @@ function renderMonth(){
     if(dj.length>2)h+='<div class="month-more">+'+(dj.length-2)+' lisää</div>';
     h+='</div>';
   }
-  var tot=sdow+ld.getDate(), rem=tot%7===0?0:7-tot%7;
+  // Fill remaining weekdays after month ends
+  var lastDow=ld.getDay(); // day of week of last day
+  var rem=lastDow===0||lastDow===6?0:(lastDow>=1&&lastDow<=5?5-lastDow:0);
   if(rem>0){
-    for(var i=0;i<rem;i++){
-      var nd=new Date(y,mo+1,i+1), ndi=iso(nd);
+    for(var i=1;i<=rem;i++){
+      var nd=new Date(y,mo+1,i), ndi=iso(nd);
       var ndj=jobs.filter(function(j){return j.date===ndi;});
-      h+='<div class="month-cell other-month" data-di="'+ndi+'" onclick="openDay(this.dataset.di)"><div class="month-num">'+(i+1)+'</div>';
+      h+='<div class="month-cell other-month" data-di="'+ndi+'" onclick="openDay(this.dataset.di)"><div class="month-num">'+nd.getDate()+'</div>';
       ndj.forEach(function(j){
         var cls=j.status==='done'?'done':j.sub==='BET'?'bet':j.sub==='BLG'?'blg':'todo';
         var bdot=j.betoni==='kyllä'?'<span style="color:#22c55e;font-weight:900;font-size:10px;">✓</span>':j.betoni==='ei'?'<span style="color:#ef4444;font-weight:900;font-size:10px;">✗</span>':'';
-        h+='<div class="month-dot '+cls+'" style="display:flex;align-items:center;justify-content:space-between;">'+j.name.split(',')[0].substring(0,10)+bdot+'</div>';
+        h+='<div class="month-dot '+cls+'" style="display:flex;align-items:center;justify-content:space-between;">'+nd.getDate()+bdot+'</div>';
       });
       h+='</div>';
     }
