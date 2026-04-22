@@ -42,19 +42,19 @@
 
   .hdr {
     background: #006CB1;
-    padding: 8px 16px 8px;
+    padding: 3px 10px;
     display: flex;
     justify-content: space-between;
     align-items: center;
     border-bottom: 4px solid #e8a020;
-    min-height: 30mm;
+    min-height: 20mm;
   }
   .hdr-logo { display: flex; align-items: center; }
   .hdr-right { text-align: right; }
   .hdr-title { color: white; font-size: 14px; font-weight: 700; letter-spacing: 0.5px; }
   .hdr-sub { color: rgba(255,255,255,0.55); font-size: 9px; margin-top: 3px; }
 
-  .body { padding: 4px 8px; display: flex; flex-direction: column; gap: 4px; }
+  .body { padding: 3px 6px; display: flex; flex-direction: column; gap: 2px; }
 
   .sec-title {
     background: #2e6da4;
@@ -62,35 +62,35 @@
     font-size: 9px;
     font-weight: 700;
     letter-spacing: 1px;
-    padding: 2px 8px;
-    margin-bottom: 3px;
+    padding: 1px 6px;
+    margin-bottom: 2px;
   }
 
-  .frow { display: flex; gap: 3px; margin-bottom: 2px; }
+  .frow { display: flex; gap: 2px; margin-bottom: 1px; }
 
   .f {
     flex: 1;
     background: #f2f5f8;
     border: 1px solid #c8d0d8;
-    padding: 2px 5px 3px;
+    padding: 1px 4px 2px;
     display: flex;
     flex-direction: column;
-    min-height: 28px;
+    min-height: 22px;
   }
   .f label {
-    font-size: 8px;
+    font-size: 7px;
     color: #2e6da4;
     font-weight: 700;
     letter-spacing: 0.3px;
     text-transform: uppercase;
-    margin-bottom: 3px;
+    margin-bottom: 2px;
     white-space: nowrap;
   }
   .f input, .f textarea, .f select {
     border: none;
     background: transparent;
     font-family: Arial, sans-serif;
-    font-size: 11px;
+    font-size: 10px;
     color: #1a2530;
     outline: none;
     width: 100%;
@@ -103,17 +103,17 @@
     padding-bottom: 0;
   }
   .f textarea { resize: none; height: 22px; }
-  .f.tall { min-height: 36px; }
-  .f.tall textarea { height: 22px; }
+  .f.tall { min-height: 28px; }
+  .f.tall textarea { height: 16px; }
 
   /* CHECKBOX ROWS */
-  .cbsec { padding: 1px 6px 3px; display: flex; flex-direction: column; gap: 4px; }
+  .cbsec { padding: 1px 4px 2px; display: flex; flex-direction: column; gap: 2px; }
   .cbrow { display: flex; align-items: center; flex-wrap: wrap; gap: 0; }
   .cblabel {
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 700;
     color: #006CB1;
-    min-width: 90px;
+    min-width: 80px;
     flex-shrink: 0;
   }
   .cbgroup { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; }
@@ -124,7 +124,7 @@
     cursor: pointer;
     flex-shrink: 0;
   }
-  .cbi span { font-size: 10px; user-select: none; }
+  .cbi span { font-size: 9px; user-select: none; }
 
   /* Inline select inside cbgroup */
   .cb-select {
@@ -142,12 +142,12 @@
   .kyrow {
     display: flex;
     flex-wrap: wrap;
-    gap: 4px 12px;
-    padding: 2px 6px;
+    gap: 3px 8px;
+    padding: 1px 4px;
     align-items: center;
   }
   .kyitem { display: flex; align-items: center; gap: 8px; }
-  .kylabel { font-size: 10px; font-weight: 700; color: #006CB1; min-width: 80px; }
+  .kylabel { font-size: 9px; font-weight: 700; color: #006CB1; min-width: 70px; }
   .kybtns { display: flex; gap: 4px; }
   .kybtns label {
     display: flex;
@@ -155,7 +155,7 @@
     gap: 3px;
     border: 1px solid #2e6da4;
     padding: 3px 9px;
-    font-size: 10px;
+    font-size: 9px;
     cursor: pointer;
     background: white;
     white-space: nowrap;
@@ -169,11 +169,11 @@
   .sirote-row {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 2px 6px;
+    gap: 4px;
+    padding: 1px 4px;
     flex-wrap: wrap;
   }
-  .sirote-row .kylabel { font-size: 10px; font-weight: 700; color: #006CB1; min-width: 56px; }
+  .sirote-row .kylabel { font-size: 9px; font-weight: 700; color: #006CB1; min-width: 50px; }
   .sirote-select {
     font-family: Arial, sans-serif;
     font-size: 10px;
@@ -189,8 +189,8 @@
   /* SIGNATURES */
   .sigs {
     display: flex;
-    gap: 8px;
-    padding: 4px 8px 4px;
+    gap: 6px;
+    padding: 3px 6px 3px;
     border-top: 1px solid #c8d0d8;
     margin-top: 2px;
   }
@@ -203,7 +203,7 @@
   .ftr {
     background: #006CB1;
     border-top: 3px solid #e8a020;
-    padding: 5px 12px;
+    padding: 3px 10px;
     display: flex;
     justify-content: space-between;
   }
@@ -220,7 +220,7 @@
     background: white;
     width: 100%;
     max-width: 360px;
-    height: 60px;
+    height: 50px;
     display: block;
     touch-action: none;
     cursor: crosshair;
@@ -274,7 +274,7 @@
   <button class="print-btn" onclick="window.print()">&#128424; Tulosta / Tallenna PDF</button>
 </div>
 <!-- PROJEKTIN VALINTA -->
-<div style="background:#e8f4fc;border-bottom:2px solid #006CB1;padding:8px 14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+<div class="no-print" style="background:#e8f4fc;border-bottom:2px solid #006CB1;padding:8px 14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
   <span style="font-size:11px;font-weight:700;color:#006CB1;white-space:nowrap;">📁 PROJEKTI:</span>
   <select id="projektiValinta" onchange="valitseProjekti(this.value)" style="flex:2;min-width:160px;border:1px solid #c8d0d8;border-radius:4px;background:white;font-family:Arial,sans-serif;font-size:12px;color:#1a2530;outline:none;cursor:pointer;padding:4px 6px;">
     <option value="">— Valitse projekti —</option>
