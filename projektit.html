@@ -71,17 +71,21 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f8fafc;color:#1e293
     <div class="sheet-title" id="sheetTitle">Lisää projekti</div>
     <div class="ff"><label>Tilaaja</label>
       <select id="p-tilaaja" onchange="tilaajaMuu(this)">
-        <option value="">— Valitse tai kirjoita alle —</option>
+        <option value="">— Valitse —</option>
         <option>Tekova Oyj</option><option>Best-Hall Oy</option>
         <option>TT-Estate Oy</option><option>Brand toimitilat Oy</option>
         <option>Jalon Oy</option><option>Jatke Oy</option>
         <option>Jatke Toimitilat Oy</option><option>Varte Oy</option>
-        <option value="__muu__">Muu...</option>
+        <option value="__muu__">+ Uusi tilaaja...</option>
       </select>
     </div>
     <div class="ff" id="tilaaja-muu-wrap" style="display:none">
-      <label>Tilaajan nimi</label>
-      <input type="text" id="p-tilaaja-muu" placeholder="Kirjoita tilaajan nimi">
+      <label>Uuden tilaajan nimi</label>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input type="text" id="p-tilaaja-muu" placeholder="Kirjoita tilaajan nimi" style="flex:1;">
+        <button type="button" onclick="tallennaTilaaja()" style="flex-shrink:0;padding:8px 12px;background:#006CB1;color:white;border:none;border-radius:8px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">+ Tallenna</button>
+      </div>
+      <div id="tilaaja-save-msg" style="font-size:11px;color:#22c55e;margin-top:4px;display:none;">✓ Tilaaja tallennettu!</div>
     </div>
     <div class="ff"><label>Työmaa / Kohde</label>
       <input type="text" id="p-tyomaa" placeholder="esim. Tokmanni, Ähtäri">
@@ -123,6 +127,77 @@ firebase.initializeApp(firebaseConfig);
 var db = firebase.firestore();
 var projects = [];
 var editId = null;
+
+// Load custom tilaajat from Firebase
+var customTilaajat = [];
+db.collection('tilaajat').orderBy('nimi').onSnapshot(function(snap) {
+  customTilaajat = [];
+  snap.forEach(function(d) { customTilaajat.push({nimi: d.data().nimi, id: d.id}); });
+  paivitaTilaajavalikko();
+});
+
+function paivitaTilaajavalikko() {
+  var sel = document.getElementById('p-tilaaja');
+  if (!sel) return;
+  // Remove old custom options (keep built-in ones)
+  var builtIn = ['','Tekova Oyj','Best-Hall Oy','TT-Estate Oy','Brand toimitilat Oy','Jalon Oy','Jatke Oy','Jatke Toimitilat Oy','Varte Oy','__muu__'];
+  // Remove any options not in builtIn
+  for (var i = sel.options.length - 1; i >= 0; i--) {
+    if (builtIn.indexOf(sel.options[i].value) === -1 && builtIn.indexOf(sel.options[i].text) === -1) {
+      sel.remove(i);
+    }
+  }
+  // Add custom tilaajat before "Uusi tilaaja..."
+  var muuIdx = -1;
+  for (var i = 0; i < sel.options.length; i++) {
+    if (sel.options[i].value === '__muu__') { muuIdx = i; break; }
+  }
+  customTilaajat.forEach(function(t) {
+    // Check if already exists
+    var exists = false;
+    for (var i = 0; i < sel.options.length; i++) {
+      if (sel.options[i].text === t.nimi) { exists = true; break; }
+    }
+    if (!exists) {
+      var opt = document.createElement('option');
+      opt.text = t.nimi;
+      opt.value = t.nimi;
+      sel.add(opt, muuIdx >= 0 ? sel.options[muuIdx] : null);
+    }
+  });
+}
+
+function tallennaTilaaja() {
+  var nimi = document.getElementById('p-tilaaja-muu').value.trim();
+  if (!nimi) { alert('Kirjoita tilaajan nimi!'); return; }
+  // Check if already exists
+  var sel = document.getElementById('p-tilaaja');
+  for (var i = 0; i < sel.options.length; i++) {
+    if (sel.options[i].text === nimi) {
+      alert('Tilaaja on jo listalla!');
+      sel.value = sel.options[i].value || nimi;
+      document.getElementById('tilaaja-muu-wrap').style.display = 'none';
+      return;
+    }
+  }
+  db.collection('tilaajat').add({nimi: nimi}).then(function() {
+    var msg = document.getElementById('tilaaja-save-msg');
+    msg.style.display = 'block';
+    setTimeout(function() {
+      msg.style.display = 'none';
+      // Select the new tilaaja
+      var sel2 = document.getElementById('p-tilaaja');
+      for (var i = 0; i < sel2.options.length; i++) {
+        if (sel2.options[i].text === nimi) {
+          sel2.selectedIndex = i; break;
+        }
+      }
+      document.getElementById('tilaaja-muu-wrap').style.display = 'none';
+    }, 1500);
+  }).catch(function(e) {
+    alert('Virhe: ' + e.message);
+  });
+}
 
 // Real-time listener
 db.collection('projects').onSnapshot(function(snapshot) {
@@ -184,7 +259,9 @@ function editProject(fbId) {
   var sel = document.getElementById('p-tilaaja');
   var found = false;
   for (var i=0; i<sel.options.length; i++) {
-    if (sel.options[i].text === p.tilaaja) { sel.selectedIndex = i; found = true; break; }
+    if (sel.options[i].text === p.tilaaja || sel.options[i].value === p.tilaaja) {
+      sel.selectedIndex = i; found = true; break;
+    }
   }
   if (!found) {
     sel.value = '__muu__';
