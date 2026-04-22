@@ -264,10 +264,26 @@
     input[type=date]::-moz-focus-inner { border: 0; }
   }
   @media print {
-    body { background: white; margin: 0; padding: 0; }
+    body { background: white !important; margin: 0; padding: 0; }
     .no-print { display: none !important; }
-    .page { margin: 0; box-shadow: none; width: 100%; }
-    @page { size: A4 portrait; margin: 5mm; }
+    .page { margin: 0 !important; box-shadow: none !important; width: 100% !important; }
+    * {
+      -webkit-print-color-adjust: exact !important;
+      -moz-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      color-adjust: exact !important;
+    }
+    .body, .frow, .cbsec, .kyrow, .sirote-row {
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+    .sigs {
+      page-break-inside: avoid;
+      break-inside: avoid;
+      page-break-before: avoid;
+      break-before: avoid;
+    }
+    @page { size: A4 portrait; margin: 4mm; }
   }
 </style>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -352,8 +368,7 @@
             <option>Swerock Oy</option>
           </select>
         </div>
-        <div class="f"><label>Bet. toim. yhteyshenkilö</label><input type="text" id="bp_betoni_yhteys" placeholder="Nimi"></div>
-        <div class="f" style="flex:1.5"><label>Yhteyshenkilö</label><input type="text" id="bp_yhteys" placeholder="Nimi"></div>
+        <div class="f" style="flex:1.5"><label>Bet. toim. yhteyshenkilö</label><input type="text" id="bp_betoni_yhteys" placeholder="Nimi"></div>
       </div>
     </div>
 
