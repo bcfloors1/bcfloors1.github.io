@@ -76,6 +76,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f8fafc;color:#1e293
     <div class="hdr-title">BC FLOORS OY</div>
     <div class="hdr-sub">Projektipankki</div>
   </div>
+  <button onclick="asetaApiAvain()" style="background:rgba(255,255,255,.15);border:none;color:white;font-size:11px;padding:5px 10px;border-radius:6px;cursor:pointer;" title="Aseta Anthropic API-avain">🔑 API</button>
 </div>
 
 <div class="content" id="projektilista">
@@ -91,89 +92,35 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f8fafc;color:#1e293
   <div class="sheet">
     <button class="sheet-close" onclick="suljeSheet('lisaysOverlay')">✕</button>
     <div class="sheet-title">Uusi projekti</div>
-
-    <!-- Vaihe 1: PDF-lataus -->
-    <div id="vaihe1">
-      <div style="text-align:center;padding:10px 0 16px;color:#64748b;font-size:13px;">
-        Lataa tarjous-PDF ja AI täyttää kaikki tiedot automaattisesti
-      </div>
-      <div class="ff">
-        <div class="pdf-upload-area" id="uploadArea" onclick="document.getElementById('pdfInput').click()">
-          <div style="font-size:32px;margin-bottom:8px">📄</div>
-          <div style="font-weight:600">Klikkaa valitaksesi tarjous-PDF</div>
-          <div style="font-size:11px;margin-top:6px;color:#94a3b8">AI lukee tilaajan, työmaan, hinnat ja muut tiedot</div>
-        </div>
-        <input type="file" id="pdfInput" accept=".pdf" onchange="pdfValittu(this)">
-      </div>
-      <div style="text-align:center;margin-top:8px">
-        <button onclick="siirryManuaaliseen()" style="background:none;border:none;color:#94a3b8;font-size:12px;cursor:pointer;font-family:inherit">
-          Syötä tiedot käsin ilman PDF:ää →
-        </button>
-      </div>
+    <div class="ff">
+      <label>Projekti / Kohde</label>
+      <input type="text" id="uusiTyomaa" placeholder="esim. Akun Tehdas, Tampere">
     </div>
-
-    <!-- Vaihe 2: AI lukee / tarkistus -->
-    <div id="vaihe2" style="display:none">
-      <div class="ai-loading" id="aiLatausteksti" style="justify-content:center;padding:20px 0">
-        <div class="spinner"></div>
-        <span>AI lukee tarjousta...</span>
-      </div>
+    <div class="ff">
+      <label>Tilaaja</label>
+      <input type="text" id="uusiTilaaja" placeholder="esim. Tekova Oy">
     </div>
-
-    <!-- Vaihe 3: Tarkistus ja tallennus -->
-    <div id="vaihe3" style="display:none">
-      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#15803d;">
-        ✅ AI luki tiedot tarjouksesta — tarkista ja muokkaa tarvittaessa
-      </div>
-      <div class="ff">
-        <label>Projekti / Kohde</label>
-        <input type="text" id="uusiTyomaa" placeholder="esim. Akun Tehdas, Tampere">
-      </div>
-      <div class="ff">
-        <label>Tilaaja</label>
-        <input type="text" id="uusiTilaaja" placeholder="esim. Tekova Oy">
-      </div>
-      <div class="ff">
-        <label>Työnumero</label>
-        <input type="text" id="uusiTyonro" placeholder="esim. 5015">
-      </div>
-      <div class="ff">
-        <label>Yhteyshenkilö</label>
-        <input type="text" id="uusiYhteys" placeholder="esim. Markus Illikainen">
-      </div>
-      <div class="ff">
-        <label>Osoite</label>
-        <input type="text" id="uusiOsoite">
-      </div>
-      <div id="hinnatEsikatselu" style="margin-bottom:12px"></div>
-      <button class="btn-save" onclick="tallennaProjekti()">💾 Tallenna projekti</button>
+    <div class="ff">
+      <label>Työnumero</label>
+      <input type="text" id="uusiTyonro" placeholder="esim. 5015">
     </div>
-
-    <!-- Manuaalinen syöttö -->
-    <div id="vaihe4" style="display:none">
-      <div class="ff">
-        <label>Projekti / Kohde</label>
-        <input type="text" id="uusiTyomaa2" placeholder="esim. Akun Tehdas, Tampere">
-      </div>
-      <div class="ff">
-        <label>Tilaaja</label>
-        <input type="text" id="uusiTilaaja2" placeholder="esim. Tekova Oy">
-      </div>
-      <div class="ff">
-        <label>Työnumero</label>
-        <input type="text" id="uusiTyonro2" placeholder="esim. 5015">
-      </div>
-      <div class="ff">
-        <label>Yhteyshenkilö</label>
-        <input type="text" id="uusiYhteys2" placeholder="esim. Markus Illikainen">
-      </div>
-      <div class="ff">
-        <label>Osoite</label>
-        <input type="text" id="uusiOsoite2">
-      </div>
-      <button class="btn-save" onclick="tallennaManuaalinen()">💾 Tallenna projekti</button>
+    <div class="ff">
+      <label>Yhteyshenkilö</label>
+      <input type="text" id="uusiYhteys" placeholder="esim. Markus Illikainen">
     </div>
-
+    <div class="ff">
+      <label>Osoite</label>
+      <input type="text" id="uusiOsoite">
+    </div>
+    <div class="ff">
+      <label>📎 Lataa tarjous PDF (valinnainen)</label>
+      <div class="pdf-upload-area" id="uploadArea" onclick="document.getElementById('pdfInput').click()">
+        <div>📄 Klikkaa valitaksesi PDF</div>
+        <div style="font-size:11px;margin-top:4px;color:#94a3b8">Tarjous tallentuu projektin yhteyteen</div>
+      </div>
+      <input type="file" id="pdfInput" accept=".pdf" onchange="pdfValittu(this)">
+    </div>
+    <button class="btn-save" onclick="tallennaProjekti()">💾 Tallenna projekti</button>
   </div>
 </div>
 
@@ -282,8 +229,6 @@ function pdfValittu(input) {
 
     // Tallenna tiedot globaalisti ja täytä kentät
     window._aiTiedot = tiedot;
-    // Debug: näytä mitä AI palautti
-    alert('AI palautti:\nTyömaa: ' + (tiedot ? tiedot.tyomaa : 'NULL') + '\nTilaaja: ' + (tiedot ? tiedot.tilaaja : 'NULL'));
     taytaKentat();
   };
   reader.readAsDataURL(file);
@@ -308,6 +253,30 @@ function pdfValittu2(input) {
     document.getElementById('pdfSaveBtn').style.display = 'block';
   };
   reader.readAsDataURL(file);
+}
+
+// ── API-avaimen hallinta (tallennetaan selaimen muistiin) ──
+function haeApiAvain() {
+  return localStorage.getItem('anthropic_api_key') || '';
+}
+
+function asetaApiAvain() {
+  var avain = prompt('Anna Anthropic API-avain (sk-ant-...):\n\nAvain tallennetaan vain tähän selaimeen, ei GitHubiin.');
+  if (avain && avain.startsWith('sk-ant-')) {
+    localStorage.setItem('anthropic_api_key', avain);
+    alert('✅ API-avain tallennettu!');
+  } else if (avain) {
+    alert('❌ Virheellinen avain — pitää alkaa sk-ant-');
+  }
+}
+
+function tarkistaApiAvain() {
+  if (!haeApiAvain()) {
+    var vastaus = confirm('API-avainta ei ole asetettu.\n\nHaluatko asettaa sen nyt? (tarvitaan AI-lukemiseen)');
+    if (vastaus) asetaApiAvain();
+    return false;
+  }
+  return true;
 }
 
 // ── Täyttää kentät AI:n lukemilla tiedoilla ──
@@ -343,6 +312,8 @@ async function lueKaikkiTiedotAIlla(pdfBase64) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'x-api-key': haeApiAvain(),
+        'anthropic-version': '2023-06-01',
         'anthropic-dangerous-direct-browser-access': 'true'
       },
       body: JSON.stringify({
@@ -366,14 +337,13 @@ async function lueKaikkiTiedotAIlla(pdfBase64) {
     var data = await response.json();
     // Tarkista API-vastaus
     if (!data.content || !data.content[0]) {
-      alert('API virhe: ' + JSON.stringify(data).substring(0, 200));
+      console.error('API virhe:', data);
       return null;
     }
     var teksti = data.content[0].text.trim();
     teksti = teksti.replace(/```json|```/g, '').trim();
     return JSON.parse(teksti);
   } catch(e) {
-    alert('AI catch-virhe: ' + e.message + '\n' + e.name);
     console.error('AI virhe:', e);
     return null;
   }
@@ -387,47 +357,34 @@ async function lueHinnatAIlla(pdfBase64) {
 
 // ── Tallenna uusi projekti ──
 async function tallennaProjekti() {
-  // Hae arvo — jos kenttä on tyhjä, käytä luettuja tietoja
-  var tyomaaEl = document.getElementById('uusiTyomaa');
-  var tyomaa = tyomaaEl ? tyomaaEl.value.trim() : '';
+  var tyomaa = document.getElementById('uusiTyomaa').value.trim();
   if (!tyomaa) { alert('Kirjoita projektin nimi'); return; }
 
-  var btn = document.querySelector('#vaihe3 .btn-save');
-  if (!btn) btn = document.querySelector('#lisaysOverlay .btn-save');
+  var btn = document.querySelector('#lisaysOverlay .btn-save');
   btn.textContent = '⏳ Tallennetaan...';
   btn.disabled = true;
 
   var projektinTiedot = {
     tyomaa: tyomaa,
-    tilaaja: (document.getElementById('uusiTilaaja') || {}).value || '',
-    tyonro: (document.getElementById('uusiTyonro') || {}).value || '',
-    yhteys: (document.getElementById('uusiYhteys') || {}).value || '',
-    osoite: (document.getElementById('uusiOsoite') || {}).value || '',
+    tilaaja: document.getElementById('uusiTilaaja').value.trim(),
+    tyonro: document.getElementById('uusiTyonro').value.trim(),
+    yhteys: document.getElementById('uusiYhteys').value.trim(),
+    osoite: document.getElementById('uusiOsoite').value.trim(),
     luotu: new Date().toISOString()
   };
 
-  // PDF ja hinnat jo luettu AI:lla aiemmin
   if (valittuPdfBase64) {
     projektinTiedot.pdfBase64 = valittuPdfBase64;
     projektinTiedot.pdfLadattu = new Date().toISOString();
-  }
-  if (luetutHinnat && luetutHinnat.length > 0) {
-    projektinTiedot.tarjousHinnat = luetutHinnat;
   }
 
   db.collection('projects').add(projektinTiedot)
     .then(function() {
       suljeSheet('lisaysOverlay');
-      // Tyhjennä lomake ja palauta vaihe 1
       ['uusiTyomaa','uusiTilaaja','uusiTyonro','uusiYhteys','uusiOsoite'].forEach(function(id){
         document.getElementById(id).value = '';
       });
-      document.getElementById('hinnatEsikatselu').innerHTML = '';
-      document.getElementById('vaihe1').style.display = 'block';
-      document.getElementById('vaihe2').style.display = 'none';
-      document.getElementById('vaihe3').style.display = 'none';
-      document.getElementById('vaihe4').style.display = 'none';
-      document.getElementById('uploadArea').innerHTML = '<div style="font-size:32px;margin-bottom:8px">📄</div><div style="font-weight:600">Klikkaa valitaksesi tarjous-PDF</div><div style="font-size:11px;margin-top:6px;color:#94a3b8">AI lukee tilaajan, työmaan, hinnat ja muut tiedot</div>';
+      document.getElementById('uploadArea').innerHTML = '<div>📄 Klikkaa valitaksesi PDF</div><div style="font-size:11px;margin-top:4px;color:#94a3b8">Tarjous tallentuu projektin yhteyteen</div>';
       document.getElementById('uploadArea').classList.remove('has-file');
       valittuPdfBase64 = null;
       luetutHinnat = null;
