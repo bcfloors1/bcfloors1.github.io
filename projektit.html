@@ -368,6 +368,7 @@ async function lueKaikkiTiedotAIlla(pdfBase64) {
     teksti = teksti.replace(/```json|```/g, '').trim();
     return JSON.parse(teksti);
   } catch(e) {
+    alert('AI catch-virhe: ' + e.message + '\n' + e.name);
     console.error('AI virhe:', e);
     return null;
   }
