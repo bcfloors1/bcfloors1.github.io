@@ -357,6 +357,9 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 </div>
 
 <script>
+// Globaali tarjoushinnat-muuttuja
+var tarjousHinnat = [];
+
 // ── INIT ─────────────────────────────────────────────────────
 window.addEventListener('beforeprint', function() {
   markEmptyRows();
@@ -401,42 +404,61 @@ function addRow() {
   var tr = document.createElement('tr');
   tr.id = 'row_' + id;
 
-  // Rakenna kuvaus-solu — alasvetovalikko jos tarjoushinnat saatavilla, muuten tekstikenttä
   var kuvaustd;
-  if (tarjousHinnat.length > 0) {
+  if (tarjousHinnat && tarjousHinnat.length > 0) {
     kuvaustd = '<td><select id="desc_' + id + '" style="border:none;background:transparent;font-family:inherit;font-size:11px;color:#1a2530;outline:none;width:100%;cursor:pointer;" onchange="valitseHinta(' + id + ', this)">';
     kuvaustd += '<option value="">— Valitse —</option>';
-    tarjousHinnat.forEach(function(h) {
+    for (var hi = 0; hi < tarjousHinnat.length; hi++) {
+      var h = tarjousHinnat[hi];
       kuvaustd += '<option value="' + h.hinta + '" data-yksikko="' + (h.yksikko||'m²') + '">' + h.nimi + ' (' + h.hinta.toFixed(2) + ' €/' + (h.yksikko||'m²') + ')</option>';
-    });
+    }
     kuvaustd += '<option value="__muu__">✏️ Kirjoita käsin...</option>';
     kuvaustd += '</select></td>';
   } else {
     kuvaustd = '<td><input type="text" id="desc_' + id + '" placeholder="Kuvaus..." style="width:100%"></td>';
   }
 
-  tr.innerHTML = `
-    <td><input type="date" style="width:100%" onfocus="try{this.showPicker()}catch(e){}" onchange="var p=this.value.split('-');this.setAttribute('data-fi',p.length===3?p[2]+'.'+p[1]+'.'+p[0]:'');"></td>
-    ${kuvaustd}
-    <td><input type="number" id="qty_${id}" placeholder="0" step="0.1" oninput="calcRow(${id})"></td>
-    <td class="yks-cell">
-      <select id="unit_${id}">
-        <option>m²</option>
-        <option>m</option>
-        <option>kpl</option>
-        <option>h</option>
-        <option>erä</option>
-        <option>m³</option>
-        <option>tn</option>
-      </select>
-    </td>
-    <td><input type="number" id="price_${id}" placeholder="0,00" step="0.01" oninput="calcRow(${id})"></td>
-    <td class="calc" style="white-space:nowrap;" id="total_${id}">—</td>
-    <td style="text-align:center"><button class="del-btn" onclick="delRow(${id})">✕</button></td>
-  `;
+  tr.innerHTML = '<td><input type="date" style="width:100%" onfocus="try{this.showPicker()}catch(e){}" onchange="var p=this.value.split('-');this.setAttribute('data-fi',p.length===3?p[2]+'.'+p[1]+'.'+p[0]:'');"></td>'
+    + kuvaustd
+    + '<td><input type="number" id="qty_' + id + '" placeholder="0" step="0.1" oninput="calcRow(' + id + ')"></td>'
+    + '<td class="yks-cell"><select id="unit_' + id + '"><option>m²</option><option>m</option><option>kpl</option><option>h</option><option>erä</option><option>m³</option><option>tn</option></select></td>'
+    + '<td><input type="number" id="price_' + id + '" placeholder="0,00" step="0.01" oninput="calcRow(' + id + ')"></td>'
+    + '<td class="calc" style="white-space:nowrap;" id="total_' + id + '">—</td>'
+    + '<td style="text-align:center"><button class="del-btn" onclick="delRow(' + id + ')">✕</button></td>';
+
   document.getElementById('tableBody').appendChild(tr);
   markEmptyRows();
   updateTotal();
+}
+
+function valitseHinta(id, sel) {
+  if (sel.value === '__muu__') {
+    var input = document.createElement('input');
+    input.type = 'text';
+    input.id = 'desc_' + id;
+    input.placeholder = 'Kirjoita kuvaus...';
+    input.style.width = '100%';
+    sel.parentNode.replaceChild(input, sel);
+    var priceEl = document.getElementById('price_' + id);
+    if (priceEl) { priceEl.value = ''; calcRow(id); }
+    return;
+  }
+  if (!sel.value) {
+    var priceEl = document.getElementById('price_' + id);
+    if (priceEl) { priceEl.value = ''; calcRow(id); }
+    return;
+  }
+  var hinta = parseFloat(sel.value);
+  var yksikko = sel.options[sel.selectedIndex].getAttribute('data-yksikko') || 'm²';
+  var priceEl = document.getElementById('price_' + id);
+  if (priceEl) priceEl.value = hinta.toFixed(2);
+  var unitEl = document.getElementById('unit_' + id);
+  if (unitEl) {
+    for (var i = 0; i < unitEl.options.length; i++) {
+      if (unitEl.options[i].text === yksikko) { unitEl.selectedIndex = i; break; }
+    }
+  }
+  calcRow(id);
 }
 
 function delRow(id) {
@@ -578,123 +600,6 @@ function shareDoc() {
   }
 }
 
-// ── TALLENNA LUONNOS ──────────────────────────────────────────
-function tallennaTiedosto() {
-  try {
-    // 1. Kerää allekirjoitukset
-    var c1 = document.getElementById('sig1');
-    var c2 = document.getElementById('sig2');
-    var sig1b64 = (c1 && c1.toDataURL) ? c1.toDataURL() : '';
-    var sig2b64 = (c2 && c2.toDataURL) ? c2.toDataURL() : '';
-
-    // 2. Kerää kaikkien kenttien arvot indeksipohjaisesti
-    var kentat = {};
-    var kaikki = document.querySelectorAll('input, select, textarea');
-    for (var i = 0; i < kaikki.length; i++) {
-      var el = kaikki[i];
-      var avain = (el.id ? el.id : '') + '||' + i;
-      if (el.type === 'checkbox' || el.type === 'radio') {
-        kentat[avain] = el.checked ? '1' : '0';
-      } else {
-        kentat[avain] = el.value;
-      }
-    }
-
-    // 3. Kerää taulukon rivien rakenne (desc-kentät voivat olla select tai input)
-    var rivit = [];
-    document.querySelectorAll('#tableBody tr').forEach(function(tr) {
-      var rivi = {};
-      var descEl = tr.querySelector('td:nth-child(2) select, td:nth-child(2) input');
-      var qtyEl = tr.querySelector('input[id^="qty_"]');
-      var unitEl = tr.querySelector('select[id^="unit_"]');
-      var priceEl = tr.querySelector('input[id^="price_"]');
-      var dateEl = tr.querySelector('input[type="date"]');
-      if (descEl) rivi.desc = descEl.value;
-      if (descEl && descEl.tagName === 'SELECT') rivi.descType = 'select';
-      else rivi.descType = 'input';
-      if (qtyEl) rivi.qty = qtyEl.value;
-      if (unitEl) rivi.unit = unitEl.value;
-      if (priceEl) rivi.price = priceEl.value;
-      if (dateEl) rivi.date = dateEl.value;
-      rivi.id = tr.id;
-      rivit.push(rivi);
-    });
-
-    // 4. Ota HTML talteen
-    var html = document.documentElement.outerHTML;
-
-    // 5. Poista no-print-osiot
-    html = html.replace(/<div class="no-print"[\s\S]*?<\/div>\s*(?=<div class="no-print"|<!--)/g, '');
-    html = html.replace(/<div class="no-print"[^>]*>[\s\S]*?<\/div>/g, '');
-
-    // 6. Korvaa canvakset kuvilla
-    if (sig1b64) {
-      html = html.replace(/<canvas id="sig1"[^>]*><\/canvas>/,
-        '<img src="' + sig1b64 + '" style="width:100%;height:90px;display:block;border:1.5px solid #006CB1;border-radius:6px;">');
-    }
-    if (sig2b64) {
-      html = html.replace(/<canvas id="sig2"[^>]*><\/canvas>/,
-        '<img src="' + sig2b64 + '" style="width:100%;height:90px;display:block;border:1.5px solid #006CB1;border-radius:6px;">');
-    }
-
-    // 7. Injektoi arvot skriptinä — ajetaan Firebasen jälkeen
-    var rivitJson = JSON.stringify(rivit).replace(/<\/script>/gi, '<\\/script>');
-    var kentatJson = JSON.stringify(kentat).replace(/<\/script>/gi, '<\\/script>');
-
-    var injektio = '\n<script id="luonnos-injektio">\n';
-    injektio += '(function(){\n';
-    injektio += '  var KENTAT = ' + kentatJson + ';\n';
-    injektio += '  var RIVIT = ' + rivitJson + ';\n';
-    injektio += '  var SIG1 = ' + JSON.stringify(sig1b64) + ';\n';
-    injektio += '  var SIG2 = ' + JSON.stringify(sig2b64) + ';\n';
-    injektio += '  function tayta() {\n';
-    // Täytä peruskentät
-    injektio += '    var els = document.querySelectorAll("input, select, textarea");\n';
-    injektio += '    for (var i = 0; i < els.length; i++) {\n';
-    injektio += '      var el = els[i];\n';
-    injektio += '      var k = (el.id ? el.id : "") + "||" + i;\n';
-    injektio += '      if (!(k in KENTAT)) continue;\n';
-    injektio += '      if (el.type==="checkbox"||el.type==="radio") el.checked=(KENTAT[k]==="1");\n';
-    injektio += '      else el.value = KENTAT[k];\n';
-    injektio += '    }\n';
-    // Allekirjoitukset
-    injektio += '    if(SIG1){var c=document.getElementById("sig1");if(c&&c.getContext){var ctx=c.getContext("2d");var img=new Image();img.onload=function(){ctx.drawImage(img,0,0,c.width,c.height);};img.src=SIG1;}}\n';
-    injektio += '    if(SIG2){var c=document.getElementById("sig2");if(c&&c.getContext){var ctx=c.getContext("2d");var img=new Image();img.onload=function(){ctx.drawImage(img,0,0,c.width,c.height);};img.src=SIG2;}}\n';
-    injektio += '  }\n';
-    injektio += '  window.addEventListener("load", function() { setTimeout(tayta, 1500); setTimeout(tayta, 3000); });\n';
-    injektio += '})();\n';
-    injektio += '<\/script>\n';
-
-    html = html.replace('</body>', injektio + '</body>');
-
-    // 8. Tallenna tiedosto
-    var blob = new Blob(['<!DOCTYPE html>\n' + html], {type: 'text/html;charset=utf-8'});
-    var tyomaaEl = document.getElementById('tyomaa');
-    var tyomaa = (tyomaaEl && tyomaaEl.value && tyomaaEl.value.trim()) ? tyomaaEl.value.trim() : 'luonnos';
-    tyomaa = tyomaa.replace(/[^a-zA-Z0-9äöåÄÖÅ_\-]/g, '_') || 'luonnos';
-    var tiedNimi = 'mitta_' + tyomaa + '_' + new Date().toISOString().split('T')[0] + '.html';
-
-    if (window.navigator && window.navigator.msSaveOrOpenBlob) {
-      window.navigator.msSaveOrOpenBlob(blob, tiedNimi);
-    } else {
-      var url = URL.createObjectURL(blob);
-      var a = document.createElement('a');
-      a.href = url;
-      a.download = tiedNimi;
-      a.style.display = 'none';
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(function() {
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      }, 1000);
-    }
-  } catch(e) {
-    alert('Tallennusvirhe: ' + e.message);
-    console.error(e);
-  }
-}
-
 // ── NÄPPÄIMISTÖNAVIGOINTI ────────────────────────────────
 document.addEventListener('keydown', function(e) {
   var tag = document.activeElement.tagName;
@@ -807,19 +712,12 @@ fbDb2.collection('projects').orderBy('tyomaa').onSnapshot(function(snap) {
   });
 });
 
-// Tallennetaan projektin tarjoushinnat globaalisti
-var tarjousHinnat = [];
-
 function valitseProjekti(id) {
-  if (!id) {
-    tarjousHinnat = [];
-    return;
-  }
+  if (!id) { tarjousHinnat = []; return; }
   var sel = document.getElementById('projektiValinta');
   var opt = sel.options[sel.selectedIndex];
   if (!opt) return;
 
-  // Fill tilaaja
   var tilaaja = opt.getAttribute('data-tilaaja');
   var tilaajaSel = document.getElementById('tilaaja');
   if (tilaajaSel) {
@@ -832,163 +730,116 @@ function valitseProjekti(id) {
       }
     }
   }
-
-  // Fill työmaa
   var tyomaaInput = document.getElementById('tyomaa');
   if (tyomaaInput) tyomaaInput.value = opt.getAttribute('data-tyomaa');
-
-  // Fill työnro
   var tyonroInput = document.getElementById('tyonro');
   if (tyonroInput) tyonroInput.value = opt.getAttribute('data-tyonro');
 
-  // Hae tarjoushinnat Firestorestä
+  // Hae tarjoushinnat
   fbDb2.collection('projects').doc(id).get().then(function(doc) {
-    if (doc.exists && doc.data().tarjousHinnat) {
-      tarjousHinnat = doc.data().tarjousHinnat;
-    } else {
-      tarjousHinnat = [];
-    }
+    tarjousHinnat = (doc.exists && doc.data().tarjousHinnat) ? doc.data().tarjousHinnat : [];
     // Päivitä olemassaolevat rivit
     document.querySelectorAll('#tableBody tr').forEach(function(tr) {
       var rowId = tr.id.replace('row_', '');
-      paivitaKuvausKentta(rowId);
-    });
-  });
-}
-
-function paivitaKuvausKentta(id) {
-  var td = document.getElementById('desc_' + id);
-  if (!td) return;
-
-  if (tarjousHinnat.length === 0) {
-    // Ei tarjoushintoja — käytä tavallista tekstikenttää
-    if (td.tagName === 'SELECT') {
-      var input = document.createElement('input');
-      input.type = 'text';
-      input.id = 'desc_' + id;
-      input.placeholder = 'Kuvaus...';
-      input.style.width = '100%';
-      td.parentNode.replaceChild(input, td);
-    }
-    return;
-  }
-
-  // On tarjoushinnat — muuta alasvetovalikoksi
-  if (td.tagName !== 'SELECT') {
-    var vanha = td.value || '';
-    var sel = document.createElement('select');
-    sel.id = 'desc_' + id;
-    sel.style.cssText = 'border:none;background:transparent;font-family:inherit;font-size:11px;color:#1a2530;outline:none;width:100%;cursor:pointer;';
-    sel.onchange = function() { valitseHinta(id, this); };
-
-    var tyhja = document.createElement('option');
-    tyhja.value = '';
-    tyhja.textContent = '— Valitse —';
-    sel.appendChild(tyhja);
-
-    tarjousHinnat.forEach(function(h) {
-      var opt = document.createElement('option');
-      opt.value = h.hinta;
-      opt.setAttribute('data-yksikko', h.yksikko || 'm²');
-      opt.textContent = h.nimi + ' (' + h.hinta.toFixed(2) + ' €/' + (h.yksikko || 'm²') + ')';
-      if (vanha === h.nimi) opt.selected = true;
-      sel.appendChild(opt);
-    });
-
-    // Lisää "Muu" vaihtoehto
-    var muu = document.createElement('option');
-    muu.value = '__muu__';
-    muu.textContent = '— Muu / kirjoita käsin —';
-    sel.appendChild(muu);
-
-    td.parentNode.replaceChild(sel, td);
-  }
-}
-
-function valitseHinta(id, sel) {
-  if (sel.value === '__muu__') {
-    // Vaihda takaisin tekstikenttään
-    var input = document.createElement('input');
-    input.type = 'text';
-    input.id = 'desc_' + id;
-    input.placeholder = 'Kirjoita kuvaus...';
-    input.style.width = '100%';
-    // Lisää nappi takaisin valikkoön
-    var palaaNappi = document.createElement('button');
-    palaaNappi.textContent = '▼';
-    palaaNappi.title = 'Valitse tarjoushinnasto';
-    palaaNappi.style.cssText = 'border:none;background:none;color:#006CB1;cursor:pointer;font-size:10px;padding:0 2px;';
-    palaaNappi.onclick = function() { palaaTarjousValikkoon(id); };
-
-    var wrap = document.createElement('div');
-    wrap.style.cssText = 'display:flex;align-items:center;width:100%;';
-    wrap.appendChild(input);
-    wrap.appendChild(palaaNappi);
-
-    sel.parentNode.replaceChild(wrap, sel);
-    input.focus();
-    // Tyhjennä hinta
-    var priceEl = document.getElementById('price_' + id);
-    if (priceEl) { priceEl.value = ''; calcRow(id); }
-    return;
-  }
-  if (!sel.value) {
-    var priceEl = document.getElementById('price_' + id);
-    if (priceEl) { priceEl.value = ''; calcRow(id); }
-    return;
-  }
-  // Aseta hinta automaattisesti
-  var hinta = parseFloat(sel.value);
-  var yksikko = sel.options[sel.selectedIndex].getAttribute('data-yksikko') || 'm²';
-  var priceEl = document.getElementById('price_' + id);
-  if (priceEl) { priceEl.value = hinta.toFixed(2); }
-  // Aseta yksikkö
-  var unitEl = document.getElementById('unit_' + id);
-  if (unitEl) {
-    for (var i = 0; i < unitEl.options.length; i++) {
-      if (unitEl.options[i].value === yksikko || unitEl.options[i].text === yksikko) {
-        unitEl.selectedIndex = i;
-        break;
+      if (!rowId) return;
+      var td = tr.querySelector('td:nth-child(2)');
+      if (!td) return;
+      if (tarjousHinnat.length === 0) return;
+      // Korvaa tekstikenttä alasvetovalikolla
+      var vanhaArvo = td.querySelector('input') ? td.querySelector('input').value : '';
+      var newSel = document.createElement('select');
+      newSel.id = 'desc_' + rowId;
+      newSel.style.cssText = 'border:none;background:transparent;font-family:inherit;font-size:11px;color:#1a2530;outline:none;width:100%;cursor:pointer;';
+      newSel.onchange = (function(rid) { return function() { valitseHinta(rid, this); }; })(rowId);
+      var tyhja = document.createElement('option');
+      tyhja.value = ''; tyhja.textContent = '— Valitse —';
+      newSel.appendChild(tyhja);
+      for (var hi = 0; hi < tarjousHinnat.length; hi++) {
+        var h = tarjousHinnat[hi];
+        var o = document.createElement('option');
+        o.value = h.hinta;
+        o.setAttribute('data-yksikko', h.yksikko || 'm²');
+        o.textContent = h.nimi + ' (' + h.hinta.toFixed(2) + ' €/' + (h.yksikko||'m²') + ')';
+        if (vanhaArvo === h.nimi) o.selected = true;
+        newSel.appendChild(o);
       }
-    }
-  }
-  calcRow(id);
+      var muu = document.createElement('option');
+      muu.value = '__muu__'; muu.textContent = '✏️ Kirjoita käsin...';
+      newSel.appendChild(muu);
+      td.innerHTML = '';
+      td.appendChild(newSel);
+    });
+  });
 }
 
-function palaaTarjousValikkoon(id) {
-  // Etsi wrap-div tai suora parent
-  var el = document.getElementById('desc_' + id);
-  if (!el) return;
-  var parent = el.parentNode;
-  // Jos parent on wrap-div, sen parent on td
-  var td = parent.tagName === 'DIV' ? parent.parentNode : parent;
+// ── TALLENNA LUONNOS ──────────────────────────────────────────
+function tallennaTiedosto() {
+  try {
+    var c1 = document.getElementById('sig1');
+    var c2 = document.getElementById('sig2');
+    var sig1b64 = (c1 && c1.toDataURL) ? c1.toDataURL() : '';
+    var sig2b64 = (c2 && c2.toDataURL) ? c2.toDataURL() : '';
 
-  var sel = document.createElement('select');
-  sel.id = 'desc_' + id;
-  sel.style.cssText = 'border:none;background:transparent;font-family:inherit;font-size:11px;color:#1a2530;outline:none;width:100%;cursor:pointer;';
-  sel.onchange = function() { valitseHinta(id, this); };
+    var kentat = {};
+    var kaikki = document.querySelectorAll('input, select, textarea');
+    for (var i = 0; i < kaikki.length; i++) {
+      var el = kaikki[i];
+      var avain = (el.id ? el.id : '') + '||' + i;
+      if (el.type === 'checkbox' || el.type === 'radio') kentat[avain] = el.checked ? '1' : '0';
+      else kentat[avain] = el.value;
+    }
 
-  var tyhja = document.createElement('option');
-  tyhja.value = '';
-  tyhja.textContent = '— Valitse —';
-  sel.appendChild(tyhja);
+    var html = document.documentElement.outerHTML;
 
-  tarjousHinnat.forEach(function(h) {
-    var opt = document.createElement('option');
-    opt.value = h.hinta;
-    opt.setAttribute('data-yksikko', h.yksikko || 'm²');
-    opt.textContent = h.nimi + ' (' + h.hinta.toFixed(2) + ' €/' + (h.yksikko||'m²') + ')';
-    sel.appendChild(opt);
-  });
+    // Poista no-print-osiot
+    html = html.replace(/<div class="no-print"[^>]*>[\s\S]*?<\/div>/g, function(m) {
+      return m.indexOf('PROJEKTI') !== -1 || m.indexOf('btn-') !== -1 || m.indexOf('Tallenna') !== -1 ? '' : m;
+    });
 
-  var muu = document.createElement('option');
-  muu.value = '__muu__';
-  muu.textContent = '— Kirjoita käsin —';
-  sel.appendChild(muu);
+    // Korvaa canvakset kuvilla
+    if (sig1b64) html = html.replace(/(<canvas id="sig1")[^>]*(><\/canvas>)/, '<img src="' + sig1b64 + '" style="width:100%;height:90px;display:block;border:1.5px solid #006CB1;border-radius:6px;">');
+    if (sig2b64) html = html.replace(/(<canvas id="sig2")[^>]*(><\/canvas>)/, '<img src="' + sig2b64 + '" style="width:100%;height:90px;display:block;border:1.5px solid #006CB1;border-radius:6px;">');
 
-  // Korvaa koko td sisältö
-  td.innerHTML = '';
-  td.appendChild(sel);
+    var kentatJson = JSON.stringify(kentat).replace(/<\/script>/gi, '<\\/script>');
+    var sig1safe = JSON.stringify(sig1b64);
+    var sig2safe = JSON.stringify(sig2b64);
+
+    var injektio = '\n<script id="li">\n(function(){\n';
+    injektio += 'var K=' + kentatJson + ';\n';
+    injektio += 'var S1=' + sig1safe + ';\n';
+    injektio += 'var S2=' + sig2safe + ';\n';
+    injektio += 'function t(){';
+    injektio += 'var e=document.querySelectorAll("input,select,textarea");';
+    injektio += 'for(var i=0;i<e.length;i++){var el=e[i];var k=(el.id||"")+"||"+i;';
+    injektio += 'if(!(k in K))continue;';
+    injektio += 'if(el.type==="checkbox"||el.type==="radio")el.checked=(K[k]==="1");';
+    injektio += 'else el.value=K[k];}';
+    injektio += 'if(S1){var c=document.getElementById("sig1");if(c&&c.getContext){var ctx=c.getContext("2d");var img=new Image();img.onload=function(){ctx.drawImage(img,0,0,c.width,c.height);};img.src=S1;}}';
+    injektio += 'if(S2){var c=document.getElementById("sig2");if(c&&c.getContext){var ctx=c.getContext("2d");var img=new Image();img.onload=function(){ctx.drawImage(img,0,0,c.width,c.height);};img.src=S2;}}';
+    injektio += '}';
+    injektio += 'window.addEventListener("load",function(){setTimeout(t,1500);setTimeout(t,3000);});';
+    injektio += '})();\n<\/script>\n';
+
+    html = html.replace('</body>', injektio + '</body>');
+
+    var blob = new Blob(['<!DOCTYPE html>\n' + html], {type:'text/html;charset=utf-8'});
+    var tyomaaEl = document.getElementById('tyomaa');
+    var nm = (tyomaaEl && tyomaaEl.value.trim()) ? tyomaaEl.value.trim().replace(/[^a-zA-Z0-9\u00e4\u00f6\u00e5\u00c4\u00d6\u00c5_\-]/g,'_') : 'luonnos';
+    var fn = 'mitta_' + nm + '_' + new Date().toISOString().split('T')[0] + '.html';
+
+    if (window.navigator && window.navigator.msSaveOrOpenBlob) {
+      window.navigator.msSaveOrOpenBlob(blob, fn);
+    } else {
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = fn; a.style.display = 'none';
+      document.body.appendChild(a); a.click();
+      setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
+    }
+  } catch(e) {
+    alert('Tallennusvirhe: ' + e.message);
+    console.error(e);
+  }
 }
 </script>
 
