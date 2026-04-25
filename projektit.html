@@ -187,56 +187,55 @@ function suljeSheet(id) {
   document.getElementById(id).classList.remove('open');
 }
 
-// ── PDF valittu (uusi projekti) — AI lukee heti ──
+// ── PDF valittu (uusi projekti) ──
 function pdfValittu(input) {
   if (!input.files[0]) return;
   var file = input.files[0];
   if (file.size > 900000) { alert('PDF on liian suuri (max ~700KB)'); return; }
+  var apiAvain = haeApiAvain();
   var reader = new FileReader();
-  reader.onload = async function(e) {
+  reader.onload = function(e) {
     valittuPdfBase64 = e.target.result.split(',')[1];
-
-    // Näytä vaihe 2 (AI lataa)
-    document.getElementById('vaihe1').style.display = 'none';
-    document.getElementById('vaihe2').style.display = 'block';
-
-    // AI lukee kaikki tiedot
-    var tiedot = await lueKaikkiTiedotAIlla(valittuPdfBase64);
-
-    // Kerää hinnat ja esikatselu
-    if (tiedot) {
-      luetutHinnat = tiedot.hinnat || [];
-
-      // Näytä hintojen esikatselu
-      if (luetutHinnat.length > 0) {
-        var hHtml = '<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 12px;font-size:12px;">';
-        hHtml += '<div style="font-weight:700;color:#1d4ed8;margin-bottom:6px">📋 Luetut hinnat (' + luetutHinnat.length + ' kpl)</div>';
-        luetutHinnat.slice(0,5).forEach(function(h) {
-          hHtml += '<div style="display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid #dbeafe">';
-          hHtml += '<span style="color:#334155">' + h.nimi + '</span>';
-          hHtml += '<span style="color:#1d4ed8;font-weight:600">' + h.hinta.toFixed(2) + ' €/' + (h.yksikko||'m²') + '</span>';
-          hHtml += '</div>';
+    document.getElementById('uploadArea').innerHTML =
+      '<div>✅ ' + file.name + '</div><div style="font-size:11px;margin-top:4px">(' + Math.round(file.size/1024) + ' KB)</div>';
+    document.getElementById('uploadArea').classList.add('has-file');
+    if (apiAvain) {
+      document.getElementById('uploadArea').innerHTML +=
+        '<div style="font-size:11px;color:#006CB1;margin-top:4px">🤖 AI lukee tietoja...</div>';
+      lueKaikkiTiedotAIlla(valittuPdfBase64)
+        .then(function(tiedot) {
+          if (!tiedot) {
+            document.getElementById('uploadArea').innerHTML =
+              '<div>✅ ' + file.name + '</div><div style="font-size:11px;color:#ef4444;margin-top:4px">AI-lukeminen epäonnistui — täytä käsin</div>';
+            return;
+          }
+          luetutHinnat = tiedot.hinnat || [];
+          var kentat = [
+            ['uusiTyomaa', tiedot.tyomaa],
+            ['uusiTilaaja', tiedot.tilaaja],
+            ['uusiTyonro', tiedot.tyonro],
+            ['uusiYhteys', tiedot.yhteys],
+            ['uusiOsoite', tiedot.osoite]
+          ];
+          kentat.forEach(function(p) {
+            var el = document.getElementById(p[0]);
+            if (el && p[1]) {
+              var uusi = el.cloneNode(false);
+              uusi.value = p[1];
+              uusi.placeholder = '';
+              el.parentNode.replaceChild(uusi, el);
+            }
+          });
+          document.getElementById('uploadArea').innerHTML =
+            '<div>✅ ' + file.name + ' — tiedot luettu!</div>';
+        })
+        .catch(function(err) {
+          document.getElementById('uploadArea').innerHTML =
+            '<div>✅ ' + file.name + '</div><div style="font-size:11px;color:#ef4444;margin-top:4px">Virhe: ' + err.message + '</div>';
         });
-        if (luetutHinnat.length > 5) hHtml += '<div style="color:#64748b;padding-top:4px">...ja ' + (luetutHinnat.length-5) + ' muuta</div>';
-        hHtml += '</div>';
-        document.getElementById('hinnatEsikatselu').innerHTML = hHtml;
-      }
     }
-
-    // Näytä vaihe 3
-    document.getElementById('vaihe2').style.display = 'none';
-    document.getElementById('vaihe3').style.display = 'block';
-
-    // Tallenna tiedot globaalisti ja täytä kentät
-    window._aiTiedot = tiedot;
-    taytaKentat();
   };
   reader.readAsDataURL(file);
-}
-
-function siirryManuaaliseen() {
-  document.getElementById('vaihe1').style.display = 'none';
-  document.getElementById('vaihe4').style.display = 'block';
 }
 
 // ── PDF valittu (olemassaoleva projekti) ──
