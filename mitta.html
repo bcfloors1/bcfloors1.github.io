@@ -804,7 +804,7 @@ function tallennaTiedosto() {
     var sig1safe = JSON.stringify(sig1b64);
     var sig2safe = JSON.stringify(sig2b64);
 
-    var injektio = '\n<script id="li">\n(function(){\n';
+    var injektio = '\n' + '<' + 'script id="li">' + '\n(function(){\n';
     injektio += 'var K=' + kentatJson + ';\n';
     injektio += 'var S1=' + sig1safe + ';\n';
     injektio += 'var S2=' + sig2safe + ';\n';
