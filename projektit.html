@@ -376,6 +376,9 @@ async function tallennaProjekti() {
     projektinTiedot.pdfBase64 = valittuPdfBase64;
     projektinTiedot.pdfLadattu = new Date().toISOString();
   }
+  if (luetutHinnat && luetutHinnat.length > 0) {
+    projektinTiedot.tarjousHinnat = luetutHinnat;
+  }
 
   db.collection('projects').add(projektinTiedot)
     .then(function() {
