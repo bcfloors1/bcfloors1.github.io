@@ -804,74 +804,45 @@ function tallennaProjektiksi() {
 
 function tallennaTiedosto() {
   try {
-    // 1. Tallenna canvas-datat ennen kloonausta
-    var sig1data = '', sig2data = '';
+    // Kerää kaikkien kenttien arvot objektiin
+    var arvot = {};
+    var inputs = document.querySelectorAll('input[id], select[id], textarea[id]');
+    for (var i = 0; i < inputs.length; i++) {
+      var el = inputs[i];
+      if (!el.id) continue;
+      if (el.type === 'checkbox' || el.type === 'radio') {
+        arvot[el.id] = el.checked;
+      } else {
+        arvot[el.id] = el.value;
+      }
+    }
+
+    // Tallenna allekirjoitukset
     var c1 = document.getElementById('sig1');
     var c2 = document.getElementById('sig2');
-    if (c1) sig1data = c1.toDataURL();
-    if (c2) sig2data = c2.toDataURL();
+    var sig1b64 = c1 ? c1.toDataURL() : '';
+    var sig2b64 = c2 ? c2.toDataURL() : '';
 
-    // 2. Kloonaa koko sivu
-    var klooni = document.documentElement.cloneNode(true);
+    // Rakenna tallennettava sivu injektoimalla arvot suoraan HTML-merkkijonoon
+    var html = document.documentElement.outerHTML;
 
-    // 3. Poista no-print-osiot kloonista
-    var noPrints = klooni.querySelectorAll('.no-print');
-    for (var i = 0; i < noPrints.length; i++) {
-      noPrints[i].parentNode.removeChild(noPrints[i]);
+    // Poista no-print-blokit
+    html = html.replace(/<div class="no-print"[\s\S]*?<\/div>\s*(?=<div class="no-print"|<div class="page">)/g, '');
+    // Poista loput no-print-divit
+    html = html.replace(/<div class="no-print"[^>]*>[\s\S]*?<\/div>/g, '');
+
+    // Korvaa canvas-elementit allekirjoituskuvilla
+    if (sig1b64) {
+      html = html.replace(/<canvas id="sig1"[^>]*><\/canvas>/,
+        '<img src="' + sig1b64 + '" style="border:1.5px solid #006CB1;width:100%;max-width:360px;height:55px;display:block;">');
+    }
+    if (sig2b64) {
+      html = html.replace(/<canvas id="sig2"[^>]*><\/canvas>/,
+        '<img src="' + sig2b64 + '" style="border:1.5px solid #006CB1;width:100%;max-width:360px;height:55px;display:block;">');
     }
 
-    // 4. Korvaa sig1 canvas img:llä kloonissa
-    if (sig1data) {
-      var kc1 = klooni.querySelector('#sig1');
-      if (kc1) {
-        var ki1 = document.createElement('img');
-        ki1.src = sig1data;
-        ki1.style.cssText = 'border:1.5px solid #006CB1;width:100%;max-width:360px;height:55px;display:block;';
-        kc1.parentNode.replaceChild(ki1, kc1);
-      }
-    }
-    if (sig2data) {
-      var kc2 = klooni.querySelector('#sig2');
-      if (kc2) {
-        var ki2 = document.createElement('img');
-        ki2.src = sig2data;
-        ki2.style.cssText = 'border:1.5px solid #006CB1;width:100%;max-width:360px;height:55px;display:block;';
-        kc2.parentNode.replaceChild(ki2, kc2);
-      }
-    }
-
-    // 5. Kopioi kenttien arvot klooniin
-    var origEls = document.querySelectorAll('input, select, textarea');
-    var kloonEls = klooni.querySelectorAll('input, select, textarea');
-    for (var j = 0; j < origEls.length; j++) {
-      var orig = origEls[j];
-      var kl = kloonEls[j];
-      if (!orig || !kl) continue;
-      try {
-        if (orig.type === 'checkbox' || orig.type === 'radio') {
-          if (orig.checked) kl.setAttribute('checked', 'checked');
-          else kl.removeAttribute('checked');
-        } else if (orig.tagName === 'SELECT') {
-          var opts = kl.options;
-          if (!opts) continue;
-          for (var k = 0; k < opts.length; k++) {
-            if (opts[k].value === orig.value || opts[k].text === orig.value) {
-              opts[k].setAttribute('selected', 'selected');
-            } else {
-              opts[k].removeAttribute('selected');
-            }
-          }
-        } else if (orig.tagName === 'TEXTAREA') {
-          kl.textContent = orig.value;
-        } else {
-          kl.setAttribute('value', orig.value);
-        }
-      } catch(fieldErr) { /* ohita yksittäisen kentän virhe */ }
-    }
-
-    // 6. Luo ja lataa tiedosto
-    var html = '<!DOCTYPE html>\n' + klooni.outerHTML;
-    var blob = new Blob([html], {type: 'text/html;charset=utf-8'});
+    // Tallenna tiedosto
+    var blob = new Blob(['<!DOCTYPE html>\n' + html], {type: 'text/html;charset=utf-8'});
     var url = URL.createObjectURL(blob);
     var a = document.createElement('a');
     a.href = url;
