@@ -804,12 +804,12 @@ function tallennaProjektiksi() {
 
 function tallennaTiedosto() {
   try {
-    // 1. Kerää kenttien arvot ID:n perusteella
+    // 1. Kerää kenttien arvot indeksin JA id:n perusteella
     var kentat = {};
     var kaikki = document.querySelectorAll('input, select, textarea');
     for (var i = 0; i < kaikki.length; i++) {
       var el = kaikki[i];
-      var avain = el.id || ('__idx_' + i);
+      var avain = '__idx_' + i;
       if (el.type === 'checkbox' || el.type === 'radio') {
         kentat[avain] = el.checked;
       } else {
@@ -839,30 +839,31 @@ function tallennaTiedosto() {
         '<img src="' + sig2b64 + '" style="border:1.5px solid #006CB1;width:100%;max-width:360px;height:55px;display:block;">');
     }
 
-    // 6. Injektoi kenttien arvot skriptinä
-    var injektointi = '<script>\ndocument.addEventListener("DOMContentLoaded", function() {\n';
-    injektointi += '  var arvot = ' + JSON.stringify(kentat) + ';\n';
-    injektointi += '  var els = document.querySelectorAll("input, select, textarea");\n';
-    injektointi += '  for (var i = 0; i < els.length; i++) {\n';
-    injektointi += '    var el = els[i];\n';
-    injektointi += '    var avain = el.id || ("__idx_" + i);\n';
-    injektointi += '    if (!(avain in arvot)) continue;\n';
-    injektointi += '    if (el.type === "checkbox" || el.type === "radio") {\n';
-    injektointi += '      el.checked = arvot[avain];\n';
-    injektointi += '    } else {\n';
-    injektointi += '      el.value = arvot[avain];\n';
+    // 6. Injektoi arvot skriptinä — ajetaan VIIMEISENÄ DOMContentLoaded:ssa
+    //    setTimeout 0 varmistaa että Firebase ym. ehtivät ensin, sitten ylikirjoitetaan arvoilla
+    var injektointi = '<script>\n';
+    injektointi += 'window.addEventListener("load", function() {\n';
+    injektointi += '  setTimeout(function() {\n';
+    injektointi += '    var arvot = ' + JSON.stringify(kentat) + ';\n';
+    injektointi += '    var els = document.querySelectorAll("input, select, textarea");\n';
+    injektointi += '    for (var i = 0; i < els.length; i++) {\n';
+    injektointi += '      var avain = "__idx_" + i;\n';
+    injektointi += '      if (!(avain in arvot)) continue;\n';
+    injektointi += '      var el = els[i];\n';
+    injektointi += '      if (el.type === "checkbox" || el.type === "radio") {\n';
+    injektointi += '        el.checked = arvot[avain];\n';
+    injektointi += '      } else {\n';
+    injektointi += '        el.value = arvot[avain];\n';
+    injektointi += '      }\n';
     injektointi += '    }\n';
-    injektointi += '  }\n';
+    injektointi += '  }, 800);\n';
     injektointi += '});\n';
     injektointi += '<\/script>\n';
     html = html.replace('</body>', injektointi + '</body>');
 
-    // 7. Tallenna — toimii Chrome/Firefox/Edge/Safari desktop
+    // 7. Tallenna tiedosto
     var blob = new Blob(['<!DOCTYPE html>\n' + html], {type: 'text/html;charset=utf-8'});
-
-    // Yritä ensin normaali lataus
     if (window.navigator && window.navigator.msSaveOrOpenBlob) {
-      // IE / Edge legacy
       window.navigator.msSaveOrOpenBlob(blob, _tiedostoNimi());
     } else {
       var url = URL.createObjectURL(blob);
