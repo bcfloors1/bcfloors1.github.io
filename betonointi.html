@@ -293,6 +293,7 @@
 
 <div class="no-print">
   <button class="print-btn" onclick="window.print()">&#128424; Tulosta / Tallenna PDF</button>
+  <button class="print-btn" onclick="tallennaTiedosto()" style="background:#2e6da4;margin-left:8px;">&#128190; Tallenna luonnos</button>
 </div>
 <!-- PROJEKTIN VALINTA -->
 <div class="no-print" style="background:#e8f4fc;border-bottom:2px solid #006CB1;padding:8px 14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
@@ -1032,6 +1033,125 @@ function tallennaProjektiksi() {
   }).catch(function(e) {
     alert('Virhe tallennuksessa: ' + e.message);
   });
+}
+</script>
+
+
+<script>
+function tallennaTiedosto() {
+  // Get form values for filename
+  var tyomaa = document.getElementById('bp_tyomaa') ? document.getElementById('bp_tyomaa').value.trim() : '';
+  var pvm = document.querySelector('input[type=date]') ? document.querySelector('input[type=date]').value : '';
+  
+  // Format date Finnish style
+  var dateStr = '';
+  if (pvm) {
+    var parts = pvm.split('-');
+    if (parts.length === 3) dateStr = '_' + parts[2] + '.' + parts[1] + '.' + parts[0];
+  }
+  
+  var filename = 'betonointi' + (tyomaa ? '_' + tyomaa.replace(/[^a-zA-Z0-9äöåÄÖÅ]/g, '_') : '') + (dateStr || '') + '.html';
+
+  // Get current page HTML with all filled values
+  var html = document.documentElement.outerHTML;
+  
+  // Inject current form values into HTML
+  // We need to serialize all inputs, selects, textareas
+  var inputs = document.querySelectorAll('input, select, textarea');
+  inputs.forEach(function(el) {
+    if (!el.id && !el.name) return;
+    var val = el.value;
+    var type = el.type;
+    if (type === 'checkbox' || type === 'radio') {
+      // handled separately
+      return;
+    }
+  });
+
+  // Serialize full DOM state
+  var clone = document.documentElement.cloneNode(true);
+  
+  // Fill input values into clone
+  var origInputs = document.querySelectorAll('input[type=text], input[type=number], input[type=date], textarea');
+  var cloneInputs = clone.querySelectorAll('input[type=text], input[type=number], input[type=date], textarea');
+  for (var i = 0; i < origInputs.length; i++) {
+    if (cloneInputs[i]) cloneInputs[i].setAttribute('value', origInputs[i].value);
+    if (cloneInputs[i] && cloneInputs[i].tagName === 'TEXTAREA') {
+      cloneInputs[i].textContent = origInputs[i].value;
+    }
+  }
+  
+  // Fill select values
+  var origSelects = document.querySelectorAll('select');
+  var cloneSelects = clone.querySelectorAll('select');
+  for (var i = 0; i < origSelects.length; i++) {
+    if (cloneSelects[i]) {
+      var val = origSelects[i].value;
+      var cloneOpts = cloneSelects[i].querySelectorAll('option');
+      cloneOpts.forEach(function(opt) {
+        if (opt.value === val || opt.text === val) {
+          opt.setAttribute('selected', 'selected');
+        } else {
+          opt.removeAttribute('selected');
+        }
+      });
+    }
+  }
+  
+  // Fill checkboxes and radios
+  var origChecks = document.querySelectorAll('input[type=checkbox], input[type=radio]');
+  var cloneChecks = clone.querySelectorAll('input[type=checkbox], input[type=radio]');
+  for (var i = 0; i < origChecks.length; i++) {
+    if (cloneChecks[i]) {
+      if (origChecks[i].checked) {
+        cloneChecks[i].setAttribute('checked', 'checked');
+      } else {
+        cloneChecks[i].removeAttribute('checked');
+      }
+    }
+  }
+
+  // Save canvas signatures as images
+  var origCanvases = document.querySelectorAll('canvas');
+  var cloneCanvases = clone.querySelectorAll('canvas');
+  for (var i = 0; i < origCanvases.length; i++) {
+    if (cloneCanvases[i]) {
+      try {
+        var dataUrl = origCanvases[i].toDataURL('image/png');
+        var img = document.createElement('img');
+        img.src = dataUrl;
+        img.style.cssText = origCanvases[i].style.cssText;
+        img.style.width = origCanvases[i].offsetWidth + 'px';
+        img.style.height = origCanvases[i].offsetHeight + 'px';
+        img.style.border = '1.5px solid #006CB1';
+        img.style.borderRadius = '2px';
+        img.style.display = 'block';
+        cloneCanvases[i].parentNode.replaceChild(img, cloneCanvases[i]);
+      } catch(e) {}
+    }
+  }
+
+  var htmlStr = '<!DOCTYPE html>
+' + clone.outerHTML;
+  var blob = new Blob([htmlStr], {type: 'text/html;charset=utf-8'});
+  
+  // Download - works in all browsers
+  if (window.navigator && window.navigator.msSaveBlob) {
+    // IE/Edge legacy
+    window.navigator.msSaveBlob(blob, filename);
+  } else {
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function() {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 100);
+  }
 }
 </script>
 
