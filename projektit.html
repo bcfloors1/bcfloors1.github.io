@@ -276,25 +276,13 @@ function pdfValittu(input) {
       }
     }
 
-    // Näytä vaihe 3 ENSIN jotta kentät ovat DOM:issa
+    // Näytä vaihe 3
     document.getElementById('vaihe2').style.display = 'none';
     document.getElementById('vaihe3').style.display = 'block';
 
-    // Täytä kentät vasta kun vaihe3 on näkyvissä
-    setTimeout(function() {
-      if (tiedot) {
-        var t = document.getElementById('uusiTyomaa');
-        var ti = document.getElementById('uusiTilaaja');
-        var tn = document.getElementById('uusiTyonro');
-        var y = document.getElementById('uusiYhteys');
-        var o = document.getElementById('uusiOsoite');
-        if (t) t.value = tiedot.tyomaa || '';
-        if (ti) ti.value = tiedot.tilaaja || '';
-        if (tn) tn.value = tiedot.tyonro || '';
-        if (y) y.value = tiedot.yhteys || '';
-        if (o) o.value = tiedot.osoite || '';
-      }
-    }, 100);
+    // Tallenna tiedot globaalisti ja täytä kentät
+    window._aiTiedot = tiedot;
+    taytaKentat();
   };
   reader.readAsDataURL(file);
 }
@@ -318,6 +306,29 @@ function pdfValittu2(input) {
     document.getElementById('pdfSaveBtn').style.display = 'block';
   };
   reader.readAsDataURL(file);
+}
+
+// ── Täyttää kentät AI:n lukemilla tiedoilla ──
+function taytaKentat() {
+  var tiedot = window._aiTiedot;
+  if (!tiedot) return;
+  var kentat = [
+    ['uusiTyomaa', tiedot.tyomaa],
+    ['uusiTilaaja', tiedot.tilaaja],
+    ['uusiTyonro', tiedot.tyonro],
+    ['uusiYhteys', tiedot.yhteys],
+    ['uusiOsoite', tiedot.osoite]
+  ];
+  kentat.forEach(function(pari) {
+    var el = document.getElementById(pari[0]);
+    if (el && pari[1]) {
+      el.value = pari[1];
+      el.setAttribute('value', pari[1]);
+      // Poista placeholder jotta arvo näkyy
+      el.placeholder = '';
+    }
+  });
+  console.log('Kentät täytetty:', JSON.stringify(tiedot));
 }
 
 // ── AI lukee KAIKKI tiedot PDF:stä ──
