@@ -282,6 +282,8 @@ function pdfValittu(input) {
 
     // Tallenna tiedot globaalisti ja täytä kentät
     window._aiTiedot = tiedot;
+    // Debug: näytä mitä AI palautti
+    alert('AI palautti:\nTyömaa: ' + (tiedot ? tiedot.tyomaa : 'NULL') + '\nTilaaja: ' + (tiedot ? tiedot.tilaaja : 'NULL'));
     taytaKentat();
   };
   reader.readAsDataURL(file);
