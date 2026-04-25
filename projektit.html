@@ -364,6 +364,11 @@ async function lueKaikkiTiedotAIlla(pdfBase64) {
       })
     });
     var data = await response.json();
+    // Tarkista API-vastaus
+    if (!data.content || !data.content[0]) {
+      alert('API virhe: ' + JSON.stringify(data).substring(0, 200));
+      return null;
+    }
     var teksti = data.content[0].text.trim();
     teksti = teksti.replace(/```json|```/g, '').trim();
     return JSON.parse(teksti);
