@@ -794,19 +794,77 @@ function tallennaProjektiksi() {
 }
 
 function tallennaTiedosto() {
-  var data = {};
-  document.querySelectorAll('input, select, textarea').forEach(function(el) {
-    if (el.id) { if (el.type === 'checkbox' || el.type === 'radio') { if (el.checked) data[el.id || el.name] = el.value || true; } else { data[el.id] = el.value; } }
+  // Tallennetaan allekirjoitukset canvas -> img ennen kloonausta
+  ['sig1','sig2'].forEach(function(id) {
+    var canvas = document.getElementById(id);
+    if (!canvas) return;
+    var img = canvas.nextElementSibling && canvas.nextElementSibling.tagName === 'IMG' ? canvas.nextElementSibling : null;
+    if (!img) {
+      img = document.createElement('img');
+      img.id = id + '_img';
+      img.style.cssText = canvas.style.cssText;
+      img.style.border = '1.5px solid #006CB1';
+      img.style.width = '100%';
+      img.style.maxWidth = '360px';
+      img.style.height = '55px';
+      img.style.display = 'block';
+      canvas.parentNode.insertBefore(img, canvas.nextSibling);
+    }
+    img.src = canvas.toDataURL();
   });
-  var sig1 = document.getElementById('sig1');
-  var sig2 = document.getElementById('sig2');
-  if (sig1) data['sig1'] = sig1.toDataURL();
-  if (sig2) data['sig2'] = sig2.toDataURL();
-  var blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+
+  // Kloonaa koko dokumentti
+  var klooni = document.documentElement.cloneNode(true);
+
+  // Poista no-print-elementit kloonista
+  klooni.querySelectorAll('.no-print').forEach(function(el) { el.remove(); });
+
+  // Korvaa canvakset img-elementeillä kloonissa
+  ['sig1','sig2'].forEach(function(id) {
+    var origImg = document.getElementById(id + '_img');
+    if (!origImg) return;
+    var klCanvas = klooni.querySelector('#' + id);
+    if (klCanvas) {
+      var klImg = document.createElement('img');
+      klImg.src = origImg.src;
+      klImg.style.cssText = 'border:1.5px solid #006CB1;width:100%;max-width:360px;height:55px;display:block;';
+      klCanvas.parentNode.replaceChild(klImg, klCanvas);
+    }
+  });
+
+  // Kopioi kenttien arvot klooniin (koska DOM-arvot eivät näy innerHTML:ssä)
+  var origInputs = document.querySelectorAll('input, select, textarea');
+  var kloonInputs = klooni.querySelectorAll('input, select, textarea');
+  origInputs.forEach(function(el, i) {
+    if (!kloonInputs[i]) return;
+    if (el.type === 'checkbox' || el.type === 'radio') {
+      kloonInputs[i].checked = el.checked;
+      if (el.checked) kloonInputs[i].setAttribute('checked', '');
+      else kloonInputs[i].removeAttribute('checked');
+    } else if (el.tagName === 'SELECT') {
+      kloonInputs[i].value = el.value;
+      for (var j = 0; j < kloonInputs[i].options.length; j++) {
+        if (kloonInputs[i].options[j].value === el.value) {
+          kloonInputs[i].options[j].setAttribute('selected', '');
+        } else {
+          kloonInputs[i].options[j].removeAttribute('selected');
+        }
+      }
+    } else if (el.tagName === 'TEXTAREA') {
+      kloonInputs[i].textContent = el.value;
+    } else {
+      kloonInputs[i].value = el.value;
+      kloonInputs[i].setAttribute('value', el.value);
+    }
+  });
+
+  var html = '<!DOCTYPE html>\n' + klooni.outerHTML;
+  var blob = new Blob([html], {type: 'text/html;charset=utf-8'});
   var url = URL.createObjectURL(blob);
   var a = document.createElement('a');
   a.href = url;
-  a.download = 'betonointi_luonnos_' + new Date().toISOString().split('T')[0] + '.json';
+  var tyomaa = (document.getElementById('bp_tyomaa') && document.getElementById('bp_tyomaa').value.trim()) || 'luonnos';
+  a.download = 'betonointi_' + tyomaa + '_' + new Date().toISOString().split('T')[0] + '.html';
   a.click();
   URL.revokeObjectURL(url);
 }
