@@ -256,13 +256,8 @@ function pdfValittu(input) {
     // AI lukee kaikki tiedot
     var tiedot = await lueKaikkiTiedotAIlla(valittuPdfBase64);
 
-    // Täytä kentät
+    // Kerää hinnat ja esikatselu
     if (tiedot) {
-      document.getElementById('uusiTyomaa').value = tiedot.tyomaa || '';
-      document.getElementById('uusiTilaaja').value = tiedot.tilaaja || '';
-      document.getElementById('uusiTyonro').value = tiedot.tyonro || '';
-      document.getElementById('uusiYhteys').value = tiedot.yhteys || '';
-      document.getElementById('uusiOsoite').value = tiedot.osoite || '';
       luetutHinnat = tiedot.hinnat || [];
 
       // Näytä hintojen esikatselu
@@ -281,9 +276,25 @@ function pdfValittu(input) {
       }
     }
 
-    // Näytä vaihe 3
+    // Näytä vaihe 3 ENSIN jotta kentät ovat DOM:issa
     document.getElementById('vaihe2').style.display = 'none';
     document.getElementById('vaihe3').style.display = 'block';
+
+    // Täytä kentät vasta kun vaihe3 on näkyvissä
+    setTimeout(function() {
+      if (tiedot) {
+        var t = document.getElementById('uusiTyomaa');
+        var ti = document.getElementById('uusiTilaaja');
+        var tn = document.getElementById('uusiTyonro');
+        var y = document.getElementById('uusiYhteys');
+        var o = document.getElementById('uusiOsoite');
+        if (t) t.value = tiedot.tyomaa || '';
+        if (ti) ti.value = tiedot.tilaaja || '';
+        if (tn) tn.value = tiedot.tyonro || '';
+        if (y) y.value = tiedot.yhteys || '';
+        if (o) o.value = tiedot.osoite || '';
+      }
+    }, 100);
   };
   reader.readAsDataURL(file);
 }
@@ -351,19 +362,22 @@ async function lueHinnatAIlla(pdfBase64) {
 
 // ── Tallenna uusi projekti ──
 async function tallennaProjekti() {
-  var tyomaa = document.getElementById('uusiTyomaa').value.trim();
+  // Hae arvo — jos kenttä on tyhjä, käytä luettuja tietoja
+  var tyomaaEl = document.getElementById('uusiTyomaa');
+  var tyomaa = tyomaaEl ? tyomaaEl.value.trim() : '';
   if (!tyomaa) { alert('Kirjoita projektin nimi'); return; }
 
-  var btn = document.querySelector('#lisaysOverlay .btn-save');
+  var btn = document.querySelector('#vaihe3 .btn-save');
+  if (!btn) btn = document.querySelector('#lisaysOverlay .btn-save');
   btn.textContent = '⏳ Tallennetaan...';
   btn.disabled = true;
 
   var projektinTiedot = {
     tyomaa: tyomaa,
-    tilaaja: document.getElementById('uusiTilaaja').value.trim(),
-    tyonro: document.getElementById('uusiTyonro').value.trim(),
-    yhteys: document.getElementById('uusiYhteys').value.trim(),
-    osoite: document.getElementById('uusiOsoite').value.trim(),
+    tilaaja: (document.getElementById('uusiTilaaja') || {}).value || '',
+    tyonro: (document.getElementById('uusiTyonro') || {}).value || '',
+    yhteys: (document.getElementById('uusiYhteys') || {}).value || '',
+    osoite: (document.getElementById('uusiOsoite') || {}).value || '',
     luotu: new Date().toISOString()
   };
 
