@@ -418,14 +418,14 @@ function addRow() {
     kuvaustd = '<td><input type="text" id="desc_' + id + '" placeholder="Kuvaus..." style="width:100%"></td>';
   }
 
-  tr.innerHTML = '<td><input type="date" style="width:100%" onfocus="try{this.showPicker()}catch(e){}" onchange="var p=this.value.split('-');this.setAttribute('data-fi',p.length===3?p[2]+'.'+p[1]+'.'+p[0]:'');"></td>'
+  var dateCell = '<td><input type="date" style="width:100%" id="date_' + id + '"' + ' onfocus="try{this.showPicker()}catch(e){}"' + ' onchange="var p=this.value.split(String.fromCharCode(45));this.setAttribute(String.fromCharCode(100,97,116,97,45,102,105),p.length===3?p[2]+String.fromCharCode(46)+p[1]+String.fromCharCode(46)+p[0]:String.fromCharCode(32));"></td>';
+  tr.innerHTML = dateCell
     + kuvaustd
     + '<td><input type="number" id="qty_' + id + '" placeholder="0" step="0.1" oninput="calcRow(' + id + ')"></td>'
     + '<td class="yks-cell"><select id="unit_' + id + '"><option>m²</option><option>m</option><option>kpl</option><option>h</option><option>erä</option><option>m³</option><option>tn</option></select></td>'
     + '<td><input type="number" id="price_' + id + '" placeholder="0,00" step="0.01" oninput="calcRow(' + id + ')"></td>'
     + '<td class="calc" style="white-space:nowrap;" id="total_' + id + '">—</td>'
-    + '<td style="text-align:center"><button class="del-btn" onclick="delRow(' + id + ')">✕</button></td>';
-
+    + '<td style="text-align:center"><button class="del-btn" onclick="delRow(' + id + ')">✕</button></td>'
   document.getElementById('tableBody').appendChild(tr);
   markEmptyRows();
   updateTotal();
