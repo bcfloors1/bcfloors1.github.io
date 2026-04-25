@@ -399,9 +399,24 @@ function addRow() {
   var id = rowCount;
   var tr = document.createElement('tr');
   tr.id = 'row_' + id;
+
+  // Rakenna kuvaus-solu — alasvetovalikko jos tarjoushinnat saatavilla, muuten tekstikenttä
+  var kuvaustd;
+  if (tarjousHinnat.length > 0) {
+    kuvaustd = '<td><select id="desc_' + id + '" style="border:none;background:transparent;font-family:inherit;font-size:11px;color:#1a2530;outline:none;width:100%;cursor:pointer;" onchange="valitseHinta(' + id + ', this)">';
+    kuvaustd += '<option value="">— Valitse —</option>';
+    tarjousHinnat.forEach(function(h) {
+      kuvaustd += '<option value="' + h.hinta + '" data-yksikko="' + (h.yksikko||'m²') + '">' + h.nimi + ' (' + h.hinta.toFixed(2) + ' €/' + (h.yksikko||'m²') + ')</option>';
+    });
+    kuvaustd += '<option value="__muu__">— Muu / kirjoita käsin —</option>';
+    kuvaustd += '</select></td>';
+  } else {
+    kuvaustd = '<td><input type="text" id="desc_' + id + '" placeholder="Kuvaus..." style="width:100%"></td>';
+  }
+
   tr.innerHTML = `
     <td><input type="date" style="width:100%" onfocus="try{this.showPicker()}catch(e){}" onchange="var p=this.value.split('-');this.setAttribute('data-fi',p.length===3?p[2]+'.'+p[1]+'.'+p[0]:'');"></td>
-    <td><input type="text" id="desc_${id}" placeholder="Kuvaus..." style="width:100%"></td>
+    ${kuvaustd}
     <td><input type="number" id="qty_${id}" placeholder="0" step="0.1" oninput="calcRow(${id})"></td>
     <td class="yks-cell">
       <select id="unit_${id}">
@@ -674,8 +689,14 @@ fbDb2.collection('projects').orderBy('tyomaa').onSnapshot(function(snap) {
   });
 });
 
+// Tallennetaan projektin tarjoushinnat globaalisti
+var tarjousHinnat = [];
+
 function valitseProjekti(id) {
-  if (!id) return;
+  if (!id) {
+    tarjousHinnat = [];
+    return;
+  }
   var sel = document.getElementById('projektiValinta');
   var opt = sel.options[sel.selectedIndex];
   if (!opt) return;
@@ -701,6 +722,106 @@ function valitseProjekti(id) {
   // Fill työnro
   var tyonroInput = document.getElementById('tyonro');
   if (tyonroInput) tyonroInput.value = opt.getAttribute('data-tyonro');
+
+  // Hae tarjoushinnat Firestorestä
+  fbDb2.collection('projects').doc(id).get().then(function(doc) {
+    if (doc.exists && doc.data().tarjousHinnat) {
+      tarjousHinnat = doc.data().tarjousHinnat;
+    } else {
+      tarjousHinnat = [];
+    }
+    // Päivitä olemassaolevat rivit
+    document.querySelectorAll('#tableBody tr').forEach(function(tr) {
+      var rowId = tr.id.replace('row_', '');
+      paivitaKuvausKentta(rowId);
+    });
+  });
+}
+
+function paivitaKuvausKentta(id) {
+  var td = document.getElementById('desc_' + id);
+  if (!td) return;
+
+  if (tarjousHinnat.length === 0) {
+    // Ei tarjoushintoja — käytä tavallista tekstikenttää
+    if (td.tagName === 'SELECT') {
+      var input = document.createElement('input');
+      input.type = 'text';
+      input.id = 'desc_' + id;
+      input.placeholder = 'Kuvaus...';
+      input.style.width = '100%';
+      td.parentNode.replaceChild(input, td);
+    }
+    return;
+  }
+
+  // On tarjoushinnat — muuta alasvetovalikoksi
+  if (td.tagName !== 'SELECT') {
+    var vanha = td.value || '';
+    var sel = document.createElement('select');
+    sel.id = 'desc_' + id;
+    sel.style.cssText = 'border:none;background:transparent;font-family:inherit;font-size:11px;color:#1a2530;outline:none;width:100%;cursor:pointer;';
+    sel.onchange = function() { valitseHinta(id, this); };
+
+    var tyhja = document.createElement('option');
+    tyhja.value = '';
+    tyhja.textContent = '— Valitse —';
+    sel.appendChild(tyhja);
+
+    tarjousHinnat.forEach(function(h) {
+      var opt = document.createElement('option');
+      opt.value = h.hinta;
+      opt.setAttribute('data-yksikko', h.yksikko || 'm²');
+      opt.textContent = h.nimi + ' (' + h.hinta.toFixed(2) + ' €/' + (h.yksikko || 'm²') + ')';
+      if (vanha === h.nimi) opt.selected = true;
+      sel.appendChild(opt);
+    });
+
+    // Lisää "Muu" vaihtoehto
+    var muu = document.createElement('option');
+    muu.value = '__muu__';
+    muu.textContent = '— Muu / kirjoita käsin —';
+    sel.appendChild(muu);
+
+    td.parentNode.replaceChild(sel, td);
+  }
+}
+
+function valitseHinta(id, sel) {
+  if (sel.value === '__muu__') {
+    // Vaihda takaisin tekstikenttään
+    var input = document.createElement('input');
+    input.type = 'text';
+    input.id = 'desc_' + id;
+    input.placeholder = 'Kuvaus...';
+    input.style.width = '100%';
+    sel.parentNode.replaceChild(input, sel);
+    // Tyhjennä hinta
+    var priceEl = document.getElementById('price_' + id);
+    if (priceEl) { priceEl.value = ''; calcRow(id); }
+    return;
+  }
+  if (!sel.value) {
+    var priceEl = document.getElementById('price_' + id);
+    if (priceEl) { priceEl.value = ''; calcRow(id); }
+    return;
+  }
+  // Aseta hinta automaattisesti
+  var hinta = parseFloat(sel.value);
+  var yksikko = sel.options[sel.selectedIndex].getAttribute('data-yksikko') || 'm²';
+  var priceEl = document.getElementById('price_' + id);
+  if (priceEl) { priceEl.value = hinta.toFixed(2); }
+  // Aseta yksikkö
+  var unitEl = document.getElementById('unit_' + id);
+  if (unitEl) {
+    for (var i = 0; i < unitEl.options.length; i++) {
+      if (unitEl.options[i].value === yksikko || unitEl.options[i].text === yksikko) {
+        unitEl.selectedIndex = i;
+        break;
+      }
+    }
+  }
+  calcRow(id);
 }
 </script>
 
