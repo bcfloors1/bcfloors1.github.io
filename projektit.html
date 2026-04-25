@@ -53,6 +53,18 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f8fafc;color:#1e293
 .pdf-upload-area.has-file{border-color:#10b981;background:#f0fdf4;color:#15803d;}
 #pdfInput{display:none;}
 .ai-info{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px;font-size:12px;color:#1d4ed8;margin-top:8px;}
+.detalji-overlay{display:none;position:fixed;inset:0;background:white;z-index:300;overflow-y:auto;}
+.detalji-overlay.open{display:block;}
+.detalji-hdr{background:#006CB1;padding:12px 16px;display:flex;align-items:center;gap:12px;border-bottom:3px solid #e8a020;position:sticky;top:0;}
+.detalji-back{background:rgba(255,255,255,.2);border:none;color:white;font-size:18px;cursor:pointer;border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;}
+.detalji-title{color:white;font-size:14px;font-weight:700;}
+.detalji-content{padding:14px 16px 60px;}
+.detalji-section{background:white;border-radius:10px;border:1px solid #e2e8f0;margin-bottom:10px;overflow:hidden;}
+.detalji-section-title{background:#f8fafc;padding:10px 14px;font-size:11px;font-weight:700;color:#006CB1;text-transform:uppercase;letter-spacing:.3px;border-bottom:1px solid #e2e8f0;}
+.detalji-row{display:flex;padding:8px 14px;border-bottom:1px solid #f1f5f9;font-size:13px;}
+.detalji-row:last-child{border-bottom:none;}
+.detalji-label{color:#64748b;min-width:120px;font-size:12px;}
+.detalji-val{color:#1e293b;font-weight:500;flex:1;}
 .toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#1e293b;color:white;padding:10px 20px;border-radius:20px;font-size:13px;font-weight:600;z-index:999;opacity:0;transition:opacity .3s;}
 .toast.show{opacity:1;}
 </style>
@@ -79,38 +91,89 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f8fafc;color:#1e293
   <div class="sheet">
     <button class="sheet-close" onclick="suljeSheet('lisaysOverlay')">✕</button>
     <div class="sheet-title">Uusi projekti</div>
-    <div class="ff">
-      <label>Projekti / Kohde</label>
-      <input type="text" id="uusiTyomaa" placeholder="esim. Akun Tehdas, Tampere">
-    </div>
-    <div class="ff">
-      <label>Tilaaja</label>
-      <input type="text" id="uusiTilaaja" placeholder="esim. Tekova Oy">
-    </div>
-    <div class="ff">
-      <label>Työnumero</label>
-      <input type="text" id="uusiTyonro" placeholder="esim. 5015">
-    </div>
-    <div class="ff">
-      <label>Yhteyshenkilö</label>
-      <input type="text" id="uusiYhteys" placeholder="esim. Markus Illikainen">
-    </div>
-    <div class="ff">
-      <label>Osoite</label>
-      <input type="text" id="uusiOsoite">
-    </div>
-    <div class="ff">
-      <label>📎 Lataa tarjous PDF (valinnainen)</label>
-      <div class="pdf-upload-area" id="uploadArea" onclick="document.getElementById('pdfInput').click()">
-        <div>📄 Klikkaa valitaksesi PDF</div>
-        <div style="font-size:11px;margin-top:4px;color:#94a3b8">Hinnat luetaan automaattisesti AI:lla</div>
+
+    <!-- Vaihe 1: PDF-lataus -->
+    <div id="vaihe1">
+      <div style="text-align:center;padding:10px 0 16px;color:#64748b;font-size:13px;">
+        Lataa tarjous-PDF ja AI täyttää kaikki tiedot automaattisesti
       </div>
-      <input type="file" id="pdfInput" accept=".pdf" onchange="pdfValittu(this)">
-      <div class="ai-info" id="aiInfo" style="display:none">
-        🤖 AI lukee tarjouksesta hinnat automaattisesti ja tallentaa ne projektiin
+      <div class="ff">
+        <div class="pdf-upload-area" id="uploadArea" onclick="document.getElementById('pdfInput').click()">
+          <div style="font-size:32px;margin-bottom:8px">📄</div>
+          <div style="font-weight:600">Klikkaa valitaksesi tarjous-PDF</div>
+          <div style="font-size:11px;margin-top:6px;color:#94a3b8">AI lukee tilaajan, työmaan, hinnat ja muut tiedot</div>
+        </div>
+        <input type="file" id="pdfInput" accept=".pdf" onchange="pdfValittu(this)">
+      </div>
+      <div style="text-align:center;margin-top:8px">
+        <button onclick="siirryManuaaliseen()" style="background:none;border:none;color:#94a3b8;font-size:12px;cursor:pointer;font-family:inherit">
+          Syötä tiedot käsin ilman PDF:ää →
+        </button>
       </div>
     </div>
-    <button class="btn-save" onclick="tallennaProjekti()">💾 Tallenna projekti</button>
+
+    <!-- Vaihe 2: AI lukee / tarkistus -->
+    <div id="vaihe2" style="display:none">
+      <div class="ai-loading" id="aiLatausteksti" style="justify-content:center;padding:20px 0">
+        <div class="spinner"></div>
+        <span>AI lukee tarjousta...</span>
+      </div>
+    </div>
+
+    <!-- Vaihe 3: Tarkistus ja tallennus -->
+    <div id="vaihe3" style="display:none">
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#15803d;">
+        ✅ AI luki tiedot tarjouksesta — tarkista ja muokkaa tarvittaessa
+      </div>
+      <div class="ff">
+        <label>Projekti / Kohde</label>
+        <input type="text" id="uusiTyomaa" placeholder="esim. Akun Tehdas, Tampere">
+      </div>
+      <div class="ff">
+        <label>Tilaaja</label>
+        <input type="text" id="uusiTilaaja" placeholder="esim. Tekova Oy">
+      </div>
+      <div class="ff">
+        <label>Työnumero</label>
+        <input type="text" id="uusiTyonro" placeholder="esim. 5015">
+      </div>
+      <div class="ff">
+        <label>Yhteyshenkilö</label>
+        <input type="text" id="uusiYhteys" placeholder="esim. Markus Illikainen">
+      </div>
+      <div class="ff">
+        <label>Osoite</label>
+        <input type="text" id="uusiOsoite">
+      </div>
+      <div id="hinnatEsikatselu" style="margin-bottom:12px"></div>
+      <button class="btn-save" onclick="tallennaProjekti()">💾 Tallenna projekti</button>
+    </div>
+
+    <!-- Manuaalinen syöttö -->
+    <div id="vaihe4" style="display:none">
+      <div class="ff">
+        <label>Projekti / Kohde</label>
+        <input type="text" id="uusiTyomaa2" placeholder="esim. Akun Tehdas, Tampere">
+      </div>
+      <div class="ff">
+        <label>Tilaaja</label>
+        <input type="text" id="uusiTilaaja2" placeholder="esim. Tekova Oy">
+      </div>
+      <div class="ff">
+        <label>Työnumero</label>
+        <input type="text" id="uusiTyonro2" placeholder="esim. 5015">
+      </div>
+      <div class="ff">
+        <label>Yhteyshenkilö</label>
+        <input type="text" id="uusiYhteys2" placeholder="esim. Markus Illikainen">
+      </div>
+      <div class="ff">
+        <label>Osoite</label>
+        <input type="text" id="uusiOsoite2">
+      </div>
+      <button class="btn-save" onclick="tallennaManuaalinen()">💾 Tallenna projekti</button>
+    </div>
+
   </div>
 </div>
 
@@ -129,6 +192,15 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f8fafc;color:#1e293
     </div>
     <button class="btn-save" id="pdfSaveBtn" onclick="tallennaUusiPdf()" style="display:none">🤖 Tallenna + Lue hinnat AI:lla</button>
   </div>
+</div>
+
+<!-- Projektin detalji-näkymä -->
+<div class="detalji-overlay" id="detaljitOverlay">
+  <div class="detalji-hdr">
+    <button class="detalji-back" onclick="suljeDetalji()">←</button>
+    <div class="detalji-title" id="detaljitTitle">Projekti</div>
+  </div>
+  <div class="detalji-content" id="detaljitSisalto"></div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -150,6 +222,7 @@ var db = firebase.firestore();
 var valittuPdfBase64 = null;
 var valittuPdfBase642 = null;
 var aktiivisenProjektinId = null;
+var luetutHinnat = null;
 
 // ── Näytä toast ──
 function naytaToast(teksti) {
@@ -167,20 +240,57 @@ function suljeSheet(id) {
   document.getElementById(id).classList.remove('open');
 }
 
-// ── PDF valittu (uusi projekti) ──
+// ── PDF valittu (uusi projekti) — AI lukee heti ──
 function pdfValittu(input) {
   if (!input.files[0]) return;
   var file = input.files[0];
   if (file.size > 900000) { alert('PDF on liian suuri (max ~700KB)'); return; }
   var reader = new FileReader();
-  reader.onload = function(e) {
+  reader.onload = async function(e) {
     valittuPdfBase64 = e.target.result.split(',')[1];
-    document.getElementById('uploadArea').innerHTML =
-      '<div>✅ ' + file.name + '</div><div style="font-size:11px;margin-top:4px">(' + Math.round(file.size/1024) + ' KB)</div>';
-    document.getElementById('uploadArea').classList.add('has-file');
-    document.getElementById('aiInfo').style.display = 'block';
+
+    // Näytä vaihe 2 (AI lataa)
+    document.getElementById('vaihe1').style.display = 'none';
+    document.getElementById('vaihe2').style.display = 'block';
+
+    // AI lukee kaikki tiedot
+    var tiedot = await lueKaikkiTiedotAIlla(valittuPdfBase64);
+
+    // Täytä kentät
+    if (tiedot) {
+      document.getElementById('uusiTyomaa').value = tiedot.tyomaa || '';
+      document.getElementById('uusiTilaaja').value = tiedot.tilaaja || '';
+      document.getElementById('uusiTyonro').value = tiedot.tyonro || '';
+      document.getElementById('uusiYhteys').value = tiedot.yhteys || '';
+      document.getElementById('uusiOsoite').value = tiedot.osoite || '';
+      luetutHinnat = tiedot.hinnat || [];
+
+      // Näytä hintojen esikatselu
+      if (luetutHinnat.length > 0) {
+        var hHtml = '<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 12px;font-size:12px;">';
+        hHtml += '<div style="font-weight:700;color:#1d4ed8;margin-bottom:6px">📋 Luetut hinnat (' + luetutHinnat.length + ' kpl)</div>';
+        luetutHinnat.slice(0,5).forEach(function(h) {
+          hHtml += '<div style="display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid #dbeafe">';
+          hHtml += '<span style="color:#334155">' + h.nimi + '</span>';
+          hHtml += '<span style="color:#1d4ed8;font-weight:600">' + h.hinta.toFixed(2) + ' €/' + (h.yksikko||'m²') + '</span>';
+          hHtml += '</div>';
+        });
+        if (luetutHinnat.length > 5) hHtml += '<div style="color:#64748b;padding-top:4px">...ja ' + (luetutHinnat.length-5) + ' muuta</div>';
+        hHtml += '</div>';
+        document.getElementById('hinnatEsikatselu').innerHTML = hHtml;
+      }
+    }
+
+    // Näytä vaihe 3
+    document.getElementById('vaihe2').style.display = 'none';
+    document.getElementById('vaihe3').style.display = 'block';
   };
   reader.readAsDataURL(file);
+}
+
+function siirryManuaaliseen() {
+  document.getElementById('vaihe1').style.display = 'none';
+  document.getElementById('vaihe4').style.display = 'block';
 }
 
 // ── PDF valittu (olemassaoleva projekti) ──
@@ -199,15 +309,15 @@ function pdfValittu2(input) {
   reader.readAsDataURL(file);
 }
 
-// ── AI lukee hinnat PDF:stä ──
-async function lueHinnatAIlla(pdfBase64) {
+// ── AI lukee KAIKKI tiedot PDF:stä ──
+async function lueKaikkiTiedotAIlla(pdfBase64) {
   try {
     var response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
+        max_tokens: 2000,
         messages: [{
           role: 'user',
           content: [
@@ -217,7 +327,7 @@ async function lueHinnatAIlla(pdfBase64) {
             },
             {
               type: 'text',
-              text: 'Lue tästä tarjous-PDF:stä kaikki hintatiedot. Palauta VAIN JSON-muodossa ilman mitään muuta tekstiä:\n{\n  "hinnat": [\n    {"nimi": "Pos 1a, AP 2", "hinta": 29.30, "yksikko": "m²"},\n    ...\n  ]\n}\nSisällytä kaikki hinnat myös lisä- ja muutostöiden yksikköhinnat.'
+              text: 'Lue tästä betonilattiatarjous-PDF:stä kaikki tiedot. Palauta VAIN JSON-muodossa ilman mitään muuta tekstiä tai markdown-merkkejä:\n{\n  "tyomaa": "kohteen nimi ja paikkakunta",\n  "tilaaja": "tilaajan yritysnimi",\n  "tyonro": "työnumero",\n  "yhteys": "tilaajan yhteyshenkilön nimi",\n  "osoite": "kohteen osoite jos mainittu",\n  "hinnat": [\n    {"nimi": "Pos 1a, AP 2", "hinta": 29.30, "yksikko": "m²"},\n    ...\n  ]\n}\nSisällytä KAIKKI hinnat mukaan lukien lisä- ja muutostöiden yksikköhinnat. Jos jokin tieto puuttuu, jätä kenttä tyhjäksi merkkijonona.'
             }
           ]
         }]
@@ -225,13 +335,18 @@ async function lueHinnatAIlla(pdfBase64) {
     });
     var data = await response.json();
     var teksti = data.content[0].text.trim();
-    // Poista mahdolliset markdown-koodimerkit
     teksti = teksti.replace(/```json|```/g, '').trim();
     return JSON.parse(teksti);
   } catch(e) {
     console.error('AI virhe:', e);
     return null;
   }
+}
+
+// ── Vanha lueHinnatAIlla (käytössä PDF-vaihto-toiminnossa) ──
+async function lueHinnatAIlla(pdfBase64) {
+  var tiedot = await lueKaikkiTiedotAIlla(pdfBase64);
+  return tiedot ? { hinnat: tiedot.hinnat } : null;
 }
 
 // ── Tallenna uusi projekti ──
@@ -252,29 +367,31 @@ async function tallennaProjekti() {
     luotu: new Date().toISOString()
   };
 
-  // PDF mukana?
+  // PDF ja hinnat jo luettu AI:lla aiemmin
   if (valittuPdfBase64) {
-    btn.textContent = '🤖 AI lukee hintoja...';
     projektinTiedot.pdfBase64 = valittuPdfBase64;
     projektinTiedot.pdfLadattu = new Date().toISOString();
-
-    var hinnat = await lueHinnatAIlla(valittuPdfBase64);
-    if (hinnat && hinnat.hinnat) {
-      projektinTiedot.tarjousHinnat = hinnat.hinnat;
-    }
+  }
+  if (luetutHinnat && luetutHinnat.length > 0) {
+    projektinTiedot.tarjousHinnat = luetutHinnat;
   }
 
   db.collection('projects').add(projektinTiedot)
     .then(function() {
       suljeSheet('lisaysOverlay');
-      // Tyhjennä lomake
+      // Tyhjennä lomake ja palauta vaihe 1
       ['uusiTyomaa','uusiTilaaja','uusiTyonro','uusiYhteys','uusiOsoite'].forEach(function(id){
         document.getElementById(id).value = '';
       });
-      document.getElementById('uploadArea').innerHTML = '<div>📄 Klikkaa valitaksesi PDF</div><div style="font-size:11px;margin-top:4px;color:#94a3b8">Hinnat luetaan automaattisesti AI:lla</div>';
+      document.getElementById('hinnatEsikatselu').innerHTML = '';
+      document.getElementById('vaihe1').style.display = 'block';
+      document.getElementById('vaihe2').style.display = 'none';
+      document.getElementById('vaihe3').style.display = 'none';
+      document.getElementById('vaihe4').style.display = 'none';
+      document.getElementById('uploadArea').innerHTML = '<div style="font-size:32px;margin-bottom:8px">📄</div><div style="font-weight:600">Klikkaa valitaksesi tarjous-PDF</div><div style="font-size:11px;margin-top:6px;color:#94a3b8">AI lukee tilaajan, työmaan, hinnat ja muut tiedot</div>';
       document.getElementById('uploadArea').classList.remove('has-file');
-      document.getElementById('aiInfo').style.display = 'none';
       valittuPdfBase64 = null;
+      luetutHinnat = null;
       btn.textContent = '💾 Tallenna projekti';
       btn.disabled = false;
       naytaToast('✅ Projekti tallennettu!');
@@ -284,6 +401,29 @@ async function tallennaProjekti() {
       btn.textContent = '💾 Tallenna projekti';
       btn.disabled = false;
     });
+}
+
+// ── Tallenna manuaalisesti (ilman PDF) ──
+function tallennaManuaalinen() {
+  var tyomaa = document.getElementById('uusiTyomaa2').value.trim();
+  if (!tyomaa) { alert('Kirjoita projektin nimi'); return; }
+  var tiedot = {
+    tyomaa: tyomaa,
+    tilaaja: document.getElementById('uusiTilaaja2').value.trim(),
+    tyonro: document.getElementById('uusiTyonro2').value.trim(),
+    yhteys: document.getElementById('uusiYhteys2').value.trim(),
+    osoite: document.getElementById('uusiOsoite2').value.trim(),
+    luotu: new Date().toISOString()
+  };
+  db.collection('projects').add(tiedot)
+    .then(function() {
+      suljeSheet('lisaysOverlay');
+      ['uusiTyomaa2','uusiTilaaja2','uusiTyonro2','uusiYhteys2','uusiOsoite2'].forEach(function(id){ document.getElementById(id).value=''; });
+      document.getElementById('vaihe1').style.display = 'block';
+      document.getElementById('vaihe4').style.display = 'none';
+      naytaToast('✅ Projekti tallennettu!');
+    })
+    .catch(function(e){ alert('Virhe: ' + e.message); });
 }
 
 // ── Avaa PDF-lataus olemassaolevalle projektille ──
@@ -387,8 +527,8 @@ db.collection('projects').orderBy('tyomaa').onSnapshot(function(snap) {
       : '<span class="pdf-status pdf-none">📎 Ei tarjousta</span>';
 
     html += '<div class="proj-card">';
-    html += '<div class="proj-main">';
-    html += '<div class="proj-name">' + (p.tyomaa || '') + '</div>';
+    html += '<div class="proj-main" onclick="avaaDetalji(\''+id+'\')" style="cursor:pointer">';
+    html += '<div class="proj-name">' + (p.tyomaa || '') + ' <span style="font-size:10px;color:#94a3b8">▶</span></div>';
     if (p.tilaaja) html += '<div class="proj-sub">' + p.tilaaja + '</div>';
     if (p.tyonro) html += '<div class="proj-sub">Työnro: ' + p.tyonro + '</div>';
     html += pdfStatus;
@@ -406,6 +546,62 @@ db.collection('projects').orderBy('tyomaa').onSnapshot(function(snap) {
 
   lista.innerHTML = html;
 });
+
+// ── Avaa projektin detalji ──
+function avaaDetalji(projektinId) {
+  db.collection('projects').doc(projektinId).get().then(function(doc) {
+    if (!doc.exists) return;
+    var p = doc.data();
+    document.getElementById('detaljitTitle').textContent = p.tyomaa || 'Projekti';
+
+    var html = '';
+
+    // Perustiedot
+    html += '<div class="detalji-section">';
+    html += '<div class="detalji-section-title">📋 Perustiedot</div>';
+    if (p.tilaaja) html += '<div class="detalji-row"><span class="detalji-label">Tilaaja</span><span class="detalji-val">' + p.tilaaja + '</span></div>';
+    if (p.tyonro) html += '<div class="detalji-row"><span class="detalji-label">Työnumero</span><span class="detalji-val">' + p.tyonro + '</span></div>';
+    if (p.yhteys) html += '<div class="detalji-row"><span class="detalji-label">Yhteyshenkilö</span><span class="detalji-val">' + p.yhteys + '</span></div>';
+    if (p.osoite) html += '<div class="detalji-row"><span class="detalji-label">Osoite</span><span class="detalji-val">' + p.osoite + '</span></div>';
+    if (p.luotu) html += '<div class="detalji-row"><span class="detalji-label">Lisätty</span><span class="detalji-val">' + p.luotu.split('T')[0] + '</span></div>';
+    html += '</div>';
+
+    // Tarjous
+    html += '<div class="detalji-section">';
+    html += '<div class="detalji-section-title">📄 Tarjous</div>';
+    if (p.pdfBase64) {
+      if (p.pdfLadattu) html += '<div class="detalji-row"><span class="detalji-label">Ladattu</span><span class="detalji-val">' + p.pdfLadattu.split('T')[0] + '</span></div>';
+      html += '<div class="detalji-row"><button onclick="avaaPdf(\''+doc.id+'\')" style="background:#006CB1;color:white;border:none;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;margin:4px 0">📄 Avaa tarjous PDF</button></div>';
+    } else {
+      html += '<div class="detalji-row"><span style="color:#94a3b8;font-size:13px">Ei tarjousta ladattu</span></div>';
+    }
+    html += '<div class="detalji-row"><button onclick="suljeDetalji();avaaLataaPdf(\''+doc.id+'\',\''+( p.tyomaa||'').replace(/'/g,"\\'")+'\')" style="background:#f8fafc;border:1.5px solid #e2e8f0;color:#006CB1;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;margin:4px 0">📎 '+(p.pdfBase64?'Vaihda PDF':'Lataa PDF')+'</button></div>';
+    html += '</div>';
+
+    // Hinnat
+    if (p.tarjousHinnat && p.tarjousHinnat.length > 0) {
+      html += '<div class="detalji-section">';
+      html += '<div class="detalji-section-title">💰 Tarjoushinnat</div>';
+      p.tarjousHinnat.forEach(function(h) {
+        html += '<div class="detalji-row"><span class="detalji-label">' + h.nimi + '</span>';
+        html += '<span class="detalji-val" style="color:#006CB1;font-weight:700">' + h.hinta.toFixed(2) + ' € / ' + (h.yksikko||'m²') + '</span></div>';
+      });
+      html += '</div>';
+    }
+
+    // Toiminnot
+    html += '<div style="margin-top:16px">';
+    html += '<button onclick="poistaProjekti(\''+doc.id+'\',\''+( p.tyomaa||'').replace(/'/g,"\\'")+'\')" style="width:100%;padding:12px;border-radius:10px;border:1.5px solid #fca5a5;background:white;color:#ef4444;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer">🗑 Poista projekti</button>';
+    html += '</div>';
+
+    document.getElementById('detaljitSisalto').innerHTML = html;
+    document.getElementById('detaljitOverlay').classList.add('open');
+  });
+}
+
+function suljeDetalji() {
+  document.getElementById('detaljitOverlay').classList.remove('open');
+}
 </script>
 </body>
 </html>
