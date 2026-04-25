@@ -313,22 +313,25 @@ function taytaKentat() {
   var tiedot = window._aiTiedot;
   if (!tiedot) return;
   var kentat = [
-    ['uusiTyomaa', tiedot.tyomaa],
-    ['uusiTilaaja', tiedot.tilaaja],
-    ['uusiTyonro', tiedot.tyonro],
-    ['uusiYhteys', tiedot.yhteys],
-    ['uusiOsoite', tiedot.osoite]
+    ['uusiTyomaa', tiedot.tyomaa || ''],
+    ['uusiTilaaja', tiedot.tilaaja || ''],
+    ['uusiTyonro', tiedot.tyonro || ''],
+    ['uusiYhteys', tiedot.yhteys || ''],
+    ['uusiOsoite', tiedot.osoite || '']
   ];
   kentat.forEach(function(pari) {
     var el = document.getElementById(pari[0]);
-    if (el && pari[1]) {
-      el.value = pari[1];
-      el.setAttribute('value', pari[1]);
-      // Poista placeholder jotta arvo näkyy
-      el.placeholder = '';
-    }
+    if (!el) return;
+    // Korvaa elementti kokonaan uudella jolla on arvo suoraan
+    var uusi = document.createElement('input');
+    uusi.type = 'text';
+    uusi.id = pari[0];
+    uusi.style.cssText = el.style.cssText;
+    uusi.className = el.className;
+    uusi.defaultValue = pari[1];
+    uusi.value = pari[1];
+    el.parentNode.replaceChild(uusi, el);
   });
-  console.log('Kentät täytetty:', JSON.stringify(tiedot));
 }
 
 // ── AI lukee KAIKKI tiedot PDF:stä ──
