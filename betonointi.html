@@ -804,34 +804,32 @@ function tallennaProjektiksi() {
 
 function tallennaTiedosto() {
   try {
-    // Kerää kaikkien kenttien arvot objektiin
-    var arvot = {};
-    var inputs = document.querySelectorAll('input[id], select[id], textarea[id]');
-    for (var i = 0; i < inputs.length; i++) {
-      var el = inputs[i];
-      if (!el.id) continue;
+    // 1. Kerää kenttien arvot ID:n perusteella
+    var kentat = {};
+    var kaikki = document.querySelectorAll('input, select, textarea');
+    for (var i = 0; i < kaikki.length; i++) {
+      var el = kaikki[i];
+      var avain = el.id || ('__idx_' + i);
       if (el.type === 'checkbox' || el.type === 'radio') {
-        arvot[el.id] = el.checked;
+        kentat[avain] = el.checked;
       } else {
-        arvot[el.id] = el.value;
+        kentat[avain] = el.value;
       }
     }
 
-    // Tallenna allekirjoitukset
+    // 2. Tallenna allekirjoitukset
     var c1 = document.getElementById('sig1');
     var c2 = document.getElementById('sig2');
     var sig1b64 = c1 ? c1.toDataURL() : '';
     var sig2b64 = c2 ? c2.toDataURL() : '';
 
-    // Rakenna tallennettava sivu injektoimalla arvot suoraan HTML-merkkijonoon
+    // 3. Ota HTML talteen
     var html = document.documentElement.outerHTML;
 
-    // Poista no-print-blokit
-    html = html.replace(/<div class="no-print"[\s\S]*?<\/div>\s*(?=<div class="no-print"|<div class="page">)/g, '');
-    // Poista loput no-print-divit
-    html = html.replace(/<div class="no-print"[^>]*>[\s\S]*?<\/div>/g, '');
+    // 4. Poista projektipalkin no-print-div
+    html = html.replace(/<div class="no-print" style="background:#e8f4fc[^"]*"[^>]*>[\s\S]*?<\/div>\s*(?=<div class="page">)/, '');
 
-    // Korvaa canvas-elementit allekirjoituskuvilla
+    // 5. Korvaa canvas-elementit allekirjoituskuvilla
     if (sig1b64) {
       html = html.replace(/<canvas id="sig1"[^>]*><\/canvas>/,
         '<img src="' + sig1b64 + '" style="border:1.5px solid #006CB1;width:100%;max-width:360px;height:55px;display:block;">');
@@ -841,23 +839,57 @@ function tallennaTiedosto() {
         '<img src="' + sig2b64 + '" style="border:1.5px solid #006CB1;width:100%;max-width:360px;height:55px;display:block;">');
     }
 
-    // Tallenna tiedosto
+    // 6. Injektoi kenttien arvot skriptinä
+    var injektointi = '<script>\ndocument.addEventListener("DOMContentLoaded", function() {\n';
+    injektointi += '  var arvot = ' + JSON.stringify(kentat) + ';\n';
+    injektointi += '  var els = document.querySelectorAll("input, select, textarea");\n';
+    injektointi += '  for (var i = 0; i < els.length; i++) {\n';
+    injektointi += '    var el = els[i];\n';
+    injektointi += '    var avain = el.id || ("__idx_" + i);\n';
+    injektointi += '    if (!(avain in arvot)) continue;\n';
+    injektointi += '    if (el.type === "checkbox" || el.type === "radio") {\n';
+    injektointi += '      el.checked = arvot[avain];\n';
+    injektointi += '    } else {\n';
+    injektointi += '      el.value = arvot[avain];\n';
+    injektointi += '    }\n';
+    injektointi += '  }\n';
+    injektointi += '});\n';
+    injektointi += '<\/script>\n';
+    html = html.replace('</body>', injektointi + '</body>');
+
+    // 7. Tallenna — toimii Chrome/Firefox/Edge/Safari desktop
     var blob = new Blob(['<!DOCTYPE html>\n' + html], {type: 'text/html;charset=utf-8'});
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement('a');
-    a.href = url;
-    var nmEl = document.getElementById('bp_tyomaa');
-    var tyomaa = (nmEl && nmEl.value && nmEl.value.trim()) ? nmEl.value.trim() : 'luonnos';
-    a.download = 'betonointi_' + tyomaa + '_' + new Date().toISOString().split('T')[0] + '.html';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+
+    // Yritä ensin normaali lataus
+    if (window.navigator && window.navigator.msSaveOrOpenBlob) {
+      // IE / Edge legacy
+      window.navigator.msSaveOrOpenBlob(blob, _tiedostoNimi());
+    } else {
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = _tiedostoNimi();
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(function() {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 1000);
+    }
 
   } catch(e) {
     alert('Tallennusvirhe: ' + e.message);
     console.error(e);
   }
+}
+
+function _tiedostoNimi() {
+  var nmEl = document.getElementById('bp_tyomaa');
+  var tyomaa = (nmEl && nmEl.value && nmEl.value.trim()) ? nmEl.value.trim() : 'luonnos';
+  // Poistetaan erikoismerkit tiedostonimestä
+  tyomaa = tyomaa.replace(/[^a-zA-Z0-9äöåÄÖÅ_\-]/g, '_');
+  return 'betonointi_' + tyomaa + '_' + new Date().toISOString().split('T')[0] + '.html';
 }
 </script>
 </body>
