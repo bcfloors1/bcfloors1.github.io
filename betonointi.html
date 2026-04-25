@@ -804,93 +804,70 @@ function tallennaProjektiksi() {
 
 function tallennaTiedosto() {
   try {
-    // 1. Kerää kenttien arvot indeksin JA id:n perusteella
     var kentat = {};
     var kaikki = document.querySelectorAll('input, select, textarea');
     for (var i = 0; i < kaikki.length; i++) {
       var el = kaikki[i];
-      var avain = '__idx_' + i;
+      var avain = (el.id ? el.id : '') + '||' + i;
       if (el.type === 'checkbox' || el.type === 'radio') {
-        kentat[avain] = el.checked;
+        kentat[avain] = el.checked ? '1' : '0';
       } else {
         kentat[avain] = el.value;
       }
     }
-
-    // 2. Tallenna allekirjoitukset
     var c1 = document.getElementById('sig1');
     var c2 = document.getElementById('sig2');
-    var sig1b64 = c1 ? c1.toDataURL() : '';
-    var sig2b64 = c2 ? c2.toDataURL() : '';
+    var sig1b64 = (c1 && c1.toDataURL) ? c1.toDataURL() : '';
+    var sig2b64 = (c2 && c2.toDataURL) ? c2.toDataURL() : '';
 
-    // 3. Ota HTML talteen
-    var html = document.documentElement.outerHTML;
+    fetch('https://bcfloors1.github.io/betonointi.html')
+      .then(function(r) { return r.text(); })
+      .then(function(pohja) {
+        var dataJson = JSON.stringify(kentat).replace(/<\/script>/gi, '<\\/script>');
+        var injektointi = '\n<script id="luonnos-injektio">\n';
+        injektointi += '(function(){\n';
+        injektointi += '  var KENTAT = ' + dataJson + ';\n';
+        injektointi += '  var SIG1 = ' + JSON.stringify(sig1b64) + ';\n';
+        injektointi += '  var SIG2 = ' + JSON.stringify(sig2b64) + ';\n';
+        injektointi += '  function tayta() {\n';
+        injektointi += '    var els = document.querySelectorAll("input, select, textarea");\n';
+        injektointi += '    for (var i = 0; i < els.length; i++) {\n';
+        injektointi += '      var el = els[i];\n';
+        injektointi += '      var k = (el.id ? el.id : "") + "||" + i;\n';
+        injektointi += '      if (!(k in KENTAT)) continue;\n';
+        injektointi += '      if (el.type==="checkbox"||el.type==="radio") { el.checked=(KENTAT[k]==="1"); }\n';
+        injektointi += '      else { el.value = KENTAT[k]; }\n';
+        injektointi += '    }\n';
+        injektointi += '    if(SIG1){var c=document.getElementById("sig1");if(c){var im=document.createElement("img");im.src=SIG1;im.style.cssText="border:1.5px solid #006CB1;width:100%;max-width:360px;height:55px;display:block;";c.parentNode.replaceChild(im,c);}}\n';
+        injektointi += '    if(SIG2){var c=document.getElementById("sig2");if(c){var im=document.createElement("img");im.src=SIG2;im.style.cssText="border:1.5px solid #006CB1;width:100%;max-width:360px;height:55px;display:block;";c.parentNode.replaceChild(im,c);}}\n';
+        injektointi += '  }\n';
+        injektointi += '  document.addEventListener("DOMContentLoaded",function(){tayta();setTimeout(tayta,1500);setTimeout(tayta,3000);});\n';
+        injektointi += '})();\n';
+        injektointi += '<\/script>\n';
 
-    // 4. Poista projektipalkin no-print-div
-    html = html.replace(/<div class="no-print" style="background:#e8f4fc[^"]*"[^>]*>[\s\S]*?<\/div>\s*(?=<div class="page">)/, '');
+        var tulos = pohja.replace('</head>', injektointi + '</head>');
 
-    // 5. Korvaa canvas-elementit allekirjoituskuvilla
-    if (sig1b64) {
-      html = html.replace(/<canvas id="sig1"[^>]*><\/canvas>/,
-        '<img src="' + sig1b64 + '" style="border:1.5px solid #006CB1;width:100%;max-width:360px;height:55px;display:block;">');
-    }
-    if (sig2b64) {
-      html = html.replace(/<canvas id="sig2"[^>]*><\/canvas>/,
-        '<img src="' + sig2b64 + '" style="border:1.5px solid #006CB1;width:100%;max-width:360px;height:55px;display:block;">');
-    }
+        var tyomaa = 'luonnos';
+        for (var k in kentat) { if (k.indexOf('bp_tyomaa||') === 0 && kentat[k]) { tyomaa = kentat[k]; break; } }
+        tyomaa = tyomaa.replace(/[^a-zA-Z0-9äöåÄÖÅ_\-]/g, '_') || 'luonnos';
+        var tiedNimi = 'betonointi_' + tyomaa + '_' + new Date().toISOString().split('T')[0] + '.html';
 
-    // 6. Injektoi arvot skriptinä — ajetaan VIIMEISENÄ DOMContentLoaded:ssa
-    //    setTimeout 0 varmistaa että Firebase ym. ehtivät ensin, sitten ylikirjoitetaan arvoilla
-    var injektointi = '<script>\n';
-    injektointi += 'window.addEventListener("load", function() {\n';
-    injektointi += '  setTimeout(function() {\n';
-    injektointi += '    var arvot = ' + JSON.stringify(kentat) + ';\n';
-    injektointi += '    var els = document.querySelectorAll("input, select, textarea");\n';
-    injektointi += '    for (var i = 0; i < els.length; i++) {\n';
-    injektointi += '      var avain = "__idx_" + i;\n';
-    injektointi += '      if (!(avain in arvot)) continue;\n';
-    injektointi += '      var el = els[i];\n';
-    injektointi += '      if (el.type === "checkbox" || el.type === "radio") {\n';
-    injektointi += '        el.checked = arvot[avain];\n';
-    injektointi += '      } else {\n';
-    injektointi += '        el.value = arvot[avain];\n';
-    injektointi += '      }\n';
-    injektointi += '    }\n';
-    injektointi += '  }, 800);\n';
-    injektointi += '});\n';
-    injektointi += '<\/script>\n';
-    html = html.replace('</body>', injektointi + '</body>');
-
-    // 7. Tallenna tiedosto
-    var blob = new Blob(['<!DOCTYPE html>\n' + html], {type: 'text/html;charset=utf-8'});
-    if (window.navigator && window.navigator.msSaveOrOpenBlob) {
-      window.navigator.msSaveOrOpenBlob(blob, _tiedostoNimi());
-    } else {
-      var url = URL.createObjectURL(blob);
-      var a = document.createElement('a');
-      a.href = url;
-      a.download = _tiedostoNimi();
-      a.style.display = 'none';
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(function() {
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      }, 1000);
-    }
-
+        var blob = new Blob([tulos], {type: 'text/html;charset=utf-8'});
+        if (window.navigator && window.navigator.msSaveOrOpenBlob) {
+          window.navigator.msSaveOrOpenBlob(blob, tiedNimi);
+        } else {
+          var url = URL.createObjectURL(blob);
+          var a = document.createElement('a');
+          a.href = url; a.download = tiedNimi; a.style.display = 'none';
+          document.body.appendChild(a); a.click();
+          setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
+        }
+      })
+      .catch(function(err){ alert('Virhe: ' + err.message); });
   } catch(e) {
     alert('Tallennusvirhe: ' + e.message);
     console.error(e);
   }
-}
-
-function _tiedostoNimi() {
-  var nmEl = document.getElementById('bp_tyomaa');
-  var tyomaa = (nmEl && nmEl.value && nmEl.value.trim()) ? nmEl.value.trim() : 'luonnos';
-  // Poistetaan erikoismerkit tiedostonimestä
-  tyomaa = tyomaa.replace(/[^a-zA-Z0-9äöåÄÖÅ_\-]/g, '_');
-  return 'betonointi_' + tyomaa + '_' + new Date().toISOString().split('T')[0] + '.html';
 }
 </script>
 </body>
