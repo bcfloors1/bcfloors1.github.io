@@ -388,7 +388,7 @@ function renderWeek(){
         var col2=j.sub==='BET'?'var(--bet)':j.sub==='BLG'?'var(--blg)':j.status==='done'?'#166534':isOwn?'white':'#92400e';
         var bdot=j.betoni==='kyllä'?'<span style="color:#22c55e;font-weight:900;"> ✓</span>':'<span style="color:#ef4444;font-weight:900;"> ✗</span>';
         var ownMark=isOwn?'<span style="color:#ef4444;font-weight:900;"> !!!</span>':'';
-        h+='<div data-id="'+j.id+'" onclick="openEdit(this.dataset.id)" style="background:'+bg2+';color:'+col2+';font-size:10px;padding:3px 5px;border-radius:4px;margin-top:3px;cursor:pointer;line-height:1.3;">'+j.name.split(',')[0].substring(0,14)+(j.m2?' '+j.m2+'m²':'')+(isOwn?ownMark:bdot)+'</div>';
+        h+='<div data-id="'+j.id+'" onclick="openEdit(this.dataset.id)" style="background:'+bg2+';color:'+col2+';font-size:10px;padding:3px 5px;border-radius:4px;margin-top:3px;cursor:pointer;line-height:1.3;">'+j.name.substring(0,16)+(j.m2?' '+j.m2+'m²':'')+(isOwn?ownMark:bdot)+'</div>';
       });
       h+='<div data-di="'+di+'" onclick="openAdd(this.dataset.di)" style="font-size:13px;color:var(--blue);text-align:center;padding:2px;cursor:pointer;opacity:0.4;margin-top:2px;">+</div>';
       h+='</td>';
@@ -423,7 +423,7 @@ function renderMonth(){
       var cls=j.status==='done'?'done':j.sub==='BET'?'bet':j.sub==='BLG'?'blg':(!j.sub||j.sub==='')?'own':'todo';
       var bdot=j.betoni==='kyllä'?'<span style="color:#22c55e;font-weight:900;font-size:10px;">✓</span>':j.betoni==='ei'?'<span style="color:#ef4444;font-weight:900;font-size:10px;">✗</span>':'';
       var ownDot=(!j.sub||j.sub==='')?'<span style="color:#ef4444;font-weight:900;">!!!</span>':bdot;
-      h+='<div class="month-dot '+cls+'" style="display:flex;align-items:center;justify-content:space-between;">'+j.name.split(',')[0].substring(0,10)+ownDot+'</div>';
+      h+='<div class="month-dot '+cls+'" style="display:flex;align-items:center;justify-content:space-between;">'+j.name.substring(0,12)+ownDot+'</div>';
     });
     h+='</div>';
   }
@@ -451,7 +451,7 @@ function renderMonth(){
       var cls=j.status==='done'?'done':j.sub==='BET'?'bet':j.sub==='BLG'?'blg':(!j.sub||j.sub==='')?'own':'todo';
       var bdot=j.betoni==='kyllä'?'<span style="color:#22c55e;font-weight:900;font-size:10px;">✓</span>':j.betoni==='ei'?'<span style="color:#ef4444;font-weight:900;font-size:10px;">✗</span>':'';
       var ownDot=(!j.sub||j.sub==='')?'<span style="color:#ef4444;font-weight:900;">!!!</span>':bdot;
-      h+='<div class="month-dot '+cls+'" style="display:flex;align-items:center;justify-content:space-between;">'+j.name.split(',')[0].substring(0,10)+ownDot+'</div>';
+      h+='<div class="month-dot '+cls+'" style="display:flex;align-items:center;justify-content:space-between;">'+j.name.substring(0,12)+ownDot+'</div>';
       shown++;
     });
     if(dj.length>2)h+='<div class="month-more">+'+(dj.length-2)+' lisää</div>';
@@ -507,7 +507,11 @@ function openAdd(date){
   editId=null;
   document.getElementById('editTitle').textContent='Lisää kohde';
   document.getElementById('f-name').value='';
-  document.getElementById('f-date').value=date||new Date().toISOString().split('T')[0];
+  var _td=new Date();
+  var _y=_td.getFullYear();
+  var _m=String(_td.getMonth()+1).padStart(2,'0');
+  var _d=String(_td.getDate()).padStart(2,'0');
+  document.getElementById('f-date').value=date||(_y+'-'+_m+'-'+_d);
   document.getElementById('f-m2').value='';
   document.getElementById('f-sub').value='';
   document.getElementById('f-status').value='todo';
