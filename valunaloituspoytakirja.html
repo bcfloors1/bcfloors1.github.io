@@ -169,8 +169,8 @@
   </div>
 </div>
 <div class="submit-bar">
-  <button class="btn-save" onclick="submitForm()">💾 Tallenna</button>
-  <button class="btn-pdf" onclick="generatePDF()">📄 Lähetä PDF</button>
+  <button class="btn-save" onclick="tallennaJaPDF()">💾 Tallenna & PDF</button>
+  <button class="btn-pdf" onclick="generatePDF()">📄 Vain PDF</button>
 </div>
 <div class="toast" id="toast"></div>
 <div class="loading-overlay" id="loadingOverlay">
@@ -649,6 +649,32 @@ async function generatePDF() {
   doc.text(n2, ML+sigW+6, y+7);
   y += 8;
 
+  // ── KUVAT ──
+  if (photos.length > 0) {
+    y += 4;
+    // Tarkista mahtuuko samalle sivulle, muuten uusi sivu
+    if (y > PH - 80) { doc.addPage(); y = 20; }
+    secTitle('Kuvat');
+    const kuvaW = (CW - 6) / 3;
+    const kuvaH = kuvaW * 0.75;
+    let kx = ML, ky = y;
+    for (let i = 0; i < photos.length; i++) {
+      if (kx + kuvaW > PW - MR + 1) {
+        kx = ML; ky += kuvaH + 3;
+      }
+      if (ky + kuvaH > PH - 20) {
+        doc.addPage(); ky = 20; kx = ML;
+      }
+      try {
+        doc.addImage(photos[i].dataUrl, 'JPEG', kx, ky, kuvaW, kuvaH);
+        doc.setDrawColor(...GBORDER);
+        doc.rect(kx, ky, kuvaW, kuvaH, 'S');
+      } catch(e) {}
+      kx += kuvaW + 3;
+    }
+    y = ky + kuvaH + 6;
+  }
+
   // ── FOOTER ──
   doc.setFillColor(...BLUE2);
   doc.rect(0, PH-8, PW, 8, 'F');
@@ -664,8 +690,20 @@ async function generatePDF() {
   showToast('PDF luotu!','success');
 }
 
+
+// ── Tallenna ja generoi PDF ──
+async function tallennaJaPDF() {
+  const nimi = getProjektiNimi();
+  if (!nimi) { showToast('Valitse tai kirjoita projekti', 'error'); return; }
+  if (!selectedResult) { showToast('Valitse tarkastuksen tulos', 'error'); return; }
+  // Tallenna ensin
+  await submitForm(true);
+  // Generoi PDF
+  await generatePDF();
+}
+
 // Tallenna
-async function submitForm() {
+async function submitForm(silent = false) {
   const nimi = getProjektiNimi();
   if (!nimi) { showToast('Valitse tai kirjoita projekti','error'); return; }
   if (!selectedResult) { showToast('Valitse tarkastuksen tulos','error'); return; }
@@ -696,7 +734,9 @@ async function submitForm() {
     });
     showLoading(false);
     showToast('Tallennettu!','success');
-    setTimeout(()=>{if(confirm('Tallennettu! Aloitetaanko uusi tarkastus?'))location.reload();},1200);
+    if (!silent) {
+      setTimeout(()=>{if(confirm('Tallennettu! Aloitetaanko uusi tarkastus?'))location.reload();},1200);
+    }
   } catch(err){showLoading(false);showToast('Virhe: '+err.message,'error');console.error(err);}
 }
 
