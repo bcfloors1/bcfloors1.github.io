@@ -715,14 +715,9 @@ async function submitForm(silent = false) {
   if (!selectedResult) { showToast('Valitse tarkastuksen tulos','error'); return; }
   showLoading(true,'Tallennetaan...');
   try {
-    const kuvat=[];
-    for (const p of photos) {
-      const ref=storage.ref(`raudoitustarkastus/${Date.now()}_${p.name}`);
-      await ref.put(p.blob,{contentType:'image/jpeg'});
-      kuvat.push(await ref.getDownloadURL());
-    }
     const sel=document.getElementById('projektiSelect');
-    await db.collection('raudoitustarkastukset').add({
+    // Tallenna ensin ilman kuvia
+    const docRef = await db.collection('raudoitustarkastukset').add({
       projektiId:sel.value!=='__muu__'?sel.value:null,
       projekti:nimi,
       tyonumero:document.getElementById('tyonumero').value.trim(),
@@ -735,9 +730,24 @@ async function submitForm(silent = false) {
       tulos:selectedResult,
       allekirjoitus1:{nimi:document.getElementById('sig1name').value.trim(),kuva:document.getElementById('sig1').toDataURL()},
       allekirjoitus2:{nimi:document.getElementById('sig2name').value.trim(),kuva:document.getElementById('sig2').toDataURL()},
-      kuvat,
+      kuvat: [],
       luotu:firebase.firestore.FieldValue.serverTimestamp()
     });
+
+    // Lataa kuvat taustalla jos on
+    if (photos.length > 0) {
+      (async () => {
+        try {
+          const kuvat = [];
+          for (const p of photos) {
+            const ref = storage.ref(`raudoitustarkastus/${Date.now()}_${p.name}`);
+            await ref.put(p.blob, {contentType:'image/jpeg'});
+            kuvat.push(await ref.getDownloadURL());
+          }
+          await docRef.update({ kuvat });
+        } catch(e) { console.warn('Kuvien lataus epäonnistui:', e); }
+      })();
+    }
     showLoading(false);
     showToast('Tallennettu!','success');
     if (!silent) {
