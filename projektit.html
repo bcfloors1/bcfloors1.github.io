@@ -196,7 +196,7 @@ function toggleTarkastukset(projektinId) {
           html += '<div><div style="font-weight:600">' + pvm + '</div>';
           html += '<div style="color:#6b7280">' + (t.valualue || '') + '</div>';
           html += '<div class="' + tulosClass + '">' + tulosTxt + '</div></div>';
-          html += '<button class="tark-pdf-btn" onclick="lataaVanhaPDF(\\'' + doc.id + '\\')">📄 PDF</button>';
+          html += '<button class="tark-pdf-btn" onclick="lataaVanhaPDF(&quot;' + doc.id + '&quot;)">PDF</button>';
           html += '</div>';
         });
         el.innerHTML = html;
