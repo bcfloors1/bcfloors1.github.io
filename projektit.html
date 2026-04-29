@@ -197,6 +197,7 @@ function toggleTarkastukset(projektinId) {
           html += '<div style="color:#6b7280">' + (t.valualue || '') + '</div>';
           html += '<div class="' + tulosClass + '">' + tulosTxt + '</div></div>';
           html += '<button class="tark-pdf-btn" onclick="lataaVanhaPDF(&quot;' + doc.id + '&quot;)">PDF</button>';
+          html += '<button class="tark-pdf-btn" onclick="poistaTarkastus(&quot;' + doc.id + '&quot;, &quot;' + projektinId + '&quot;)" style="background:#ef4444;margin-left:4px">🗑</button>';
           html += '</div>';
         });
         el.innerHTML = html;
@@ -215,6 +216,23 @@ function lataaVanhaPDF(tarkastusId) {
     // Avaa valunaloituspöytäkirja tarkastus-id:llä
     window.location.href = 'valunaloituspoytakirja.html?tarkastus=' + tarkastusId;
   });
+}
+
+
+// ── Poista tarkastus ──
+function poistaTarkastus(tarkastusId, projektinId) {
+  if (!confirm('Haluatko varmasti poistaa tämän tarkastuksen?')) return;
+  db.collection('raudoitustarkastukset').doc(tarkastusId).delete()
+    .then(function() {
+      // Tyhjennä cache ja päivitä lista
+      tarkastusCache[projektinId] = false;
+      var el = document.getElementById('tarkastukset-' + projektinId);
+      if (el) el.innerHTML = '<div style="font-size:11px;color:#6b7280">Ladataan...</div>';
+      toggleTarkastukset(projektinId);
+    })
+    .catch(function(err) {
+      alert('Virhe: ' + err.message);
+    });
 }
 
 // ── Toggle tarjoushinnat ──
