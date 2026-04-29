@@ -152,7 +152,12 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f8fafc;color:#1e293
 
 <div class="toast" id="toast"></div>
 
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js">
+// ── Avaa valunaloituspöytäkirja projektin kanssa ──
+function avaaValunaloitus(projektinId) {
+  window.location.href = 'valunaloituspoytakirja.html?projekti=' + projektinId;
+}
+</script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 <script>
 var fbConfig = {
@@ -537,6 +542,7 @@ db.collection('projects').orderBy('tyomaa').onSnapshot(function(snap) {
       html += '<button class="proj-btn pdf-btn" onclick="avaaPdf(\'' + id + '\')">📄 Avaa PDF</button>';
     }
     html += '<button class="proj-btn pdf-btn" onclick="avaaLataaPdf(\'' + id + '\', \'' + (p.tyomaa||'').replace(/'/g,"\\'") + '\')">📎 ' + (p.pdfBase64 ? 'Vaihda PDF' : 'Lataa PDF') + '</button>';
+    html += '<button class="proj-btn" onclick="avaaValunaloitus(\'' + id + '\')" style="color:#006CB1">📋 Tarkastus</button>';
     html += '<button class="proj-btn del" onclick="poistaProjekti(\'' + id + '\', \'' + (p.tyomaa||'').replace(/'/g,"\\'") + '\')">🗑 Poista</button>';
     html += '</div>';
     html += '</div>';

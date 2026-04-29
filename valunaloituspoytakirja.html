@@ -214,6 +214,14 @@ async function loadProjektit() {
   other.value = '__muu__';
   other.textContent = '— Kirjoita käsin —';
   sel.appendChild(other);
+
+  // Lue projekti URL-parametrista (projektipankista tuleva linkki)
+  const urlParams = new URLSearchParams(window.location.search);
+  const projektiParam = urlParams.get('projekti');
+  if (projektiParam) {
+    sel.value = projektiParam;
+    onProjektiChange();
+  }
 }
 
 function onProjektiChange() {
