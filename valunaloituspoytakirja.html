@@ -125,12 +125,19 @@
   <div class="section">
     <div class="sh"><div class="sn">3</div><div class="st">Kuvat</div></div>
     <div class="sb">
-      <div class="photo-upload">
-        <input type="file" id="photoInput" accept="image/*" multiple capture="environment"/>
-        <div style="font-size:24px;margin-bottom:6px">📷</div>
-        <div style="font-size:13px;color:var(--text2)">Ota kuva tai <span style="color:var(--accent);font-weight:500">valitse galleriasta</span></div>
-        <div style="font-size:11px;color:var(--text2);margin-top:4px">Kuvat pakataan automaattisesti (max 1200px)</div>
+      <div style="display:flex;gap:8px">
+        <div class="photo-upload" style="flex:1" onclick="document.getElementById('photoCamera').click()">
+          <input type="file" id="photoCamera" accept="image/*" capture="environment" style="display:none"/>
+          <div style="font-size:22px;margin-bottom:4px">📷</div>
+          <div style="font-size:12px;color:var(--text2);font-weight:500">Ota kuva</div>
+        </div>
+        <div class="photo-upload" style="flex:1" onclick="document.getElementById('photoGallery').click()">
+          <input type="file" id="photoGallery" accept="image/*" multiple style="display:none"/>
+          <div style="font-size:22px;margin-bottom:4px">🖼️</div>
+          <div style="font-size:12px;color:var(--text2);font-weight:500">Galleria</div>
+        </div>
       </div>
+      <div style="font-size:10px;color:var(--text2);text-align:center">Kuvat pakataan automaattisesti (max 1200px)</div>
       <div class="photo-grid" id="photoGrid"></div>
     </div>
   </div>
@@ -189,7 +196,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyB_SEcmhmzBBldkbh8CQYL7ncQGVyZIDM4",
   authDomain: "bcfloors-a25ea.firebaseapp.com",
   projectId: "bcfloors-a25ea",
-  storageBucket: "bcfloors-a25ea.appspot.com",
+  storageBucket: "bcfloors-a25ea.firebasestorage.app",
   messagingSenderId: "160878550016",
   appId: "1:160878550016:web:9d42f64d0d02375a178ce5"
 };
@@ -356,13 +363,16 @@ function compressImage(file, maxSize=1200, quality=0.8) {
 }
 
 let photos = [];
-document.getElementById('photoInput').addEventListener('change', async function(e) {
+async function handlePhotoFiles(e) {
   for (const file of Array.from(e.target.files)) {
     const compressed = await compressImage(file);
     photos.push({ blob: compressed.blob, dataUrl: compressed.dataUrl, name: file.name });
     renderPhotos();
   }
-});
+  e.target.value = ''; // Reset jotta sama kuva voidaan lisätä uudelleen
+}
+document.getElementById('photoCamera').addEventListener('change', handlePhotoFiles);
+document.getElementById('photoGallery').addEventListener('change', handlePhotoFiles);
 
 function renderPhotos() {
   const g = document.getElementById('photoGrid'); g.innerHTML='';

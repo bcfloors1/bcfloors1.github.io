@@ -163,6 +163,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f8fafc;color:#1e293
 
 <div class="toast" id="toast"></div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 <script>
@@ -219,14 +220,214 @@ function toggleTarkastukset(projektinId) {
   }
 }
 
-// ── Lataa vanha tarkastus PDF:nä ──
+// ── Lataa vanha tarkastus PDF:nä suoraan ──
 function lataaVanhaPDF(tarkastusId) {
+  var btn = event.target;
+  btn.textContent = '⏳';
+  btn.disabled = true;
+
   db.collection('raudoitustarkastukset').doc(tarkastusId).get().then(function(doc) {
-    if (!doc.exists) return;
+    if (!doc.exists) { btn.textContent = 'PDF'; btn.disabled = false; return; }
     var t = doc.data();
-    // Avaa valunaloituspöytäkirja tarkastus-id:llä
-    window.location.href = 'valunaloituspoytakirja.html?tarkastus=' + tarkastusId;
+    generoimPDF(t);
+    btn.textContent = 'PDF';
+    btn.disabled = false;
+  }).catch(function(err) {
+    alert('Virhe: ' + err.message);
+    btn.textContent = 'PDF';
+    btn.disabled = false;
   });
+}
+
+// ── Generoi PDF Firestore-datasta ──
+function generoimPDF(t) {
+  var script = document.createElement('script');
+  script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+  script.onload = function() { _generoimPDF(t); };
+  // Jos jsPDF jo ladattu
+  if (window.jspdf) { _generoimPDF(t); return; }
+  document.head.appendChild(script);
+}
+
+function _generoimPDF(t) {
+  var jsPDF = window.jspdf.jsPDF;
+  var doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+  var PW=210, PH=297, ML=14, MR=14, CW=PW-ML-MR;
+  var BLUE=[0,108,177], BLUE2=[46,109,164], GRAY=[242,245,248], GBORDER=[200,208,216];
+  var WHITE=[255,255,255], TEXT=[26,26,26], TEXT2=[107,114,128];
+  var OK=[22,163,74], OK_BG=[240,253,244], ERR=[220,38,38], ERR_BG=[254,242,242];
+  var AMBER=[146,64,14], AMBER_BG=[255,251,235], GOLD=[232,160,32];
+  var y = 0;
+
+  // HEADER
+  doc.setFillColor(...BLUE);
+  doc.rect(0, 0, PW, 24, 'F');
+  doc.setFillColor(...GOLD);
+  doc.rect(0, 24, PW, 1.2, 'F');
+  doc.setTextColor(...WHITE);
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(13);
+  doc.text('VALUNALOITUSPÖYTÄKIRJA', PW-MR, 11, {align:'right'});
+  doc.setFont('helvetica','normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(200,228,245);
+  doc.text('Raudoitustarkastus  |  Laadunvarmistus', PW-MR, 17, {align:'right'});
+  doc.setTextColor(...WHITE);
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(14);
+  doc.text('BC Floors', ML+2, 15);
+  y = 30;
+
+  function secTitle(title) {
+    doc.setFillColor(...BLUE2);
+    doc.rect(ML, y, CW, 6.5, 'F');
+    doc.setTextColor(...WHITE);
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(7.5);
+    doc.text(title.toUpperCase(), ML+3, y+4.5);
+    y += 6.5;
+  }
+
+  function labelValRow(pairs, widths) {
+    var x = ML;
+    pairs.forEach(function(p, i) {
+      doc.setFillColor(...GRAY); doc.setDrawColor(...GBORDER);
+      doc.rect(x, y, widths[i], 5, 'FD');
+      doc.setTextColor(...BLUE2); doc.setFont('helvetica','bold'); doc.setFontSize(6.5);
+      doc.text(p.label.toUpperCase(), x+2, y+3.5);
+      x += widths[i];
+    });
+    y += 5;
+    x = ML;
+    pairs.forEach(function(p, i) {
+      doc.setFillColor(...WHITE); doc.setDrawColor(...GBORDER);
+      doc.rect(x, y, widths[i], 7.5, 'FD');
+      doc.setTextColor(...TEXT); doc.setFont('helvetica','bold'); doc.setFontSize(9);
+      doc.text(p.value||'', x+2, y+5.5);
+      x += widths[i];
+    });
+    y += 7.5;
+  }
+
+  // Perustiedot
+  var pvm = t.paivamaara ? t.paivamaara.split('-').reverse().join('.') : '';
+  secTitle('1. Projektin perustiedot');
+  labelValRow([{label:'Tilaaja',value:''},{label:'Projekti / Kohde',value:t.projekti||''}],[CW/2,CW/2]);
+  labelValRow([{label:'Työnumero',value:t.tyonumero||''},{label:'Valualue / POS',value:t.valualue||''},{label:'Päivämäärä',value:pvm}],[CW*0.25,CW*0.45,CW*0.30]);
+  labelValRow([{label:'Tarkastaja',value:t.tarkastaja||''},{label:'Tilaajan edustaja',value:t.tilaaja||''}],[CW/2,CW/2]);
+  y += 3;
+
+  // Tarkastuskohteet
+  var checkItems = [
+    {id:'alusrakenne',main:'Alusrakenne ja eristeet',sub:'Irrotuskaistat, radonsuoja, seinänsuojamuovit, laakerimuovit'},
+    {id:'paaraudoitus',main:'Pääraudoitus asennettu',sub:'Verkko / teräkset oikealla korkeudella'},
+    {id:'lisaraudoitus',main:'Lisäraudoitus',sub:'Korkeus ja etäisyys tarkistettu'},
+    {id:'varusteet',main:'Varusteet asennettu',sub:'Kaivot, kynnysraudat, liikuntasaumat — korko tarkistettu'},
+    {id:'kaadot',main:'Kaadot käyty läpi valuryhmän kanssa',sub:'Tarvittaessa merkitty maastoon'},
+    {id:'betoni',main:'Betoni',sub:'Lujuusluokka, rasitusluokat, kuitumäärä/tyyppi'},
+    {id:'olosuhteet',main:'Olosuhteet OK',sub:'Lämpötila yli +10°C lattian rajassa, suojaus sääilmiöiltä, riittävä ilmanvaihto ja valaistus'},
+  ];
+  secTitle('2. Tarkastuskohteet');
+  var C1=10, C3=22, C2=CW-C1-C3;
+  doc.setFillColor(227,239,250); doc.setDrawColor(...GBORDER);
+  doc.rect(ML, y, CW, 5.5, 'FD');
+  doc.setTextColor(...BLUE2); doc.setFont('helvetica','bold'); doc.setFontSize(7);
+  doc.text('#', ML+C1/2, y+3.8, {align:'center'});
+  doc.text('Tarkastuskohde', ML+C1+2, y+3.8);
+  doc.text('Tulos', ML+C1+C2+C3/2, y+3.8, {align:'center'});
+  y += 5.5;
+
+  checkItems.forEach(function(item, i) {
+    var st = t.tarkastuskohteet ? t.tarkastuskohteet[item.id] : null;
+    var rh = 10;
+    var fill = st==='ok' ? OK_BG : st==='error' ? ERR_BG : WHITE;
+    doc.setFillColor(...fill); doc.setDrawColor(...GBORDER);
+    doc.rect(ML, y, CW, rh, 'FD');
+    var nc = st==='ok' ? OK : st==='error' ? ERR : TEXT2;
+    doc.setTextColor(...nc); doc.setFont('helvetica','bold'); doc.setFontSize(8);
+    doc.text(String(i+1), ML+C1/2, y+rh/2+1, {align:'center'});
+    doc.setTextColor(...TEXT); doc.setFont('helvetica','bold'); doc.setFontSize(8);
+    doc.text(item.main, ML+C1+2, y+4);
+    doc.setFont('helvetica','normal'); doc.setFontSize(6.5); doc.setTextColor(...TEXT2);
+    doc.text(item.sub, ML+C1+2, y+8);
+    if (st==='ok') {
+      doc.setFillColor(...OK); doc.roundedRect(ML+C1+C2+2, y+2, 18, 6, 1, 1, 'F');
+      doc.setTextColor(...WHITE); doc.setFont('helvetica','bold'); doc.setFontSize(6.5);
+      doc.text('OK', ML+C1+C2+11, y+6.2, {align:'center'});
+    } else if (st==='error') {
+      doc.setFillColor(...ERR); doc.roundedRect(ML+C1+C2+2, y+2, 18, 6, 1, 1, 'F');
+      doc.setTextColor(...WHITE); doc.setFont('helvetica','bold'); doc.setFontSize(6.5);
+      doc.text('VIRHE', ML+C1+C2+11, y+6.2, {align:'center'});
+    }
+    y += rh;
+  });
+  y += 3;
+
+  // Huomautukset
+  secTitle('3. Huomautukset & Korjausvaatimukset');
+  doc.setFillColor(...WHITE); doc.setDrawColor(...GBORDER);
+  doc.rect(ML, y, CW, 16, 'FD');
+  if (t.huomautukset) {
+    doc.setTextColor(...TEXT); doc.setFont('helvetica','normal'); doc.setFontSize(8);
+    var lines = doc.splitTextToSize(t.huomautukset, CW-6);
+    doc.text(lines, ML+3, y+5);
+  }
+  y += 19;
+
+  // Tulos
+  secTitle('4. Tarkastuksen tulos');
+  var tulosTxt = t.tulos==='ok'?'Hyväksytty — valu voidaan aloittaa':t.tulos==='warn'?'Hyväksytty huomautuksella':'Hylätty — korjattava ennen valua';
+  var tBg = t.tulos==='ok'?OK_BG:t.tulos==='warn'?AMBER_BG:ERR_BG;
+  var tC = t.tulos==='ok'?OK:t.tulos==='warn'?AMBER:ERR;
+  var tBorder = t.tulos==='ok'?OK:t.tulos==='warn'?[245,158,11]:ERR;
+  doc.setFillColor(...tBg); doc.setDrawColor(...tBorder); doc.setLineWidth(0.5);
+  doc.roundedRect(ML, y, CW, 9, 1.5, 1.5, 'FD');
+  doc.setTextColor(...tC); doc.setFont('helvetica','bold'); doc.setFontSize(9);
+  doc.text(tulosTxt, ML+4, y+6);
+  y += 13;
+
+  // Allekirjoitukset
+  secTitle('5. Allekirjoitukset');
+  var sigW = (CW-4)/2;
+  doc.setFillColor(242,245,248); doc.setDrawColor(...GBORDER);
+  doc.rect(ML, y, sigW, 5, 'FD');
+  doc.rect(ML+sigW+4, y, sigW, 5, 'FD');
+  doc.setTextColor(...BLUE2); doc.setFont('helvetica','bold'); doc.setFontSize(6.5);
+  doc.text('LATTIAURAKOITSIJA (BC FLOORS OY)', ML+2, y+3.5);
+  doc.text('TILAAJA / VALVOJA', ML+sigW+6, y+3.5);
+  y += 5;
+  doc.setFillColor(...WHITE); doc.setDrawColor(...GBORDER);
+  doc.rect(ML, y, sigW, 24, 'FD');
+  doc.rect(ML+sigW+4, y, sigW, 24, 'FD');
+  // Allekirjoituskuvat
+  if (t.allekirjoitus1 && t.allekirjoitus1.kuva) {
+    try { doc.addImage(t.allekirjoitus1.kuva, 'PNG', ML+1, y+1, sigW-2, 22); } catch(e){}
+  }
+  if (t.allekirjoitus2 && t.allekirjoitus2.kuva) {
+    try { doc.addImage(t.allekirjoitus2.kuva, 'PNG', ML+sigW+5, y+1, sigW-2, 22); } catch(e){}
+  }
+  y += 24;
+  doc.setFillColor(242,245,248); doc.setDrawColor(...GBORDER);
+  doc.rect(ML, y, sigW, 8, 'FD');
+  doc.rect(ML+sigW+4, y, sigW, 8, 'FD');
+  doc.setTextColor(...TEXT2); doc.setFont('helvetica','normal'); doc.setFontSize(6.5);
+  doc.text('Nimen selvennys:', ML+2, y+3.5);
+  doc.setTextColor(...TEXT); doc.setFont('helvetica','bold'); doc.setFontSize(7.5);
+  doc.text((t.allekirjoitus1&&t.allekirjoitus1.nimi)||'', ML+2, y+7);
+  doc.setTextColor(...TEXT2); doc.setFont('helvetica','normal'); doc.setFontSize(6.5);
+  doc.text('Nimen selvennys:', ML+sigW+6, y+3.5);
+  doc.setTextColor(...TEXT); doc.setFont('helvetica','bold'); doc.setFontSize(7.5);
+  doc.text((t.allekirjoitus2&&t.allekirjoitus2.nimi)||'', ML+sigW+6, y+7);
+
+  // Footer
+  doc.setFillColor(...BLUE2);
+  doc.rect(0, PH-8, PW, 8, 'F');
+  doc.setTextColor(...WHITE); doc.setFont('helvetica','normal'); doc.setFontSize(7);
+  doc.text('BC Floors Oy  |  Valunaloituspöytäkirja', ML, PH-3.5);
+  doc.text('Luotu: ' + new Date().toLocaleDateString('fi-FI') + '  —  Sivu 1 / 1', PW-MR, PH-3.5, {align:'right'});
+
+  var fn = 'Valunaloituspoytakirja_' + (t.projekti||'').replace(/\s+/g,'_') + '_' + pvm + '.pdf';
+  doc.save(fn);
 }
 
 
