@@ -697,8 +697,14 @@ async function tallennaJaPDF() {
   if (!nimi) { showToast('Valitse tai kirjoita projekti', 'error'); return; }
   if (!selectedResult) { showToast('Valitse tarkastuksen tulos', 'error'); return; }
   // Tallenna ensin
-  await submitForm(true);
-  // Generoi PDF
+  try {
+    await submitForm(true);
+  } catch(e) {
+    console.error('Tallennus epäonnistui:', e);
+    showToast('Tallennus epäonnistui — luodaan silti PDF', 'error');
+  }
+  // Generoi PDF aina
+  showLoading(false);
   await generatePDF();
 }
 
@@ -737,7 +743,12 @@ async function submitForm(silent = false) {
     if (!silent) {
       setTimeout(()=>{if(confirm('Tallennettu! Aloitetaanko uusi tarkastus?'))location.reload();},1200);
     }
-  } catch(err){showLoading(false);showToast('Virhe: '+err.message,'error');console.error(err);}
+  } catch(err){
+    showLoading(false);
+    showToast('Virhe: '+err.message,'error');
+    console.error(err);
+    throw err; // Heitetään virhe eteenpäin tallennaJaPDF:lle
+  }
 }
 
 function showToast(msg,type){
