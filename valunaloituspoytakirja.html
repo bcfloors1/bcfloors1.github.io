@@ -201,7 +201,7 @@ async function loadProjektit() {
   const sel = document.getElementById('projektiSelect');
   sel.innerHTML = '<option value="">— Valitse projekti —</option>';
   try {
-    const snap = await db.collection('projektit').orderBy('nimi').get();
+    const snap = await db.collection('projects').orderBy('nimi').get();
     snap.forEach(doc => {
       const o = document.createElement('option');
       o.value = doc.id;
