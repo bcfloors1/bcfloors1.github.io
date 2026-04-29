@@ -615,12 +615,7 @@ async function submitForm() {
   if (!selectedResult) { showToast('Valitse tarkastuksen tulos','error'); return; }
   showLoading(true,'Tallennetaan...');
   try {
-    const kuvat=[];
-    for (const p of photos) {
-      const ref=storage.ref(`raudoitustarkastus/${Date.now()}_${p.name}`);
-      await ref.put(p.blob,{contentType:'image/jpeg'});
-      kuvat.push(await ref.getDownloadURL());
-    }
+    const kuvat=[]; // Kuvat tallennetaan myöhemmin
     const sel=document.getElementById('projektiSelect');
     await db.collection('raudoitustarkastukset').add({
       projektiId:sel.value!=='__muu__'?sel.value:null,
