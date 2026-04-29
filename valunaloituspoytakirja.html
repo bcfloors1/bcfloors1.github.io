@@ -201,12 +201,12 @@ async function loadProjektit() {
   const sel = document.getElementById('projektiSelect');
   sel.innerHTML = '<option value="">— Valitse projekti —</option>';
   try {
-    const snap = await db.collection('projects').orderBy('nimi').get();
+    const snap = await db.collection('projects').get();
     snap.forEach(doc => {
       const o = document.createElement('option');
       o.value = doc.id;
-      o.textContent = doc.data().nimi || doc.data().name || doc.id;
-      o.dataset.tyonumero = doc.data().tyonumero || '';
+      o.textContent = doc.data().tyomaa || doc.data().nimi || doc.id;
+      o.dataset.tyonumero = doc.data().tyonro || '';
       sel.appendChild(o);
     });
   } catch(e) { console.warn('Projekteja ei voitu ladata:', e); }
@@ -439,7 +439,8 @@ async function generatePDF() {
   // 1. Perustiedot
   const projektiNimi = getProjektiNimi();
   const tyonumero = document.getElementById('tyonumero').value||'';
-  const paivamaara = document.getElementById('paivamaara').value||'';
+  const paimRaw = document.getElementById('paivamaara').value||'';
+  const paivamaara = paimRaw ? paimRaw.split('-').reverse().join('.') : '';
   const tarkastaja = document.getElementById('tarkastaja').value||'';
   const tilaaja = document.getElementById('tilaaja').value||'';
   const valualue = document.getElementById('valualue').value||'';
