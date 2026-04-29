@@ -21,7 +21,18 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f8fafc;color:#1e293
 .proj-btn.del{color:#ef4444;}
 .proj-btn.pdf-btn{color:#10b981;}
 .proj-btn:not(:last-child){border-right:1px solid #f1f5f9;}
-.tarjous-section{padding:10px 14px;background:#f8fafc;border-top:1px solid #e2e8f0;}
+.tarjous-section{padding:10px 14px;background:#f8fafc;border-top:1px solid #e2e8f0;display:none;}
+.tarjous-section.auki{display:block;}
+.tarjous-toggle{cursor:pointer;user-select:none;}
+.tarkastus-section{padding:10px 14px;background:#f0fdf4;border-top:1px solid #86efac;display:none;}
+.tarkastus-section.auki{display:block;}
+.tarkastus-rivi{display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid #dcfce7;font-size:12px;}
+.tarkastus-rivi:last-child{border-bottom:none;}
+.tark-tulos-ok{color:#16a34a;font-weight:600;}
+.tark-tulos-warn{color:#92400e;font-weight:600;}
+.tark-tulos-error{color:#dc2626;font-weight:600;}
+.tark-pdf-btn{background:#006cb1;color:white;border:none;border-radius:5px;padding:3px 8px;font-size:10px;cursor:pointer;font-family:inherit;}
+.tarjous-toggle:hover{opacity:0.8;}
 .tarjous-title{font-size:11px;font-weight:700;color:#006CB1;text-transform:uppercase;letter-spacing:.3px;margin-bottom:8px;}
 .hinta-rivi{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #e2e8f0;font-size:12px;}
 .hinta-rivi:last-child{border-bottom:none;}
@@ -155,6 +166,63 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f8fafc;color:#1e293
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 <script>
+
+
+// ── Toggle & lataa tarkastukset ──
+var tarkastusCache = {};
+function toggleTarkastukset(projektinId) {
+  var el = document.getElementById('tarkastukset-' + projektinId);
+  if (!el) return;
+  var auki = el.classList.toggle('auki');
+  if (auki && !tarkastusCache[projektinId]) {
+    // Lataa Firestoresta
+    db.collection('raudoitustarkastukset')
+      .where('projektiId', '==', projektinId)
+      .orderBy('luotu', 'desc')
+      .get()
+      .then(function(snap) {
+        tarkastusCache[projektinId] = true;
+        if (snap.empty) {
+          el.innerHTML = '<div style="font-size:12px;color:#6b7280">Ei tallennettuja tarkastuksia</div>';
+          return;
+        }
+        var html = '<div style="font-size:11px;font-weight:700;color:#15803d;margin-bottom:6px">📋 TARKASTUKSET</div>';
+        snap.forEach(function(doc) {
+          var t = doc.data();
+          var pvm = t.paivamaara ? t.paivamaara.split('-').reverse().join('.') : '';
+          var tulosClass = t.tulos === 'ok' ? 'tark-tulos-ok' : t.tulos === 'warn' ? 'tark-tulos-warn' : 'tark-tulos-error';
+          var tulosTxt = t.tulos === 'ok' ? '✅ Hyväksytty' : t.tulos === 'warn' ? '⚠️ Huomautuksella' : '❌ Hylätty';
+          html += '<div class="tarkastus-rivi">';
+          html += '<div><div style="font-weight:600">' + pvm + '</div>';
+          html += '<div style="color:#6b7280">' + (t.valualue || '') + '</div>';
+          html += '<div class="' + tulosClass + '">' + tulosTxt + '</div></div>';
+          html += '<button class="tark-pdf-btn" onclick="lataaVanhaPDF('' + doc.id + '')">📄 PDF</button>';
+          html += '</div>';
+        });
+        el.innerHTML = html;
+      })
+      .catch(function(err) {
+        el.innerHTML = '<div style="font-size:12px;color:#dc2626">Virhe: ' + err.message + '</div>';
+      });
+  }
+}
+
+// ── Lataa vanha tarkastus PDF:nä ──
+function lataaVanhaPDF(tarkastusId) {
+  db.collection('raudoitustarkastukset').doc(tarkastusId).get().then(function(doc) {
+    if (!doc.exists) return;
+    var t = doc.data();
+    // Avaa valunaloituspöytäkirja tarkastus-id:llä
+    window.location.href = 'valunaloituspoytakirja.html?tarkastus=' + tarkastusId;
+  });
+}
+
+// ── Toggle tarjoushinnat ──
+function toggleHinnat(id) {
+  var el = document.getElementById('hinnat-' + id);
+  if (el) el.classList.toggle('auki');
+}
+
 // ── Avaa valunaloituspöytäkirja projektin kanssa ──
 function avaaValunaloitus(projektinId) {
   window.location.href = 'valunaloituspoytakirja.html?projekti=' + projektinId;
@@ -513,7 +581,7 @@ db.collection('projects').orderBy('tyomaa').onSnapshot(function(snap) {
     // Hinnat
     var hinnatHtml = '';
     if (p.tarjousHinnat && p.tarjousHinnat.length > 0) {
-      hinnatHtml = '<div class="tarjous-section">';
+      hinnatHtml = '<div class="tarjous-section" id="hinnat-' + id + '">';
       hinnatHtml += '<div class="tarjous-title">📋 Tarjoushinnat</div>';
       p.tarjousHinnat.forEach(function(h) {
         hinnatHtml += '<div class="hinta-rivi">';
@@ -527,8 +595,9 @@ db.collection('projects').orderBy('tyomaa').onSnapshot(function(snap) {
 
     // PDF-status
     var pdfStatus = p.pdfBase64
-      ? '<span class="pdf-status pdf-ok">📄 Tarjous tallennettu</span>'
+      ? '<span class="pdf-status pdf-ok tarjous-toggle" onclick="toggleHinnat(\''+id+'\')" title="Näytä/piilota hinnat">📄 Tarjous tallennettu ' + (p.tarjousHinnat && p.tarjousHinnat.length > 0 ? '▼' : '') + '</span>'
       : '<span class="pdf-status pdf-none">📎 Ei tarjousta</span>';
+    var tarkastusToggle = '<span class="pdf-status tarjous-toggle" onclick="toggleTarkastukset(\''+id+'\')" style="background:#f0fdf4;color:#16a34a;border:1px solid #86efac;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:600;cursor:pointer;display:inline-block;margin-top:4px;">📋 Tarkastukset ▼</span>';
 
     html += '<div class="proj-card">';
     html += '<div class="proj-main" onclick="avaaDetalji(\''+id+'\')" style="cursor:pointer">';
@@ -538,12 +607,17 @@ db.collection('projects').orderBy('tyomaa').onSnapshot(function(snap) {
     html += pdfStatus;
     html += '</div>';
     if (hinnatHtml) html += hinnatHtml;
+    html += '<div id="tarkastukset-' + id + '" class="tarkastus-section"><div style="font-size:11px;color:#6b7280">Ladataan...</div></div>';
+    html += '<div class="proj-main" style="padding:4px 14px 8px;border-top:none">' + tarkastusToggle + '</div>';
     html += '<div class="proj-actions">';
     if (p.pdfBase64) {
       html += '<button class="proj-btn pdf-btn" onclick="avaaPdf(\'' + id + '\')">📄 Avaa PDF</button>';
     }
     html += '<button class="proj-btn pdf-btn" onclick="avaaLataaPdf(\'' + id + '\', \'' + (p.tyomaa||'').replace(/'/g,"\\'") + '\')">📎 ' + (p.pdfBase64 ? 'Vaihda PDF' : 'Lataa PDF') + '</button>';
     html += '<button class="proj-btn" onclick="avaaValunaloitus(\'' + id + '\')" style="color:#006CB1">📋 Tarkastus</button>';
+    if (p.tarkastusLkm && p.tarkastusLkm > 0) {
+      html += '<div style="font-size:10px;color:#16a34a;padding:3px 10px;border-top:1px solid #f1f5f9">✅ ' + p.tarkastusLkm + ' tarkastusta tallennettu</div>';
+    }
     html += '<button class="proj-btn del" onclick="poistaProjekti(\'' + id + '\', \'' + (p.tyomaa||'').replace(/'/g,"\\'") + '\')">🗑 Poista</button>';
     html += '</div>';
     html += '</div>';

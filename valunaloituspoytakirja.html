@@ -93,7 +93,8 @@
 <div class="header">
   <img src="https://bcfloors1.github.io/logo.png" alt="BC Floors" onerror="this.style.display='none'">
   <div class="hd"></div>
-  <div><div class="ht">Valunaloituspöytäkirja</div><div class="hs">Raudoitustarkastus  |  Laadunvarmistus</div></div>
+  <div style="flex:1"><div class="ht">Valunaloituspöytäkirja</div><div class="hs">Raudoitustarkastus  |  Laadunvarmistus</div></div>
+  <button id="takaisinBtn" onclick="window.location.href='projektit.html'" style="display:none;background:rgba(255,255,255,0.15);border:none;color:white;font-size:12px;font-weight:600;padding:7px 12px;border-radius:7px;cursor:pointer;font-family:'Inter',sans-serif;">← Projektit</button>
 </div>
 <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
 <div class="container">
@@ -218,9 +219,56 @@ async function loadProjektit() {
   // Lue projekti URL-parametrista (projektipankista tuleva linkki)
   const urlParams = new URLSearchParams(window.location.search);
   const projektiParam = urlParams.get('projekti');
+  const tarkastusParam = urlParams.get('tarkastus');
+
+  if (projektiParam || tarkastusParam) {
+    document.getElementById('takaisinBtn').style.display = 'block';
+  }
+
   if (projektiParam) {
     sel.value = projektiParam;
     onProjektiChange();
+  }
+
+  // Lataa vanha tarkastus jos avataan PDF-linkistä
+  if (tarkastusParam) {
+    try {
+      const doc = await db.collection('raudoitustarkastukset').doc(tarkastusParam).get();
+      if (doc.exists) {
+        const t = doc.data();
+        // Täytä perustiedot
+        if (t.projektiId) { sel.value = t.projektiId; onProjektiChange(); }
+        document.getElementById('tyonumero').value = t.tyonumero || '';
+        document.getElementById('paivamaara').value = t.paivamaara || '';
+        document.getElementById('tarkastaja').value = t.tarkastaja || '';
+        document.getElementById('tilaaja').value = t.tilaaja || '';
+        document.getElementById('valualue').value = t.valualue || '';
+        document.getElementById('huomautukset').value = t.huomautukset || '';
+        // Tarkastuskohteet
+        if (t.tarkastuskohteet) {
+          Object.keys(t.tarkastuskohteet).forEach(id => {
+            const val = t.tarkastuskohteet[id];
+            if (val) setCheck(id, val);
+          });
+        }
+        // Tulos
+        if (t.tulos) setResult(t.tulos);
+        // Allekirjoitukset
+        if (t.allekirjoitus1?.nimi) document.getElementById('sig1name').value = t.allekirjoitus1.nimi;
+        if (t.allekirjoitus2?.nimi) document.getElementById('sig2name').value = t.allekirjoitus2.nimi;
+        // Lataa allekirjoituskuvat
+        ['sig1','sig2'].forEach((id, i) => {
+          const kuva = i === 0 ? t.allekirjoitus1?.kuva : t.allekirjoitus2?.kuva;
+          if (kuva) {
+            const c = document.getElementById(id);
+            const img = new Image();
+            img.onload = () => c.getContext('2d').drawImage(img, 0, 0, c.offsetWidth, c.offsetHeight);
+            img.src = kuva;
+          }
+        });
+        showToast('Tarkastus ladattu', 'success');
+      }
+    } catch(e) { console.error('Tarkastuksen lataus epäonnistui:', e); }
   }
 }
 
