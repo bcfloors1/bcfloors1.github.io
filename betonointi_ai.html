@@ -886,7 +886,6 @@ function tallennaTiedosto() {
           document.body.appendChild(a); a.click();
           setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
         }
-      })
     })(pohja);
   } catch(e) {
     alert('Tallennusvirhe: ' + e.message);
