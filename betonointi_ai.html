@@ -1172,8 +1172,44 @@ async function tuoKuormakirjat(input) {
   naytaStatus('🤖 AI analysoi kuormakirjoja...', 'white');
     
     var tiedot = await kutsuAI(tekstit);
-    
-    // Tallenna zip-nimi projekti+päivä
+
+    // ── Laske tot.betoni, valu alkoi ja paattyi suoraan tekstista ──
+    var kaikki_m3 = [];
+    var kaikki_purku = [];
+    var kaikki_paattyi = [];
+    tekstit.forEach(function(teksti) {
+      var rivit = teksti.split('\n');
+      rivit.forEach(function(rivi, i) {
+        // Tot. betoni - LAT BETONI -rivi, poimi suurin M3-luku
+        if (rivi.indexOf('LAT BETONI') >= 0) {
+          var osat = rivi.split(' ');
+          var luvut = [];
+          osat.forEach(function(o, j) {
+            if (osat[j+1] === 'M3' || osat[j+1] === 'M3') {
+              var n = parseFloat(o);
+              if (!isNaN(n)) luvut.push(n);
+            }
+          });
+          if (luvut.length > 0) kaikki_m3.push(Math.max.apply(null, luvut));
+        }
+        // Purku alkoi ja tyo paattyi
+        if (rivi.indexOf('Tulostettu') >= 0 && rivi.indexOf('Purku alkoi') >= 0) {
+          var seuraava = rivit[i+1] || '';
+          var aikat = seuraava.match(/\d{2}:\d{2}/g);
+          if (aikat && aikat.length >= 2) kaikki_purku.push(aikat[1]);
+        }
+        if (rivi.indexOf('Kuormaus') >= 0 && rivi.indexOf('Tyo paattyi') >= 0 || rivi.indexOf('Työ päättyi') >= 0) {
+          var seuraava = rivit[i+1] || '';
+          var aikat = seuraava.match(/\d{2}:\d{2}/g);
+          if (aikat && aikat.length >= 2) kaikki_paattyi.push(aikat[1]);
+        }
+      });
+    });
+    if (kaikki_m3.length > 0) tiedot.totBetoni = Math.max.apply(null, kaikki_m3);
+    if (kaikki_purku.length > 0) tiedot.valuAlkoi = kaikki_purku.sort()[0];
+    if (kaikki_paattyi.length > 0) tiedot.valuPaattyi = kaikki_paattyi.sort().reverse()[0];
+
+    // Tallenna zip-nimi projekti+paiva
     if (tiedot.valupaivamaara) {
       var pvm = tiedot.valupaivamaara.split('-');
       var pvmStr = pvm[2] + '.' + pvm[1];
