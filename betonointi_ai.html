@@ -1,0 +1,1242 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Betonointipöytäkirja AI – BC Floors Oy</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: Arial, sans-serif;
+  background: #d0d8e0;
+  font-size: 14px;
+  color: #1a2530;
+}
+/* KORJATTU: no-print käyttää flexiä, leveys 100%, ei enää erikokoinen */
+.no-print {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  background: #006CB1;
+  width: 100%;
+  box-sizing: border-box;
+}
+.print-btn {
+  background: #e8a020;
+  color: white;
+  border: none;
+  padding: 10px 32px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  border-radius: 2px;
+}
+.print-btn:hover { background: #cf8e1a; }
+.page {
+  width: 210mm;
+  margin: 8mm auto;
+  background: white;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.18);
+}
+.hdr {
+  background: #006CB1;
+  padding: 3px 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 4px solid #e8a020;
+  min-height: 20mm;
+}
+.hdr-logo { display: flex; align-items: center; }
+.hdr-right { text-align: right; }
+.hdr-title { color: white; font-size: 14px; font-weight: 700; letter-spacing: 0.5px; }
+.hdr-sub { color: rgba(255,255,255,0.55); font-size: 9px; margin-top: 3px; }
+.body { padding: 4px 8px; display: flex; flex-direction: column; gap: 3px; }
+.sec-title {
+  background: #2e6da4;
+  color: white;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  padding: 1px 6px;
+  margin-bottom: 2px;
+}
+.frow { display: flex; gap: 3px; margin-bottom: 2px; }
+.f {
+  flex: 1;
+  background: #f2f5f8;
+  border: 1px solid #c8d0d8;
+  padding: 2px 5px 3px;
+  display: flex;
+  flex-direction: column;
+  min-height: 26px;
+}
+.f label {
+  font-size: 8px;
+  color: #2e6da4;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+  white-space: nowrap;
+}
+.f input, .f textarea, .f select {
+  border: none;
+  background: transparent;
+  font-family: Arial, sans-serif;
+  font-size: 11px;
+  color: #1a2530;
+  outline: none;
+  width: 100%;
+  border-bottom: 1px solid #c8d0d8;
+  padding-bottom: 1px;
+}
+.f select {
+  cursor: pointer;
+  -webkit-appearance: auto;
+  -moz-appearance: auto;
+  appearance: auto;
+  padding-bottom: 0;
+}
+.f textarea { resize: none; height: 22px; }
+.f.tall { min-height: 32px; }
+.f.tall textarea { height: 20px; }
+/* CHECKBOX ROWS */
+.cbsec { padding: 1px 5px 3px; display: flex; flex-direction: column; gap: 3px; }
+.cbrow { display: flex; align-items: center; flex-wrap: wrap; gap: 0; }
+.cblabel {
+  font-size: 10px;
+  font-weight: 700;
+  color: #006CB1;
+  min-width: 85px;
+  flex-shrink: 0;
+}
+.cbgroup { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; }
+.cbi { display: flex; align-items: center; gap: 4px; cursor: pointer; }
+.cbi input[type=checkbox] {
+  width: 13px; height: 13px;
+  accent-color: #2e6da4; outline-color: #2e6da4;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.cbi span { font-size: 10px; user-select: none; }
+.cb-select {
+  font-family: Arial, sans-serif;
+  font-size: 10px;
+  border: 1px solid #c8d0d8;
+  background: white;
+  color: #1a2530;
+  padding: 1px 4px;
+  cursor: pointer;
+  outline: none;
+}
+/* KYLLÄ/EI ROWS */
+.kyrow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 8px;
+  padding: 1px 4px;
+  align-items: center;
+}
+.kyitem { display: flex; align-items: center; gap: 8px; }
+.kylabel { font-size: 10px; font-weight: 700; color: #006CB1; min-width: 75px; }
+.kybtns { display: flex; gap: 4px; }
+.kybtns label {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  border: 1px solid #2e6da4;
+  padding: 3px 9px;
+  font-size: 10px;
+  cursor: pointer;
+  background: white;
+  white-space: nowrap;
+}
+.kybtns input[type=radio] {
+  accent-color: #2e6da4; outline-color: #2e6da4;
+  width: 11px; height: 11px;
+}
+.sirote-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 4px;
+  flex-wrap: wrap;
+}
+.sirote-row .kylabel { font-size: 10px; font-weight: 700; color: #006CB1; min-width: 55px; }
+.sirote-select {
+  font-family: Arial, sans-serif;
+  font-size: 10px;
+  border: 1px solid #c8d0d8;
+  background: white;
+  color: #1a2530;
+  padding: 3px 6px;
+  cursor: pointer;
+  outline: none;
+  min-width: 180px;
+}
+/* SIGNATURES */
+.sigs {
+  display: flex;
+  gap: 6px;
+  padding: 3px 6px 3px;
+  border-top: 1px solid #c8d0d8;
+  margin-top: 2px;
+}
+.sig { flex: 1; }
+.sig-title { font-size: 9px; font-weight: 700; color: #2e6da4; margin-bottom: 6px; }
+.sig-line { border-bottom: 1.5px solid #006CB1; height: 24px; margin-bottom: 6px; }
+.sig-info { font-size: 9px; color: #666; margin-bottom: 4px; }
+.sig-info-line { display: inline-block; border-bottom: 1px solid #999; width: 130px; }
+.ftr {
+  background: #006CB1;
+  border-top: 3px solid #e8a020;
+  padding: 3px 10px;
+  display: flex;
+  justify-content: space-between;
+}
+.ftr span { color: rgba(255,255,255,0.65); font-size: 9px; }
+.sig-canvas-wrap { margin-bottom: 6px; }
+.sig-canvas {
+  border: 1.5px solid #006CB1;
+  border-radius: 2px;
+  background: white;
+  width: 100%;
+  max-width: 360px;
+  height: 55px;
+  display: block;
+  touch-action: none;
+  cursor: crosshair;
+}
+.sig-canvas-btns {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+.sig-clear {
+  background: none;
+  border: 1px solid #c8d0d8;
+  color: #666;
+  font-size: 10px;
+  padding: 3px 8px;
+  cursor: pointer;
+  border-radius: 2px;
+  font-family: Arial, sans-serif;
+}
+.sig-clear:hover { border-color: #006CB1; color: #006CB1; }
+.sig-hint { font-size: 9px; color: #aaa; }
+.sig-name-input, .sig-date-input {
+  border: none;
+  border-bottom: 1px solid #999;
+  background: transparent;
+  font-family: Arial, sans-serif;
+  font-size: 11px;
+  color: #1a2530;
+  outline: none;
+  width: 160px;
+  padding: 1px 2px;
+}
+@media print {
+  .sig-clear, .sig-hint { display: none !important; }
+  .sig-canvas { border: 1px solid #ccc !important; }
+  input[type=date] { color: #1a2530 !important; }
+  input[type=date]::-moz-focus-inner { border: 0; }
+}
+@media print {
+  body { background: white !important; margin: 0; padding: 0; }
+  .no-print { display: none !important; }
+  .page { margin: 0 !important; box-shadow: none !important; width: 100% !important; }
+  * {
+    -webkit-print-color-adjust: exact !important;
+    -moz-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+  .body, .frow, .cbsec, .kyrow, .sirote-row {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  .sigs {
+    page-break-inside: avoid;
+    break-inside: avoid;
+    page-break-before: avoid;
+    break-before: avoid;
+  }
+  @page { size: A4 portrait; margin: 4mm; }
+}
+</style>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+</head>
+<body>
+
+<!-- KORJATTU: molemmat napit samassa flex-rivissä, tasalevyinen -->
+<div class="no-print">
+  <button class="print-btn" onclick="window.print()">&#128424; Tulosta / Tallenna PDF</button>
+  <button class="print-btn" onclick="tallennaTiedosto()" style="background:#2e6da4;">&#128190; Tallenna luonnos</button>
+  <button class="print-btn" onclick="document.getElementById('kuormakirjaInput').click()" style="background:#16a34a;">&#128196; Tuo kuormakirjat</button>
+  <input type="file" id="kuormakirjaInput" accept=".zip,.pdf" style="display:none" onchange="tuoKuormakirjat(this)">
+  <span id="tuontiStatus" style="color:white;font-size:12px;font-weight:600;display:none"></span>
+  <button class="print-btn" onclick="luoZipJaLataa()" style="background:#e8a020;">&#128230; Valmis — Luo ZIP</button>
+</div>
+
+<!-- API KEY -->
+<div class="no-print" style="background:#1e293b;padding:6px 14px;justify-content:flex-start;gap:8px;">
+  <span style="font-size:11px;font-weight:700;color:#94a3b8;white-space:nowrap;">🔑 API:</span>
+  <input type="password" id="apiKeyInput" placeholder="Anthropic API-avain" onchange="ANTHROPIC_API_KEY=this.value" style="flex:1;max-width:320px;border:1px solid #334155;border-radius:4px;background:#0f172a;color:#e2e8f0;font-family:Arial,sans-serif;font-size:12px;outline:none;padding:4px 8px;">
+  <span style="font-size:10px;color:#64748b;">Tallennetaan vain muistiin — ei lähde minnekään</span>
+</div>
+
+<!-- PROJEKTIN VALINTA -->
+<div class="no-print" style="background:#e8f4fc;border-bottom:2px solid #006CB1;padding:8px 14px;justify-content:flex-start;gap:8px;">
+  <span style="font-size:11px;font-weight:700;color:#006CB1;white-space:nowrap;">📁 PROJEKTI:</span>
+  <select id="projektiValinta" onchange="valitseProjekti(this.value)" style="flex:2;min-width:160px;border:1px solid #c8d0d8;border-radius:4px;background:white;font-family:Arial,sans-serif;font-size:12px;color:#1a2530;outline:none;cursor:pointer;padding:4px 6px;">
+    <option value="">— Valitse projekti tai täytä käsin —</option>
+  </select>
+  <input type="text" id="projektiKasin" placeholder="tai kirjoita projektin nimi..." style="flex:2;min-width:140px;border:1px solid #c8d0d8;border-radius:4px;font-family:Arial,sans-serif;font-size:12px;color:#1a2530;outline:none;padding:4px 6px;">
+  <button onclick="tallennaProjektiksi()" style="flex-shrink:0;padding:5px 10px;background:#006CB1;color:white;border:none;border-radius:6px;font-family:Arial,sans-serif;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">&#128190; Tallenna projektiksi</button>
+</div>
+
+<div class="page">
+<div class="hdr">
+  <div class="hdr-logo">
+    <img src="https://bcfloors1.github.io/logo.png" onerror="this.style.display='none'" alt="BC Floors" style="height:22mm; width:auto; display:block;">
+  </div>
+  <div class="hdr-right">
+    <div class="hdr-title">BETONOINTIPÖYTÄKIRJA</div>
+    <div class="hdr-sub">Lattiabetonointi &nbsp;|&nbsp; Laadunvarmistus</div>
+  </div>
+</div>
+
+<div class="body">
+  <!-- 1. PROJEKTIN PERUSTIEDOT -->
+  <div>
+    <div class="sec-title">1. PROJEKTIN PERUSTIEDOT</div>
+    <div class="frow">
+      <div class="f" style="flex:2"><label>Tilaaja</label>
+        <select onchange="tilaajaPick(this)" style="margin-bottom:4px;border:none;background:transparent;font-family:Arial,sans-serif;font-size:11px;color:#2e6da4;font-weight:700;text-transform:uppercase;width:100%;outline:none;">
+          <option value="">— Valitse tai kirjoita alle —</option>
+          <option>Tekova Oyj</option>
+          <option>Best-Hall Oy</option>
+          <option>TT-Estate Oy</option>
+          <option>Brand toimitilat Oy</option>
+          <option>Jalon Oy</option>
+          <option>Jatke Oy</option>
+          <option>Jatke Toimitilat Oy</option>
+          <option>Varte Oy</option>
+        </select>
+        <input type="text" id="tilaaja" placeholder="Kirjoita tilaajan nimi...">
+      </div>
+      <div class="f" style="flex:2"><label>Projekti / Kohde</label><input type="text" id="bp_tyomaa"></div>
+    </div>
+    <div class="frow">
+      <div class="f"><label>Työnumero</label><input type="text" id="bp_tyonro"></div>
+      <div class="f"><label>Yhteyshenkilö</label><input type="text" id="bp_yhteys"></div>
+      <div class="f" style="flex:2"><label>Osoite</label><input type="text" id="bp_osoite"></div>
+    </div>
+    <div class="frow">
+      <div class="f"><label>Valupäivä</label><input type="date" style="cursor:pointer;"></div>
+      <div class="f"><label>Valumiehet kpl</label><input type="number" min="0"></div>
+      <div class="f"><label>Pintamiehet kpl</label><input type="number" min="0"></div>
+      <div class="f">
+        <label>Valumenetelmä</label>
+        <select id="valumetodi">
+          <option value="">— Valitse —</option>
+          <option>Käsinvalu</option>
+          <option>Konevalu</option>
+        </select>
+      </div>
+      <div class="f" style="flex:2">
+        <label>Betonin toimittaja</label>
+        <select id="bp_toimittaja">
+          <option value="">— Valitse —</option>
+          <option>Rudus Oy</option>
+          <option>Ruskonbetoni Oy</option>
+          <option>Mäkirekolan Betoni Oy</option>
+          <option>Schwenk Oy</option>
+          <option>Lujabetoni Oy</option>
+          <option>Swerock Oy</option>
+          <option>Schwenk Oy</option>
+        </select>
+      </div>
+      <div class="f" style="flex:1.5"><label>Bet. toim. yhteyshenkilö</label><input type="text" id="bp_betoni_yhteys" placeholder="Nimi"></div>
+    </div>
+  </div>
+
+  <!-- 2. VALUALUE & RAKENNE -->
+  <div>
+    <div class="sec-title">2. VALUALUE &amp; RAKENNE</div>
+    <div class="frow">
+      <div class="f" style="flex:2"><label>Valualue / sijainti</label><input type="text"></div>
+      <div class="f" style="flex:1.5"><label>Rakennetyyppi</label><input type="text"></div>
+      <div class="f"><label>Kerros</label><input type="text"></div>
+    </div>
+    <div class="frow">
+      <div class="f"><label>Neliömäärä (m²)</label><input type="number" step="0.1" id="neliomaara" oninput="laskeBetoni()"></div>
+      <div class="f"><label>Paksuus (mm)</label><input type="number" id="paksuus" oninput="laskeBetoni()"></div>
+      <div class="f"><label>Teor. betoni (m³) 🔢</label><input type="number" step="0.01" id="teorBetoni" readonly style="background:#e8f4fc;color:#006CB1;font-weight:700;cursor:default;"></div>
+      <div class="f"><label>Tot. betoni (m³)</label><input type="number" step="0.1" id="totBetoni"></div>
+    </div>
+  </div>
+
+  <!-- 3. BETONIN TIEDOT -->
+  <div>
+    <div class="sec-title">3. BETONIN TIEDOT</div>
+    <div class="cbsec">
+      <div class="cbrow">
+        <span class="cblabel">Lujuusluokka:</span>
+        <div class="cbgroup" style="margin-right:18px">
+          <select class="cb-select" id="lujuus">
+            <option value="">— Valitse —</option>
+            <option>C25/30</option>
+            <option>C30/37</option>
+            <option>C32/40</option>
+            <option>C35/45</option>
+          </select>
+        </div>
+        <span class="cblabel">Notkeus:</span>
+        <div class="cbgroup">
+          <select class="cb-select" id="notkeus">
+            <option value="">— Valitse —</option>
+            <option>S2</option>
+            <option>S3</option>
+            <option>S4</option>
+          </select>
+        </div>
+      </div>
+      <div class="cbrow">
+        <span class="cblabel">Rasitusluokka:</span>
+        <div class="cbgroup">
+          <label class="cbi"><input type="checkbox" checked><span>XC1</span></label>
+          <label class="cbi"><input type="checkbox"><span>XC2</span></label>
+          <label class="cbi"><input type="checkbox"><span>XC3</span></label>
+          <label class="cbi"><input type="checkbox"><span>XC4</span></label>
+          <label class="cbi"><input type="checkbox"><span>XF1</span></label>
+          <label class="cbi"><input type="checkbox"><span>XF2</span></label>
+          <label class="cbi"><input type="checkbox"><span>XF3</span></label>
+          <label class="cbi"><input type="checkbox"><span>XF4</span></label>
+          <label class="cbi"><input type="checkbox"><span>XD1</span></label>
+          <label class="cbi"><input type="checkbox"><span>XD2</span></label>
+          <label class="cbi"><input type="checkbox"><span>XD3</span></label>
+          <label class="cbi"><input type="checkbox"><span>XS1</span></label>
+          <label class="cbi"><input type="checkbox"><span>XS2</span></label>
+          <label class="cbi"><input type="checkbox"><span>XS3</span></label>
+          <label class="cbi"><input type="checkbox"><span>NP</span></label>
+        </div>
+      </div>
+      <div class="cbrow">
+        <span class="cblabel">Käyttöikä:</span>
+        <div class="cbgroup" style="margin-right:18px">
+          <label class="cbi"><input type="checkbox" checked><span>50 v</span></label>
+          <label class="cbi"><input type="checkbox"><span>100 v</span></label>
+        </div>
+        <span class="cblabel">Raekoko:</span>
+        <div class="cbgroup">
+          <select class="cb-select" id="raekoko">
+            <option value="">— Valitse —</option>
+            <option>#8 mm</option>
+            <option selected>#16 mm</option>
+            <option>#32 mm</option>
+          </select>
+        </div>
+      </div>
+      <div class="cbrow" style="gap: 10px;">
+        <span class="cblabel">Kuitumäärä (kg/m³):</span>
+        <div class="cbgroup" style="margin-right:18px">
+          <select class="cb-select" id="kuitumaara">
+            <option value="">— Valitse —</option>
+            <option>20 kg/m³</option>
+            <option>25 kg/m³</option>
+            <option selected>30 kg/m³</option>
+            <option>35 kg/m³</option>
+            <option>40 kg/m³</option>
+            <option>3,5 kg/m³</option>
+            <option>15 kg/m³</option>
+          </select>
+        </div>
+        <span class="cblabel">Kuitutyyppi:</span>
+        <div class="cbgroup">
+          <select class="cb-select" id="kuitutyyppi" style="min-width:190px">
+            <option value="">— Valitse —</option>
+            <option>Arcelor HE 90/60</option>
+            <option>Arcelor HE 90/60+</option>
+            <option>Arcelor HE 1/50</option>
+            <option>Forta-Ferro</option>
+            <option>LHT 50/50</option>
+            <option>LHO 50/50</option>
+            <option>CHT 65/60</option>
+            <option>CHO 80/60</option>
+            <option>Arcelor Tabix 90/35</option>
+            <option>Arcelor HE +90/60</option>
+            <option>Arcelor HE ++90/60</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="frow">
+      <div class="f">
+        <label>Lisäaineet</label>
+        <select id="lisaaineet">
+          <option value="">— Valitse —</option>
+          <option>Sikacontrol</option>
+          <option>Dry D1</option>
+          <option>Centrament SRA 1</option>
+          <option>SemFlow MC</option>
+          <option>SemFlow KP</option>
+          <option>MasterGlenium Sky 600</option>
+          <option>SIKA VISCO FLOW</option>
+          <option>NOTKISTIN</option>
+        </select>
+      </div>
+      <div class="f"><label>Muuta</label><input type="text"></div>
+    </div>
+  </div>
+
+  <!-- 4. VALU -->
+  <div>
+    <div class="sec-title">4. VALU</div>
+    <div class="frow">
+      <div class="f"><label>Valu alkoi (klo)</label>
+        <select id="valuAlkoi" style="border:none;background:transparent;font-family:Arial,sans-serif;font-size:10px;color:#1a2530;width:100%;outline:none;">
+          <option value="">— Valitse —</option>
+          <option>05:00</option><option>05:30</option><option>06:00</option><option>06:30</option>
+          <option>07:00</option><option>07:30</option><option>08:00</option><option>08:30</option>
+          <option>09:00</option><option>09:30</option><option>10:00</option><option>10:30</option>
+          <option>11:00</option><option>11:30</option><option>12:00</option><option>12:30</option>
+          <option>13:00</option><option>13:30</option><option>14:00</option><option>14:30</option>
+          <option>15:00</option><option>15:30</option><option>16:00</option><option>16:30</option>
+          <option>17:00</option><option>17:30</option><option>18:00</option><option>18:30</option>
+          <option>19:00</option><option>19:30</option><option>20:00</option><option>20:30</option>
+          <option>21:00</option><option>21:30</option><option>22:00</option><option>22:30</option>
+          <option>23:00</option><option>23:30</option>
+        </select>
+      </div>
+      <div class="f"><label>Valu päättyi (klo)</label>
+        <select id="valuPaattyi" style="border:none;background:transparent;font-family:Arial,sans-serif;font-size:10px;color:#1a2530;width:100%;outline:none;">
+          <option value="">— Valitse —</option>
+          <option>11:00</option><option>11:30</option><option>12:00</option><option>12:30</option>
+          <option>13:00</option><option>13:30</option><option>14:00</option><option>14:30</option>
+          <option>15:00</option><option>15:30</option><option>16:00</option><option>16:30</option>
+          <option>17:00</option><option>17:30</option><option>18:00</option><option>18:30</option>
+          <option>19:00</option><option>19:30</option><option>20:00</option><option>20:30</option>
+          <option>21:00</option><option>21:30</option><option>22:00</option><option>22:30</option>
+          <option>23:00</option><option>23:30</option>
+        </select>
+      </div>
+      <div class="f"><label>Lämpötila alussa (°C)</label><input type="number"></div>
+      <div class="f"><label>Lämpötila lopussa (°C)</label><input type="number"></div>
+    </div>
+    <div class="frow">
+      <div class="f tall"><label>Huomiot valun aikana</label><textarea></textarea></div>
+    </div>
+  </div>
+
+  <!-- 5. PINTATYÖ -->
+  <div>
+    <div class="sec-title">5. PINTATYÖ</div>
+    <div class="frow">
+      <div class="f"><label>Hierto alkoi (klo)</label>
+        <select style="border:none;background:transparent;font-family:Arial,sans-serif;font-size:10px;color:#1a2530;width:100%;outline:none;">
+          <option value="">— Valitse —</option>
+          <option>11:00</option><option>11:30</option><option>12:00</option><option>12:30</option>
+          <option>13:00</option><option>13:30</option><option>14:00</option><option>14:30</option>
+          <option>15:00</option><option>15:30</option><option>16:00</option><option>16:30</option>
+          <option>17:00</option><option>17:30</option><option>18:00</option><option>18:30</option>
+          <option>19:00</option><option>19:30</option><option>20:00</option><option>20:30</option>
+          <option>21:00</option><option>21:30</option><option>22:00</option><option>22:30</option>
+          <option>23:00</option><option>23:30</option>
+        </select>
+      </div>
+      <div class="f"><label>Hierto päättyi (klo)</label>
+        <select style="border:none;background:transparent;font-family:Arial,sans-serif;font-size:10px;color:#1a2530;width:100%;outline:none;">
+          <option value="">— Valitse —</option>
+          <option>16:00</option><option>16:30</option><option>17:00</option><option>17:30</option>
+          <option>18:00</option><option>18:30</option><option>19:00</option><option>19:30</option>
+          <option>20:00</option><option>20:30</option><option>21:00</option><option>21:30</option>
+          <option>22:00</option><option>22:30</option><option>23:00</option><option>23:30</option>
+          <option>00:00</option><option>00:30</option><option>01:00</option><option>01:30</option>
+          <option>02:00</option><option>02:30</option><option>03:00</option><option>03:30</option>
+          <option>04:00</option><option>04:30</option><option>05:00</option><option>05:30</option>
+          <option>06:00</option><option>06:30</option><option>07:00</option>
+        </select>
+      </div>
+      <div class="f"><label>Lämpötila (°C)</label><input type="number"></div>
+    </div>
+    <div class="kyrow">
+      <div class="kyitem">
+        <span class="kylabel">Betoni hierto:</span>
+        <div class="kybtns">
+          <label><input type="radio" name="hierto"> Kyllä</label>
+          <label><input type="radio" name="hierto"> Ei</label>
+        </div>
+      </div>
+      <div class="kyitem">
+        <span class="kylabel">Pölynsidonta:</span>
+        <div class="kybtns">
+          <label><input type="radio" name="poly"> Kyllä</label>
+          <label><input type="radio" name="poly"> Ei</label>
+        </div>
+      </div>
+    </div>
+    <div class="sirote-row">
+      <span class="kylabel">Sirote:</span>
+      <div class="kybtns">
+        <label><input type="radio" name="sirote"> Kyllä</label>
+        <label><input type="radio" name="sirote"> Ei</label>
+      </div>
+      <select class="sirote-select">
+        <option value="">— Valitse sirote —</option>
+        <option>Herkulit Top 100</option>
+        <option>Herkulit Top 400</option>
+        <option>Sikafloor 100</option>
+        <option>Sikafloor 200</option>
+        <option>Sikafloor 450</option>
+        <option>Sikafloor 800</option>
+        <option>Sikafloor-2</option>
+        <option>Neodur HE2</option>
+        <option>Neodur HE3</option>
+      </select>
+    </div>
+    <div class="frow">
+      <div class="f"><label>Huomiot pintatyön aikana</label><input type="text"></div>
+    </div>
+  </div>
+
+  <!-- 6. JÄLKIHOITO -->
+  <div>
+    <div class="sec-title">6. JÄLKIHOITO</div>
+    <div class="kyrow">
+      <div class="kyitem">
+        <span class="kylabel">Kastelu:</span>
+        <div class="kybtns">
+          <label><input type="radio" name="kastelu"> Kyllä</label>
+          <label><input type="radio" name="kastelu"> Ei</label>
+        </div>
+      </div>
+      <div class="kyitem">
+        <span class="kylabel">Muovi:</span>
+        <div class="kybtns">
+          <label><input type="radio" name="muovi"> Kyllä</label>
+          <label><input type="radio" name="muovi"> Ei</label>
+        </div>
+      </div>
+    </div>
+    <div class="sirote-row">
+      <span class="kylabel">Välihoitoaine:</span>
+      <div class="kybtns">
+        <label><input type="radio" name="valihoito"> Kyllä</label>
+        <label><input type="radio" name="valihoito"> Ei</label>
+      </div>
+      <select class="sirote-select">
+        <option value="">— Valitse tuote —</option>
+        <option>Lindolit Pre-Curing</option>
+        <option>MasterKure 3WB</option>
+      </select>
+    </div>
+    <div class="sirote-row">
+      <span class="kylabel">Jälkihoitoaine:</span>
+      <div class="kybtns">
+        <label><input type="radio" name="jalkihoito"> Kyllä</label>
+        <label><input type="radio" name="jalkihoito"> Ei</label>
+      </div>
+      <select class="sirote-select">
+        <option value="">— Valitse tuote —</option>
+        <option>Lindolit W</option>
+        <option>MasterKure 216WB</option>
+      </select>
+    </div>
+    <div class="frow">
+      <div class="f tall"><label>Jälkihoitohuomiot / poikkeamat</label><textarea></textarea></div>
+    </div>
+  </div>
+
+  <!-- 7. MUUT ASIAT -->
+  <div>
+    <div class="sec-title">7. MUUT ASIAT &amp; POIKKEAMAT</div>
+    <div class="frow">
+      <div class="f tall"><label>Muut huomiot ja poikkeamat</label><textarea></textarea></div>
+    </div>
+  </div>
+</div>
+
+<!-- ALLEKIRJOITUKSET -->
+<div class="sigs">
+  <div class="sig">
+    <div class="sig-title">URAKOITSIJAN ALLEKIRJOITUS</div>
+    <div class="sig-canvas-wrap">
+      <canvas id="sig1" class="sig-canvas" width="360" height="80"></canvas>
+      <div class="sig-canvas-btns">
+        <button class="sig-clear" onclick="clearSig('sig1')">✕ Tyhjennä</button>
+        <span class="sig-hint">Allekirjoita sormella</span>
+      </div>
+    </div>
+    <div class="sig-info">Nimen selvennys:&nbsp;<input type="text" class="sig-name-input" placeholder="Kirjoita nimi"></div>
+    <div class="sig-info">Päiväys:&nbsp;<input type="date" class="sig-date-input"></div>
+  </div>
+  <div class="sig">
+    <div class="sig-title">TILAAJAN ALLEKIRJOITUS</div>
+    <div class="sig-canvas-wrap">
+      <canvas id="sig2" class="sig-canvas" width="360" height="80"></canvas>
+      <div class="sig-canvas-btns">
+        <button class="sig-clear" onclick="clearSig('sig2')">✕ Tyhjennä</button>
+        <span class="sig-hint">Allekirjoita sormella</span>
+      </div>
+    </div>
+    <div class="sig-info">Nimen selvennys:&nbsp;<input type="text" class="sig-name-input" placeholder="Kirjoita nimi"></div>
+    <div class="sig-info">Päiväys:&nbsp;<input type="date" class="sig-date-input"></div>
+  </div>
+</div>
+
+<div class="ftr">
+  <span>BC Floors Oy &nbsp;|&nbsp; Betonointipöytäkirja</span>
+  <span>Sivu 1 / 1</span>
+</div>
+</div>
+
+<script>
+function initCanvas(id) {
+  var canvas = document.getElementById(id);
+  if (!canvas) return;
+  var ctx = canvas.getContext('2d');
+  var drawing = false;
+  var lastX = 0, lastY = 0;
+  function getPos(e) {
+    var rect = canvas.getBoundingClientRect();
+    var scaleX = canvas.width / rect.width;
+    var scaleY = canvas.height / rect.height;
+    if (e.touches) {
+      return { x: (e.touches[0].clientX - rect.left) * scaleX, y: (e.touches[0].clientY - rect.top) * scaleY };
+    }
+    return { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
+  }
+  function start(e) { e.preventDefault(); drawing = true; var pos = getPos(e); lastX = pos.x; lastY = pos.y; ctx.beginPath(); ctx.arc(lastX, lastY, 1, 0, Math.PI*2); ctx.fillStyle = '#1a2530'; ctx.fill(); }
+  function draw(e) { if (!drawing) return; e.preventDefault(); var pos = getPos(e); ctx.beginPath(); ctx.moveTo(lastX, lastY); ctx.lineTo(pos.x, pos.y); ctx.strokeStyle = '#1a2530'; ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.stroke(); lastX = pos.x; lastY = pos.y; }
+  function stop(e) { drawing = false; }
+  canvas.addEventListener('mousedown', start);
+  canvas.addEventListener('mousemove', draw);
+  canvas.addEventListener('mouseup', stop);
+  canvas.addEventListener('mouseleave', stop);
+  canvas.addEventListener('touchstart', start, {passive: false});
+  canvas.addEventListener('touchmove', draw, {passive: false});
+  canvas.addEventListener('touchend', stop);
+}
+function clearSig(id) { var canvas = document.getElementById(id); canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height); }
+document.addEventListener('DOMContentLoaded', function() {
+  var today = new Date().toISOString().split('T')[0];
+  document.querySelectorAll('.sig-date-input').forEach(function(el) { el.value = today; });
+  initCanvas('sig1');
+  initCanvas('sig2');
+});
+</script>
+<script>
+function laskeBetoni() {
+  var m2 = parseFloat(document.getElementById('neliomaara').value) || 0;
+  var mm = parseFloat(document.getElementById('paksuus').value) || 0;
+  var tulos = document.getElementById('teorBetoni');
+  if (m2 > 0 && mm > 0) { tulos.value = (m2 * mm / 1000).toFixed(2); } else { tulos.value = ''; }
+}
+</script>
+<script>
+function tilaajaPick(sel) {
+  if (sel.value) { var input = document.getElementById('tilaaja'); if (input) input.value = sel.value; }
+}
+</script>
+<script>
+var fbConfig = {
+  apiKey: "AIzaSyB_SEcmhmzBBldkbh8CQYL7ncQGVyZIDM4",
+  authDomain: "bcfloors-a25ea.firebaseapp.com",
+  projectId: "bcfloors-a25ea",
+  storageBucket: "bcfloors-a25ea.firebasestorage.app",
+  messagingSenderId: "160878550016",
+  appId: "1:160878550016:web:9d42f64d0d02375a178ce5"
+};
+if (!firebase.apps.length) firebase.initializeApp(fbConfig);
+var fbDb = firebase.firestore();
+fbDb.collection('projects').orderBy('tyomaa').onSnapshot(function(snap) {
+  var sel = document.getElementById('projektiValinta');
+  var cur = sel.value;
+  sel.innerHTML = '<option value="">— Valitse projekti tai täytä käsin —</option>';
+  snap.forEach(function(d) {
+    var p = d.data();
+    var opt = document.createElement('option');
+    opt.value = d.id;
+    opt.textContent = (p.tyomaa||'') + (p.tilaaja ? ' – ' + p.tilaaja : '') + (p.tyonro ? ' ('+p.tyonro+')' : '');
+    opt.setAttribute('data-tilaaja', p.tilaaja||'');
+    opt.setAttribute('data-tyomaa', p.tyomaa||'');
+    opt.setAttribute('data-tyonro', p.tyonro||'');
+    opt.setAttribute('data-yhteys', p.yhteys||'');
+    opt.setAttribute('data-toimittaja', p.toimittaja||'');
+    opt.setAttribute('data-osoite', p.osoite||'');
+    opt.setAttribute('data-betoni-yhteys', p.betoniYhteys||'');
+    sel.appendChild(opt);
+  });
+  if (cur) sel.value = cur;
+});
+
+function valitseProjekti(id) {
+  if (!id) return;
+  var sel = document.getElementById('projektiValinta');
+  var opt = sel.options[sel.selectedIndex];
+  if (!opt) return;
+  var tilaaja = opt.getAttribute('data-tilaaja');
+  var tilaajaSel = document.querySelector('select[onchange*="tilaajaPick"]');
+  if (tilaajaSel) {
+    for (var i=0; i<tilaajaSel.options.length; i++) {
+      if (tilaajaSel.options[i].text === tilaaja) { tilaajaSel.selectedIndex = i; break; }
+    }
+    var tilaajaTxt = document.getElementById('tilaaja');
+    if (tilaajaTxt) tilaajaTxt.value = tilaaja;
+  }
+  var tyomaa = document.getElementById('bp_tyomaa'); if (tyomaa) tyomaa.value = opt.getAttribute('data-tyomaa') || '';
+  var tyonro = document.getElementById('bp_tyonro'); if (tyonro) tyonro.value = opt.getAttribute('data-tyonro') || '';
+  var yhteys = document.getElementById('bp_yhteys'); if (yhteys) yhteys.value = opt.getAttribute('data-yhteys') || '';
+  var osoite = document.getElementById('bp_osoite'); if (osoite) osoite.value = opt.getAttribute('data-osoite') || '';
+  var toimittaja = opt.getAttribute('data-toimittaja') || '';
+  var toimSel = document.getElementById('bp_toimittaja');
+  if (toimSel) { for (var i=0; i<toimSel.options.length; i++) { if (toimSel.options[i].text === toimittaja) { toimSel.selectedIndex = i; break; } } }
+  var betoniYhteys = document.getElementById('bp_betoni_yhteys');
+  if (betoniYhteys) betoniYhteys.value = opt.getAttribute('data-betoni-yhteys') || '';
+}
+
+function tallennaProjektiksi() {
+  var nimi = document.getElementById('projektiKasin').value.trim();
+  var tyomaa = document.getElementById('bp_tyomaa') ? document.getElementById('bp_tyomaa').value.trim() : '';
+  var tilaaja = document.getElementById('tilaaja') ? document.getElementById('tilaaja').value.trim() : '';
+  var tyonro = document.getElementById('bp_tyonro') ? document.getElementById('bp_tyonro').value.trim() : '';
+  var yhteys = document.getElementById('bp_yhteys') ? document.getElementById('bp_yhteys').value.trim() : '';
+  var osoite = document.getElementById('bp_osoite') ? document.getElementById('bp_osoite').value.trim() : '';
+  var toimSel = document.getElementById('bp_toimittaja');
+  var toimittaja = toimSel ? toimSel.value : '';
+  var betoniYhteys = document.getElementById('bp_betoni_yhteys') ? document.getElementById('bp_betoni_yhteys').value.trim() : '';
+  var projektinNimi = nimi || tyomaa;
+  if (!projektinNimi) { alert('Kirjoita projektin nimi tai täytä Projekti / Kohde -kenttä ensin.'); return; }
+  fbDb.collection('projects').add({ tyomaa: projektinNimi, tilaaja: tilaaja, tyonro: tyonro, yhteys: yhteys, osoite: osoite, toimittaja: toimittaja, betoniYhteys: betoniYhteys, luotu: new Date().toISOString() })
+  .then(function() { alert('Projekti tallennettu: ' + projektinNimi); document.getElementById('projektiKasin').value = ''; })
+  .catch(function(e) { alert('Virhe: ' + e.message); });
+}
+
+function tallennaTiedosto() {
+  try {
+    var kentat = {};
+    var kaikki = document.querySelectorAll('input, select, textarea');
+    for (var i = 0; i < kaikki.length; i++) {
+      var el = kaikki[i];
+      var avain = (el.id ? el.id : '') + '||' + i;
+      if (el.type === 'checkbox' || el.type === 'radio') {
+        kentat[avain] = el.checked ? '1' : '0';
+      } else {
+        kentat[avain] = el.value;
+      }
+    }
+    var c1 = document.getElementById('sig1');
+    var c2 = document.getElementById('sig2');
+    var sig1b64 = (c1 && c1.toDataURL) ? c1.toDataURL() : '';
+    var sig2b64 = (c2 && c2.toDataURL) ? c2.toDataURL() : '';
+
+    fetch('https://bcfloors1.github.io/betonointi.html')
+      .then(function(r) { return r.text(); })
+      .then(function(pohja) {
+        var dataJson = JSON.stringify(kentat).replace(/<\/script>/gi, '<\\/script>');
+        var injektointi = '\n<script id="luonnos-injektio">\n';
+        injektointi += '(function(){\n';
+        injektointi += '  var KENTAT = ' + dataJson + ';\n';
+        injektointi += '  var SIG1 = ' + JSON.stringify(sig1b64) + ';\n';
+        injektointi += '  var SIG2 = ' + JSON.stringify(sig2b64) + ';\n';
+        injektointi += '  function tayta() {\n';
+        injektointi += '    var els = document.querySelectorAll("input, select, textarea");\n';
+        injektointi += '    for (var i = 0; i < els.length; i++) {\n';
+        injektointi += '      var el = els[i];\n';
+        injektointi += '      var k = (el.id ? el.id : "") + "||" + i;\n';
+        injektointi += '      if (!(k in KENTAT)) continue;\n';
+        injektointi += '      if (el.type==="checkbox"||el.type==="radio") { el.checked=(KENTAT[k]==="1"); }\n';
+        injektointi += '      else { el.value = KENTAT[k]; }\n';
+        injektointi += '    }\n';
+        injektointi += '    function piirraCanvakseen(id, src) {\n';
+        injektointi += '      if (!src) return;\n';
+        injektointi += '      var canvas = document.getElementById(id);\n';
+        injektointi += '      if (!canvas || !canvas.getContext) return;\n';
+        injektointi += '      var ctx = canvas.getContext("2d");\n';
+        injektointi += '      var img = new Image();\n';
+        injektointi += '      img.onload = function() {\n';
+        injektointi += '        ctx.clearRect(0, 0, canvas.width, canvas.height);\n';
+        injektointi += '        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);\n';
+        injektointi += '      };\n';
+        injektointi += '      img.src = src;\n';
+        injektointi += '    }\n';
+        injektointi += '    if(SIG1) piirraCanvakseen("sig1", SIG1);\n';
+        injektointi += '    if(SIG2) piirraCanvakseen("sig2", SIG2);\n';
+        injektointi += '  }\n';
+        injektointi += '  document.addEventListener("DOMContentLoaded",function(){tayta();setTimeout(tayta,1500);setTimeout(tayta,3000);});\n';
+        injektointi += '})();\n';
+        injektointi += '<\/script>\n';
+
+        var tulos = pohja.replace('<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+</head>', injektointi + '<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+</head>');
+
+        var tyomaa = 'luonnos';
+        for (var k in kentat) { if (k.indexOf('bp_tyomaa||') === 0 && kentat[k]) { tyomaa = kentat[k]; break; } }
+        tyomaa = tyomaa.replace(/[^a-zA-Z0-9äöåÄÖÅ_\-]/g, '_') || 'luonnos';
+        var tiedNimi = 'betonointi_' + tyomaa + '_' + new Date().toISOString().split('T')[0] + '.html';
+
+        var blob = new Blob([tulos], {type: 'text/html;charset=utf-8'});
+        if (window.navigator && window.navigator.msSaveOrOpenBlob) {
+          window.navigator.msSaveOrOpenBlob(blob, tiedNimi);
+        } else {
+          var url = URL.createObjectURL(blob);
+          var a = document.createElement('a');
+          a.href = url; a.download = tiedNimi; a.style.display = 'none';
+          document.body.appendChild(a); a.click();
+          setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
+        }
+      })
+      .catch(function(err){ alert('Virhe: ' + err.message); });
+  } catch(e) {
+    alert('Tallennusvirhe: ' + e.message);
+    console.error(e);
+  }
+}
+</script>
+
+<script>
+// ── Anthropic API avain (sama kuin projektipankissa) ──
+var ANTHROPIC_API_KEY = 'YOUR_ANTHROPIC_API_KEY'; // Vaihda oikeaksi
+
+// ── Kuormakirjojen taltioiminen ──
+var kuormakirjaTiedostot = []; // {nimi, data (Uint8Array)}
+var zipTiedostoNimi = '';
+
+// ── Pyöristys puoleen tuntiin ──
+function pyoristaAika(aikaStr) {
+  if (!aikaStr) return '';
+  var osat = aikaStr.replace('.', ':').split(':');
+  var tunnit = parseInt(osat[0]) || 0;
+  var minuutit = parseInt(osat[1]) || 0;
+  if (minuutit < 15) minuutit = 0;
+  else if (minuutit < 45) minuutit = 30;
+  else { minuutit = 0; tunnit++; }
+  return (tunnit < 10 ? '0' : '') + tunnit + ':' + (minuutit === 0 ? '00' : '30');
+}
+
+// ── Aseta dropdown-arvo ──
+function asetaDropdown(id, arvo) {
+  if (!arvo) return false;
+  var sel = document.getElementById(id);
+  if (!sel) return false;
+  var arvoLower = arvo.toLowerCase().trim();
+  for (var i = 0; i < sel.options.length; i++) {
+    if (sel.options[i].text.toLowerCase().trim() === arvoLower) {
+      sel.selectedIndex = i;
+      return true;
+    }
+  }
+  // Ei löydy listalta — ei tehdä mitään, jätetään tyhjäksi
+  return false;
+}
+
+// ── Aseta checkbox ──
+function asetaCheckbox(nimi, arvo) {
+  var checkboxes = document.querySelectorAll('input[type="checkbox"]');
+  checkboxes.forEach(function(cb) {
+    var label = cb.parentElement ? cb.parentElement.textContent.trim() : '';
+    if (label === nimi) cb.checked = arvo;
+  });
+}
+
+// ── Täytä kentät AI:n palauttamilla tiedoilla ──
+function taytaKentat(tiedot) {
+  // Toimittaja
+  if (tiedot.toimittaja) asetaDropdown('bp_toimittaja', tiedot.toimittaja);
+  
+  // Yhteyshenkilö
+  if (tiedot.yhteyshenkilo) {
+    var el = document.getElementById('bp_betoni_yhteys');
+    if (el) el.value = tiedot.yhteyshenkilo;
+  }
+
+  // Lujuusluokka
+  if (tiedot.lujuusluokka) asetaDropdown('lujuus', tiedot.lujuusluokka);
+
+  // Notkeusluokka
+  if (tiedot.notkeusluokka) asetaDropdown('notkeus', tiedot.notkeusluokka);
+
+  // Rasitusluokat — nollaa ensin kaikki
+  var kaikkirasitukset = ['XC1','XC2','XC3','XC4','XF1','XF2','XF3','XF4','XD1','XD2','XD3','XS1','XS2','XS3','NP'];
+  kaikkirasitukset.forEach(function(r) { asetaCheckbox(r, false); });
+  if (tiedot.rasitusluokat && Array.isArray(tiedot.rasitusluokat)) {
+    tiedot.rasitusluokat.forEach(function(r) { asetaCheckbox(r.trim(), true); });
+  }
+
+  // Käyttöikä
+  if (tiedot.kayttoika) {
+    var cb50 = document.querySelector('input[type="checkbox"] + span');
+    document.querySelectorAll('.cbi').forEach(function(el) {
+      var teksti = el.querySelector('span') ? el.querySelector('span').textContent.trim() : '';
+      var cb = el.querySelector('input[type="checkbox"]');
+      if (!cb) return;
+      if (teksti === '50 v') cb.checked = tiedot.kayttoika.indexOf('50') >= 0;
+      if (teksti === '100 v') cb.checked = tiedot.kayttoika.indexOf('100') >= 0;
+    });
+  }
+
+  // Raekoko
+  if (tiedot.raekoko) {
+    var raeArvo = '#' + tiedot.raekoko.replace('#','').replace('mm','').trim() + ' mm';
+    asetaDropdown('raekoko', raeArvo);
+  }
+
+  // Kuitumäärä
+  if (tiedot.kuitumaara) {
+    var kuituArvo = tiedot.kuitumaara.trim();
+    if (!asetaDropdown('kuitumaara', kuituArvo + ' kg/m³')) {
+      asetaDropdown('kuitumaara', kuituArvo);
+    }
+  }
+
+  // Kuitutyyppi
+  if (tiedot.kuitutyyppi) asetaDropdown('kuitutyyppi', tiedot.kuitutyyppi);
+
+  // Lisäaineet
+  if (tiedot.lisaaineet) asetaDropdown('lisaaineet', tiedot.lisaaineet);
+
+  // Muuta (sementtityyppi)
+  if (tiedot.sementtityyppi) {
+    var muuta = document.querySelector('input[id=""][placeholder=""]');
+    // Etsi "Muuta" kenttä
+    document.querySelectorAll('label').forEach(function(lbl) {
+      if (lbl.textContent.trim() === 'Muuta') {
+        var input = lbl.parentElement.querySelector('input');
+        if (input) input.value = tiedot.sementtityyppi;
+      }
+    });
+  }
+
+  // Valu alkoi — pyöristetty
+  if (tiedot.valuAlkoi) {
+    var pyoristetty = pyoristaAika(tiedot.valuAlkoi);
+    asetaDropdown('valuAlkoi', pyoristetty);
+  }
+
+  // Valu päättyi — pyöristetty  
+  if (tiedot.valuPaattyi) {
+    var pyoristetty2 = pyoristaAika(tiedot.valuPaattyi);
+    asetaDropdown('valuPaattyi', pyoristetty2);
+  }
+
+  // Tot. betoni
+  if (tiedot.totBetoni) {
+    var el = document.getElementById('totBetoni');
+    if (el) el.value = tiedot.totBetoni;
+  }
+
+  // Valupäivä
+  if (tiedot.valupaivamaara) {
+    var paivaInputit = document.querySelectorAll('input[type="date"]');
+    if (paivaInputit.length > 0) paivaInputit[0].value = tiedot.valupaivamaara;
+  }
+
+  naytaStatus('✅ Kentät täytetty — tarkista ja täydennä loput!', 'green');
+}
+
+// ── Näytä status ──
+function naytaStatus(teksti, vari) {
+  var el = document.getElementById('tuontiStatus');
+  if (!el) return;
+  el.textContent = teksti;
+  el.style.color = vari === 'green' ? '#86efac' : vari === 'red' ? '#fca5a5' : 'white';
+  el.style.display = 'inline';
+}
+
+// ── Lue PDF base64 ──
+function lueBase64(uint8array) {
+  var binary = '';
+  for (var i = 0; i < uint8array.length; i++) {
+    binary += String.fromCharCode(uint8array[i]);
+  }
+  return btoa(binary);
+}
+
+// ── Kutsu Anthropic API ──
+async function kutsuAI(tekstit) {
+  var yhdistetty = tekstit.join('\n\n--- SEURAAVA KUORMAKIRJA ---\n\n').substring(0, 15000);
+  
+  var prompt = `Olet betonointipöytäkirjan täyttöavustaja. Analysoi nämä betonikuormakirjat ja palauta JSON-objekti.
+
+KUORMAKIRJAT:
+${yhdistetty}
+
+Palauta VAIN JSON ilman muuta tekstiä:
+{
+  "toimittaja": "toimittajan nimi esim Rudus Oy tai Schwenk Oy",
+  "yhteyshenkilo": "betonin toimittajan yhteyshenkilö tai null",
+  "lujuusluokka": "esim C30/37",
+  "notkeusluokka": "esim S3 tai S4",
+  "rasitusluokat": ["XC1", "XC2"],
+  "kayttoika": "esim 50 tai 100 tai 50 ja 100",
+  "raekoko": "esim 16",
+  "kuitumaara": "kg/m³ numero esim 40",
+  "kuitutyyppi": "esim Arcelor HE 90/60 tai Arcelor HE ++90/60",
+  "lisaaineet": "pääasiallinen lisäaine",
+  "sementtityyppi": "esim CEM II/B-M 52.5N",
+  "valuAlkoi": "ensimmäisen kuorman purku alkoi aika HH:MM",
+  "valuPaattyi": "viimeisen kuorman purku päättyi aika HH:MM",
+  "totBetoni": "toimitettu betoni yhteensä m³ numero",
+  "valupaivamaara": "YYYY-MM-DD muodossa"
+}`;
+
+  var response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1000,
+      messages: [{ role: 'user', content: prompt }]
+    })
+  });
+
+  var data = await response.json();
+  var teksti = data.content[0].text.trim();
+  // Poista mahdolliset ```json ``` merkit
+  teksti = teksti.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
+  return JSON.parse(teksti);
+}
+
+// ── Pää-funktio: tuo kuormakirjat ──
+async function tuoKuormakirjat(input) {
+  var tiedosto = input.files[0];
+  if (!tiedosto) return;
+  input.value = '';
+  
+  naytaStatus('⏳ Luetaan tiedostoa...', 'white');
+  kuormakirjaTiedostot = [];
+
+  var tekstit = [];
+  var onZip = tiedosto.name.toLowerCase().endsWith('.zip');
+
+  try {
+    if (onZip) {
+      // ZIP — pura ja lue kaikki PDF:t
+      var zip = await JSZip.loadAsync(tiedosto);
+      var pdft = [];
+      
+      zip.forEach(function(polku, entry) {
+        if (!entry.dir && polku.toLowerCase().endsWith('.pdf')) {
+          pdft.push({ polku, entry });
+        }
+      });
+
+      naytaStatus('⏳ Luetaan ' + pdft.length + ' kuormakirjaa...', 'white');
+
+      for (var i = 0; i < pdft.length; i++) {
+        var data = await pdft[i].entry.async('uint8array');
+        kuormakirjaTiedostot.push({ nimi: pdft[i].polku, data: data });
+        // Lue teksti AI:lle
+        var b64 = lueBase64(data);
+        tekstit.push(await luePDFTeksti(b64));
+      }
+
+    } else {
+      // Yksittäinen PDF
+      var reader = new FileReader();
+      var b64 = await new Promise(function(res) {
+        reader.onload = function(e) { res(e.target.result.split(',')[1]); };
+        reader.readAsDataURL(tiedosto);
+      });
+      kuormakirjaTiedostot.push({ 
+        nimi: tiedosto.name, 
+        data: await tiedosto.arrayBuffer().then(function(ab) { return new Uint8Array(ab); })
+      });
+      tekstit.push(await luePDFTeksti(b64));
+    }
+
+    // Tallenna zip-nimi
+    var projNimi = '';
+    var sel = document.getElementById('projektiValinta');
+    if (sel && sel.selectedIndex > 0) {
+      var opt = sel.options[sel.selectedIndex];
+      projNimi = (opt.getAttribute('data-tyomaa') || opt.text).replace(/[^a-zA-Z0-9äöåÄÖÅ]/g,'').toLowerCase();
+    }
+
+    naytaStatus('🤖 AI analysoi kuormakirjoja...', 'white');
+    
+    var tiedot = await kutsuAI(tekstit);
+    
+    // Tallenna zip-nimi projekti+päivä
+    if (tiedot.valupaivamaara) {
+      var pvm = tiedot.valupaivamaara.split('-');
+      var pvmStr = pvm[2] + '.' + pvm[1];
+      zipTiedostoNimi = (projNimi || 'betoni') + pvmStr;
+    }
+
+    taytaKentat(tiedot);
+
+  } catch(err) {
+    naytaStatus('❌ Virhe: ' + err.message, 'red');
+    console.error(err);
+  }
+}
+
+// ── Lue PDF tekstiksi Anthropic API:lla ──
+async function luePDFTeksti(b64) {
+  var response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 2000,
+      messages: [{
+        role: 'user',
+        content: [{
+          type: 'document',
+          source: { type: 'base64', media_type: 'application/pdf', data: b64 }
+        }, {
+          type: 'text',
+          text: 'Pura tämän kuormakirjan kaikki teksti ja luvut tarkasti. Älä analysoi, vain pura teksti.'
+        }]
+      }]
+    })
+  });
+  var data = await response.json();
+  return data.content[0].text;
+}
+
+// ── Valmis-nappi: luo ZIP ──
+async function luoZipJaLataa() {
+  naytaStatus('⏳ Pakataan ZIP...', 'white');
+  
+  try {
+    var zip = new JSZip();
+    
+    // 1. Lisää kuormakirjat
+    kuormakirjaTiedostot.forEach(function(f) {
+      zip.file(f.nimi, f.data);
+    });
+
+    // 2. Luo PDF betonointipöytäkirjasta
+    window.print();
+    
+    // ZIP-nimi
+    var nimi = (zipTiedostoNimi || 'betonointi') + '.zip';
+    
+    var blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = nimi;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function() { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
+    
+    naytaStatus('✅ ZIP ladattu: ' + nimi, 'green');
+  } catch(err) {
+    naytaStatus('❌ ZIP-virhe: ' + err.message, 'red');
+  }
+}
+</script>
+</body>
+</html>
