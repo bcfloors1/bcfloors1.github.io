@@ -269,9 +269,7 @@ body {
   @page { size: A4 portrait; margin: 4mm; }
 }
 </style>
-<script>
-var ANTHROPIC_API_KEY = "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";
-</script>
+
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -285,6 +283,7 @@ var ANTHROPIC_API_KEY = "sk-ant-api03-4d1rChiHYR-aq159L8uidX_RYelj-BChGgkvvKUJs8
   <button class="print-btn" onclick="document.getElementById('kuormakirjaInput').click()" style="background:#16a34a;">&#128196; Tuo kuormakirjat</button>
   <input type="file" id="kuormakirjaInput" accept=".zip,.pdf" style="display:none" onchange="tuoKuormakirjat(this)">
   <span id="tuontiStatus" style="color:white;font-size:12px;font-weight:600;display:none"></span>
+  <input id="apiAvainKentta" type="password" placeholder="🔑 Liitä API-avain tähän..." style="flex:3;min-width:220px;border:1px solid #e8a020;border-radius:2px;font-family:Arial,sans-serif;font-size:12px;color:#1a2530;padding:4px 8px;outline:none;" autocomplete="off">
   <button class="print-btn" onclick="luoZipJaLataa()" style="background:#e8a020;">&#128230; Valmis — Luo ZIP</button>
 </div>
 
@@ -899,7 +898,7 @@ function tallennaTiedosto() {
 
 <script>
 // ── Anthropic API avain (sama kuin projektipankissa) ──
-var ANTHROPIC_API_KEY = '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'; // Vaihda oikeaksi
+function getApiKey() { return ((document.getElementById('apiAvainKentta') || {}).value || '').trim(); }
 
 // ── Kuormakirjojen taltioiminen ──
 var kuormakirjaTiedostot = []; // {nimi, data (Uint8Array)}
@@ -1087,7 +1086,7 @@ Palauta VAIN JSON ilman muuta tekstiä:
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': ANTHROPIC_API_KEY,
+      'x-api-key': getApiKey(),
       'anthropic-version': '2023-06-01',
       'anthropic-dangerous-direct-browser-access': 'true'
     },
@@ -1099,6 +1098,10 @@ Palauta VAIN JSON ilman muuta tekstiä:
   });
 
   var data = await response.json();
+  if (!response.ok || !data.content || !data.content[0]) {
+    var virhe = (data.error && data.error.message) ? data.error.message : ('HTTP ' + response.status);
+    throw new Error('API-virhe (kutsuAI): ' + virhe);
+  }
   var teksti = data.content[0].text.trim();
   // Poista mahdolliset ```json ``` merkit
   teksti = teksti.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
@@ -1161,7 +1164,12 @@ async function tuoKuormakirjat(input) {
       projNimi = (opt.getAttribute('data-tyomaa') || opt.text).replace(/[^a-zA-Z0-9äöåÄÖÅ]/g,'').toLowerCase();
     }
 
-    naytaStatus('🤖 AI analysoi kuormakirjoja...', 'white');
+    var avain = getApiKey();
+  if (!avain || !avain.startsWith('sk-ant-')) {
+    naytaStatus('❌ Syötä ensin API-avain kenttään!', 'red');
+    return;
+  }
+  naytaStatus('🤖 AI analysoi kuormakirjoja...', 'white');
     
     var tiedot = await kutsuAI(tekstit);
     
@@ -1186,7 +1194,7 @@ async function luePDFTeksti(b64) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': ANTHROPIC_API_KEY,
+      'x-api-key': getApiKey(),
       'anthropic-version': '2023-06-01',
       'anthropic-dangerous-direct-browser-access': 'true'
     },
@@ -1206,6 +1214,10 @@ async function luePDFTeksti(b64) {
     })
   });
   var data = await response.json();
+  if (!response.ok || !data.content || !data.content[0]) {
+    var virhe = (data.error && data.error.message) ? data.error.message : ('HTTP ' + response.status);
+    throw new Error('API-virhe (luePDFTeksti): ' + virhe);
+  }
   return data.content[0].text;
 }
 
