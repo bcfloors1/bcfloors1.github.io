@@ -875,9 +875,7 @@ function tallennaTiedosto() {
         injektointi += '})();\n';
         injektointi += '<\/script>\n';
 
-        var tulos = pohja.replace('<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-</head>', injektointi + '<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-</head>');
+        var tulos = pohja.replace('</head>', injektointi + '</head>');
 
         var tyomaa = 'luonnos';
         for (var k in kentat) { if (k.indexOf('bp_tyomaa||') === 0 && kentat[k]) { tyomaa = kentat[k]; break; } }
