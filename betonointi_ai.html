@@ -273,6 +273,12 @@ body {
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+if (typeof pdfjsLib !== 'undefined') {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+}
+</script>
 </head>
 <body>
 
@@ -1141,17 +1147,11 @@ async function tuoKuormakirjat(input) {
       }));
       puretut.forEach(function(p) { kuormakirjaTiedostot.push(p); });
 
-      // Lähetä AI:lle erissä (3 kerrallaan) rate limitin takia
-      tekstit = [];
-      var eraKoko = 3;
-      for (var i = 0; i < puretut.length; i += eraKoko) {
-        var era = puretut.slice(i, i + eraKoko);
-        naytaStatus('⏳ Analysoidaan ' + (i+1) + '-' + Math.min(i+eraKoko, puretut.length) + ' / ' + puretut.length + '...', 'white');
-        var eraTekstit = await Promise.all(era.map(function(p) {
-          return luePDFTeksti(lueBase64(p.data));
-        }));
-        tekstit = tekstit.concat(eraTekstit);
-      }
+      // Lue kaikki PDF:t rinnakkain PDF.js:lla (ei API-kutsuja)
+      naytaStatus('⏳ Luetaan tekstit...', 'white');
+      tekstit = await Promise.all(puretut.map(function(p) {
+        return luePDFTeksti(lueBase64(p.data));
+      }));
 
     } else {
       // Yksittäinen PDF
@@ -1235,37 +1235,19 @@ async function tuoKuormakirjat(input) {
   }
 }
 
-// ── Lue PDF tekstiksi Anthropic API:lla ──
+// ── Lue PDF tekstiksi PDF.js:lla (ei API-kutsua) ──
 async function luePDFTeksti(b64) {
-  var response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': getApiKey(),
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true'
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-5',
-      max_tokens: 2000,
-      messages: [{
-        role: 'user',
-        content: [{
-          type: 'document',
-          source: { type: 'base64', media_type: 'application/pdf', data: b64 }
-        }, {
-          type: 'text',
-          text: 'Pura tämän kuormakirjan kaikki teksti ja luvut tarkasti. Älä analysoi, vain pura teksti.'
-        }]
-      }]
-    })
-  });
-  var data = await response.json();
-  if (!response.ok || !data.content || !data.content[0]) {
-    var virhe = (data.error && data.error.message) ? data.error.message : ('HTTP ' + response.status);
-    throw new Error('API-virhe (luePDFTeksti): ' + virhe);
+  var binary = atob(b64);
+  var bytes = new Uint8Array(binary.length);
+  for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  var pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
+  var tekstit = [];
+  for (var p = 1; p <= pdf.numPages; p++) {
+    var sivu = await pdf.getPage(p);
+    var sisalto = await sivu.getTextContent();
+    tekstit.push(sisalto.items.map(function(s) { return s.str; }).join(' '));
   }
-  return data.content[0].text;
+  return tekstit.join('\n');
 }
 
 // ── Valmis-nappi: luo ZIP ──
