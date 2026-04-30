@@ -838,9 +838,8 @@ function tallennaTiedosto() {
     var sig1b64 = (c1 && c1.toDataURL) ? c1.toDataURL() : '';
     var sig2b64 = (c2 && c2.toDataURL) ? c2.toDataURL() : '';
 
-    fetch('https://bcfloors1.github.io/betonointi_ai.html')
-      .then(function(r) { return r.text(); })
-      .then(function(pohja) {
+    var pohja = document.documentElement.outerHTML;
+    (function(pohja) {
         var dataJson = JSON.stringify(kentat).replace(/<\/script>/gi, '<\\/script>');
         var injektointi = '\n<script id="luonnos-injektio">\n';
         injektointi += '(function(){\n';
@@ -893,7 +892,7 @@ function tallennaTiedosto() {
           setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
         }
       })
-      .catch(function(err){ alert('Virhe: ' + err.message); });
+    })(pohja);
   } catch(e) {
     alert('Tallennusvirhe: ' + e.message);
     console.error(e);
