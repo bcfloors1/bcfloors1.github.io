@@ -1141,10 +1141,17 @@ async function tuoKuormakirjat(input) {
       }));
       puretut.forEach(function(p) { kuormakirjaTiedostot.push(p); });
 
-      // Lähetä kaikki AI:lle yhtä aikaa
-      tekstit = await Promise.all(puretut.map(function(p) {
-        return luePDFTeksti(lueBase64(p.data));
-      }));
+      // Lähetä AI:lle erissä (3 kerrallaan) rate limitin takia
+      tekstit = [];
+      var eraKoko = 3;
+      for (var i = 0; i < puretut.length; i += eraKoko) {
+        var era = puretut.slice(i, i + eraKoko);
+        naytaStatus('⏳ Analysoidaan ' + (i+1) + '-' + Math.min(i+eraKoko, puretut.length) + ' / ' + puretut.length + '...', 'white');
+        var eraTekstit = await Promise.all(era.map(function(p) {
+          return luePDFTeksti(lueBase64(p.data));
+        }));
+        tekstit = tekstit.concat(eraTekstit);
+      }
 
     } else {
       // Yksittäinen PDF
