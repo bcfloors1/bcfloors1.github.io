@@ -838,7 +838,7 @@ function tallennaTiedosto() {
     var sig1b64 = (c1 && c1.toDataURL) ? c1.toDataURL() : '';
     var sig2b64 = (c2 && c2.toDataURL) ? c2.toDataURL() : '';
 
-    fetch('https://bcfloors1.github.io/betonointi.html')
+    fetch('https://bcfloors1.github.io/betonointi_ai.html')
       .then(function(r) { return r.text(); })
       .then(function(pohja) {
         var dataJson = JSON.stringify(kentat).replace(/<\/script>/gi, '<\\/script>');
@@ -905,7 +905,7 @@ function tallennaTiedosto() {
 
 <script>
 // ── Anthropic API avain (sama kuin projektipankissa) ──
-var ANTHROPIC_API_KEY = 'YOUR_ANTHROPIC_API_KEY'; // Vaihda oikeaksi
+var ANTHROPIC_API_KEY = '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'; // Vaihda oikeaksi
 
 // ── Kuormakirjojen taltioiminen ──
 var kuormakirjaTiedostot = []; // {nimi, data (Uint8Array)}
@@ -1091,7 +1091,12 @@ Palauta VAIN JSON ilman muuta tekstiä:
 
   var response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': ANTHROPIC_API_KEY,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 1000,
@@ -1185,7 +1190,12 @@ async function tuoKuormakirjat(input) {
 async function luePDFTeksti(b64) {
   var response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': ANTHROPIC_API_KEY,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 2000,
