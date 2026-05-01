@@ -1392,7 +1392,7 @@ async function luoZipJaLataa() {
         zipNimi = 'betonointi' + pvmTeksti;
       }
     }
-    zip.file(zipNimi + '_poyrakirja.pdf', pdfBlob);
+    if (pdfBlob) zip.file(zipNimi + '_poyrakirja.pdf', pdfBlob);
     
     naytaStatus('⏳ Pakataan ZIP...', 'white');
     
