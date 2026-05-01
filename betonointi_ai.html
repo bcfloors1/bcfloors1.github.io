@@ -955,13 +955,30 @@ async function kirjaudu() {
   }
 }
 
-// Yritä kirjautua automaattisesti jos avain on jo Firestoressä (ei salasanaa vaadita automaattisesti)
+// Hae avain automaattisesti sivun latautuessa
 window.addEventListener('DOMContentLoaded', function() {
-  // Salasanakenttä fokukseen
-  setTimeout(function() {
-    var k = document.getElementById('salasanaKentta');
-    if (k) k.focus();
-  }, 500);
+  setTimeout(async function() {
+    try {
+      var doc = await fbDb.collection('asetukset').doc('api').get();
+      if (doc.exists && doc.data().avain) {
+        document.getElementById('apiAvainKentta').value = doc.data().avain;
+        // Piilota salasanakenttä ja OK-nappi
+        var salasana = document.getElementById('salasanaKentta');
+        var okBtn = document.querySelector('[onclick="kirjaudu()"]');
+        var status = document.getElementById('kirjautumisStatus');
+        if (salasana) salasana.style.display = 'none';
+        if (okBtn) okBtn.style.display = 'none';
+        if (status) { status.style.display='inline'; status.style.color='#90ee90'; status.textContent = '✅ Kirjauduttu'; }
+      } else {
+        // Avain puuttuu — näytä salasanakenttä
+        var k = document.getElementById('salasanaKentta');
+        if (k) k.focus();
+      }
+    } catch(e) {
+      var k = document.getElementById('salasanaKentta');
+      if (k) k.focus();
+    }
+  }, 800);
 });
 
 // ── Kuormakirjojen taltioiminen ──
