@@ -272,6 +272,7 @@ body {
 
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -290,7 +291,10 @@ body {
   <button class="print-btn" onclick="document.getElementById('kuormakirjaInput').click()" style="background:#16a34a;">&#128196; Tuo kuormakirjat</button>
   <input type="file" id="kuormakirjaInput" accept=".zip,.pdf" style="display:none" onchange="tuoKuormakirjat(this)">
   <span id="tuontiStatus" style="color:white;font-size:12px;font-weight:600;display:none"></span>
-  <input id="apiAvainKentta" type="password" placeholder="🔑 Liitä API-avain tähän..." style="flex:3;min-width:220px;border:1px solid #e8a020;border-radius:2px;font-family:Arial,sans-serif;font-size:12px;color:#1a2530;padding:4px 8px;outline:none;" autocomplete="off">
+  <input id="salasanaKentta" type="password" placeholder="🔐 Salasana..." style="width:130px;border:1px solid #e8a020;border-radius:2px;font-family:Arial,sans-serif;font-size:12px;color:#1a2530;padding:4px 8px;outline:none;" autocomplete="off" onkeydown="if(event.key==='Enter')kirjaudu()">
+  <button onclick="kirjaudu()" style="background:#e8a020;color:white;border:none;border-radius:2px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:600;">OK</button>
+  <span id="kirjautumisStatus" style="color:white;font-size:11px;display:none"></span>
+  <input id="apiAvainKentta" type="hidden">
   <button class="print-btn" onclick="luoZipJaLataa()" style="background:#e8a020;">&#128230; Valmis — Luo ZIP</button>
 </div>
 
@@ -761,6 +765,7 @@ var fbConfig = {
 };
 if (!firebase.apps.length) firebase.initializeApp(fbConfig);
 var fbDb = firebase.firestore();
+var fbStorage = firebase.storage();
 fbDb.collection('projects').orderBy('tyomaa').onSnapshot(function(snap) {
   var sel = document.getElementById('projektiValinta');
   var cur = sel.value;
@@ -906,15 +911,57 @@ function tallennaTiedosto() {
 <script>
 // ── Anthropic API avain (sama kuin projektipankissa) ──
 function getApiKey() { return ((document.getElementById("apiAvainKentta") || {}).value || "").trim(); }
-function tallennaApiAvain() {
-  var k = getApiKey();
-  if (k) localStorage.setItem('bc_api_key', k);
+
+var BC_SALASANA = 'baycity';
+
+async function kirjaudu() {
+  var syotetty = (document.getElementById('salasanaKentta') || {}).value || '';
+  var status = document.getElementById('kirjautumisStatus');
+  if (syotetty !== BC_SALASANA) {
+    if (status) { status.style.display='inline'; status.style.color='#ff6b6b'; status.textContent = '❌ Väärä salasana'; }
+    return;
+  }
+  if (status) { status.style.display='inline'; status.style.color='white'; status.textContent = '⏳ Haetaan...'; }
+  try {
+    var doc = await fbDb.collection('asetukset').doc('api').get();
+    if (doc.exists && doc.data().avain) {
+      document.getElementById('apiAvainKentta').value = doc.data().avain;
+      if (status) { status.style.display='inline'; status.style.color='#90ee90'; status.textContent = '✅ Kirjauduttu'; }
+      document.getElementById('salasanaKentta').style.display = 'none';
+      document.querySelector('[onclick="kirjaudu()"]').style.display = 'none';
+    } else {
+      // Avain puuttuu — pyydä syöttämään
+      document.getElementById('apiAvainKentta').type = 'password';
+      document.getElementById('apiAvainKentta').placeholder = '🔑 Syötä API-avain ensimmäistä kertaa...';
+      document.getElementById('apiAvainKentta').style.cssText = 'width:280px;border:1px solid #e8a020;border-radius:2px;font-family:Arial,sans-serif;font-size:12px;color:#1a2530;padding:4px 8px;outline:none;display:inline';
+      var tallennaBtn = document.createElement('button');
+      tallennaBtn.textContent = 'Tallenna avain';
+      tallennaBtn.style.cssText = 'background:#16a34a;color:white;border:none;border-radius:2px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:600;margin-left:4px;';
+      tallennaBtn.onclick = async function() {
+        var uusiAvain = document.getElementById('apiAvainKentta').value.trim();
+        if (!uusiAvain.startsWith('sk-ant-')) { alert('Virheellinen API-avain'); return; }
+        await fbDb.collection('asetukset').doc('api').set({ avain: uusiAvain });
+        tallennaBtn.remove();
+        document.getElementById('apiAvainKentta').type = 'hidden';
+        if (status) { status.style.display='inline'; status.style.color='#90ee90'; status.textContent = '✅ Avain tallennettu!'; }
+        document.getElementById('salasanaKentta').style.display = 'none';
+        document.querySelector('[onclick="kirjaudu()"]').style.display = 'none';
+      };
+      document.getElementById('salasanaKentta').parentNode.insertBefore(tallennaBtn, status);
+      if (status) { status.style.display='inline'; status.style.color='white'; status.textContent = 'Syötä API-avain:'; }
+    }
+  } catch(e) {
+    if (status) { status.style.display='inline'; status.style.color='#ff6b6b'; status.textContent = '❌ Virhe: ' + e.message; }
+  }
 }
-// Lataa avain localStoragesta sivun latautuessa
+
+// Yritä kirjautua automaattisesti jos avain on jo Firestoressä (ei salasanaa vaadita automaattisesti)
 window.addEventListener('DOMContentLoaded', function() {
-  var tallennettu = localStorage.getItem('bc_api_key');
-  var kentta = document.getElementById('apiAvainKentta');
-  if (tallennettu && kentta) kentta.value = tallennettu;
+  // Salasanakenttä fokukseen
+  setTimeout(function() {
+    var k = document.getElementById('salasanaKentta');
+    if (k) k.focus();
+  }, 500);
 });
 
 // ── Kuormakirjojen taltioiminen ──
@@ -1299,6 +1346,21 @@ async function luoZipJaLataa() {
     };
     
     var pdfBlob = await html2pdf().set(opt).from(element).outputPdf('blob');
+    // Hae projektin nimi ZIP:iä luodessa jos ei ole jo tallennettu
+    if (!zipTiedostoNimi) {
+      var sel = document.getElementById('projektiValinta');
+      if (sel && sel.selectedIndex > 0) {
+        var opt = sel.options[sel.selectedIndex];
+        var pNimi = (opt.getAttribute('data-tyomaa') || opt.text).replace(/[^a-zA-Z0-9äöåÄÖÅ ]/g,'').trim().replace(/\s+/g,'_');
+        var pvm = document.getElementById('valupaivamaara') ? document.getElementById('valupaivamaara').value : '';
+        if (pvm) {
+          var pvmOsat = pvm.split('-');
+          zipTiedostoNimi = pNimi + '_' + pvmOsat[2] + '.' + pvmOsat[1];
+        } else {
+          zipTiedostoNimi = pNimi;
+        }
+      }
+    }
     var zipNimi = (zipTiedostoNimi || 'betonointi');
     zip.file(zipNimi + '_poyrakirja.pdf', pdfBlob);
     
@@ -1317,6 +1379,30 @@ async function luoZipJaLataa() {
     setTimeout(function() { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
     
     naytaStatus('✅ ZIP ladattu: ' + nimi, 'green');
+
+    // Tallenna ZIP Firebase Storageen projektipankkiin
+    try {
+      var sel = document.getElementById('projektiValinta');
+      if (sel && sel.selectedIndex > 0) {
+        naytaStatus('⏳ Tallennetaan projektipankkiin...', 'white');
+        var projId = sel.options[sel.selectedIndex].value;
+        var storageRef = fbStorage.ref('projects/' + projId + '/' + nimi);
+        await storageRef.put(blob);
+        // Tallenna viittaus Firestoreen
+        if (projId) {
+          await fbDb.collection('projects').doc(projId).collection('dokumentit').add({
+            nimi: nimi,
+            polku: 'projects/' + projId + '/' + nimi,
+            luotu: new Date().toISOString(),
+            tyyppi: 'betonointipoyrakirja'
+          });
+        }
+        naytaStatus('✅ ZIP tallennettu projektipankkiin!', 'green');
+      }
+    } catch(e) {
+      console.warn('Tallennus projektipankkiin epäonnistui:', e.message);
+    }
+
   } catch(err) {
     naytaStatus('❌ ZIP-virhe: ' + err.message, 'red');
   }
