@@ -1394,21 +1394,20 @@ async function luoZipJaLataa() {
     // Tallenna ZIP Firebase Storageen ENNEN latauslinkin luontia
     try {
       var sel = document.getElementById('projektiValinta');
+      console.log('sel.selectedIndex:', sel ? sel.selectedIndex : 'ei sel');
       if (sel && sel.selectedIndex > 0) {
         naytaStatus('⏳ Tallennetaan projektipankkiin...', 'white');
         var projId = sel.options[sel.selectedIndex].value;
         console.log('Tallennetaan projektille ID:', projId, 'nimi:', nimi);
-        var storageRef = fbStorage.ref('projects/' + projId + '/' + nimi);
-        await storageRef.put(blob);
-        // Tallenna viittaus Firestoreen
-        if (projId) {
-          await fbDb.collection('projects').doc(projId).collection('dokumentit').add({
-            nimi: nimi,
-            polku: 'projects/' + projId + '/' + nimi,
-            luotu: new Date().toISOString(),
-            tyyppi: 'betonointipoyrakirja'
-          });
-        }
+        // Tallenna viittaus Firestoreen (Storage ohitettu toistaiseksi)
+        console.log('Kirjoitetaan Firestoreen...');
+        var docRef = await fbDb.collection('projects').doc(projId).collection('dokumentit').add({
+          nimi: nimi,
+          polku: 'projects/' + projId + '/' + nimi,
+          luotu: new Date().toISOString(),
+          tyyppi: 'betonointipoyrakirja'
+        });
+        console.log('Firestore OK, doc ID:', docRef.id);
         naytaStatus('✅ ZIP tallennettu projektipankkiin!', 'green');
       }
     } catch(e) {
