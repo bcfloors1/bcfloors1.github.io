@@ -1147,11 +1147,9 @@ async function tuoKuormakirjat(input) {
       }));
       puretut.forEach(function(p) { kuormakirjaTiedostot.push(p); });
 
-      // Lue kaikki PDF:t rinnakkain PDF.js:lla (ei API-kutsuja)
-      naytaStatus('⏳ Luetaan tekstit...', 'white');
-      tekstit = await Promise.all(puretut.map(function(p) {
-        return luePDFTeksti(lueBase64(p.data));
-      }));
+      // Lue kaikki PDF:t yhdellä API-kutsulla
+      naytaStatus('⏳ Lähetetään ' + puretut.length + ' kuormakirjaa AI:lle...', 'white');
+      tekstit = await luePDFTekstitYhdessa(puretut.map(function(p) { return lueBase64(p.data); }));
 
     } else {
       // Yksittäinen PDF
@@ -1203,7 +1201,12 @@ async function tuoKuormakirjat(input) {
           });
           if (luvut.length > 0) kaikki_m3.push(Math.max.apply(null, luvut));
         }
-        // Purku alkoi ja tyo paattyi
+        // Purku alkoi — LAT BETONI -rivillä on tilattu aika (ensimmäinen HH:MM)
+        if (rivi.indexOf('LAT BETONI') >= 0) {
+          var aikat = rivi.match(/\d{2}:\d{2}/g);
+          if (aikat && aikat.length >= 1) kaikki_purku.push(aikat[0]);
+        }
+        // Vaihtoehto: Tulostettu Purku alkoi -rivi
         if (rivi.indexOf('Tulostettu') >= 0 && rivi.indexOf('Purku alkoi') >= 0) {
           var seuraava = rivit[i+1] || '';
           var aikat = seuraava.match(/\d{2}:\d{2}/g);
@@ -1235,19 +1238,43 @@ async function tuoKuormakirjat(input) {
   }
 }
 
-// ── Lue PDF tekstiksi PDF.js:lla (ei API-kutsua) ──
-async function luePDFTeksti(b64) {
-  var binary = atob(b64);
-  var bytes = new Uint8Array(binary.length);
-  for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  var pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
-  var tekstit = [];
-  for (var p = 1; p <= pdf.numPages; p++) {
-    var sivu = await pdf.getPage(p);
-    var sisalto = await sivu.getTextContent();
-    tekstit.push(sisalto.items.map(function(s) { return s.str; }).join(' '));
+// ── Lue kaikki PDF:t yhdellä API-kutsulla ──
+async function luePDFTekstitYhdessa(b64Array) {
+  var contentBlocks = [];
+  b64Array.forEach(function(b64, i) {
+    contentBlocks.push({
+      type: 'document',
+      source: { type: 'base64', media_type: 'application/pdf', data: b64 }
+    });
+  });
+  contentBlocks.push({
+    type: 'text',
+    text: 'Pura jokaisen kuormakirjan kaikki teksti ja luvut tarkasti. Erottele kuormakirjat toisistaan selkeästi muodossa:\n\n--- KUORMAKIRJA 1 ---\n[teksti]\n\n--- KUORMAKIRJA 2 ---\n[teksti]\n\njne. Älä analysoi, vain pura teksti.'
+  });
+
+  var response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': getApiKey(),
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-5',
+      max_tokens: 8000,
+      messages: [{ role: 'user', content: contentBlocks }]
+    })
+  });
+  var data = await response.json();
+  if (!response.ok || !data.content || !data.content[0]) {
+    var virhe = (data.error && data.error.message) ? data.error.message : ('HTTP ' + response.status);
+    throw new Error('API-virhe (luePDFTeksti): ' + virhe);
   }
-  return tekstit.join('\n');
+  // Palauta tekstit taulukkona
+  var koko = data.content[0].text;
+  var osat = koko.split(/--- KUORMAKIRJA \d+ ---/);
+  return osat.filter(function(s) { return s.trim().length > 0; });
 }
 
 // ── Valmis-nappi: luo ZIP ──
