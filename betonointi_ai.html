@@ -283,6 +283,7 @@ body {
   <button class="print-btn" onclick="document.getElementById('kuormakirjaInput').click()" style="background:#16a34a;">&#128196; Tuo kuormakirjat</button>
   <input type="file" id="kuormakirjaInput" accept=".zip,.pdf" style="display:none" onchange="tuoKuormakirjat(this)">
   <span id="tuontiStatus" style="color:white;font-size:12px;font-weight:600;display:none"></span>
+  <input id="apiAvainKentta" type="password" placeholder="🔑 Liitä API-avain tähän..." style="flex:3;min-width:220px;border:1px solid #e8a020;border-radius:2px;font-family:Arial,sans-serif;font-size:12px;color:#1a2530;padding:4px 8px;outline:none;" autocomplete="off">
   <button class="print-btn" onclick="luoZipJaLataa()" style="background:#e8a020;">&#128230; Valmis — Luo ZIP</button>
 </div>
 
@@ -897,7 +898,7 @@ function tallennaTiedosto() {
 
 <script>
 // ── Anthropic API avain (sama kuin projektipankissa) ──
-// API-avain syötetään selaimen kentässä
+function getApiKey() { return ((document.getElementById("apiAvainKentta") || {}).value || "").trim(); }
 
 // ── Kuormakirjojen taltioiminen ──
 var kuormakirjaTiedostot = []; // {nimi, data (Uint8Array)}
@@ -1085,7 +1086,7 @@ Palauta VAIN JSON ilman muuta tekstiä:
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': ANTHROPIC_API_KEY,
+      'x-api-key': getApiKey(),
       'anthropic-version': '2023-06-01',
       'anthropic-dangerous-direct-browser-access': 'true'
     },
@@ -1210,7 +1211,7 @@ async function luePDFTeksti(b64) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': ANTHROPIC_API_KEY,
+      'x-api-key': getApiKey(),
       'anthropic-version': '2023-06-01',
       'anthropic-dangerous-direct-browser-access': 'true'
     },
