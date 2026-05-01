@@ -348,7 +348,7 @@ body {
       <div class="f" style="flex:2"><label>Osoite</label><input type="text" id="bp_osoite"></div>
     </div>
     <div class="frow">
-      <div class="f"><label>Valupäivä</label><input type="date" style="cursor:pointer;"></div>
+      <div class="f"><label>Valupäivä</label><input type="date" id="valupaivamaara" style="cursor:pointer;"></div>
       <div class="f"><label>Valumiehet kpl</label><input type="number" min="0"></div>
       <div class="f"><label>Pintamiehet kpl</label><input type="number" min="0"></div>
       <div class="f">
@@ -1377,8 +1377,20 @@ async function luoZipJaLataa() {
       var optZ = selZ.options[selZ.selectedIndex];
       var pNimiZ = (optZ.getAttribute('data-tyomaa') || optZ.text).replace(/[^a-zA-Z0-9äöåÄÖÅ ]/g,'').trim().replace(/\s+/g,'_');
       zipNimi = pNimiZ + pvmTeksti;
-    } else if (pvmTeksti) {
-      zipNimi = 'betonointi' + pvmTeksti;
+    } else {
+      // Käsin kirjoitettu nimi
+      var kasinEl = document.getElementById('projektiKasin');
+      var kasinNimi = kasinEl ? kasinEl.value.trim() : '';
+      if (!kasinNimi) {
+        // Kokeile Projekti/Kohde -kentästä
+        var projKohde = document.querySelector('input[placeholder="Projekti / Kohde"]') || document.getElementById('projektiKohde');
+        if (projKohde) kasinNimi = projKohde.value.trim();
+      }
+      if (kasinNimi) {
+        zipNimi = kasinNimi.replace(/[^a-zA-Z0-9äöåÄÖÅ ]/g,'').trim().replace(/\s+/g,'_') + pvmTeksti;
+      } else {
+        zipNimi = 'betonointi' + pvmTeksti;
+      }
     }
     zip.file(zipNimi + '_poyrakirja.pdf', pdfBlob);
     
