@@ -274,7 +274,7 @@ body {
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
   if (typeof pdfjsLib !== 'undefined') {
@@ -1350,113 +1350,30 @@ async function luoZipJaLataa() {
       zip.file(f.nimi, f.data);
     });
 
-    // Generoi pöytäkirja tekstipohjaisena PDF:nä jsPDF:llä
+    // Pyydä käyttäjää valitsemaan pöytäkirja-PDF
     var pdfBlob = null;
     try {
-      var { jsPDF } = window.jspdf;
-      var doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
-      var y = 15;
-      var left = 15;
-      var w = 180;
-
-      // Otsikko
-      doc.setFontSize(14); doc.setFont('helvetica','bold');
-      doc.text('BETONOINTIPÖYTÄKIRJA', 105, y, {align:'center'}); y += 6;
-      doc.setFontSize(9); doc.setFont('helvetica','normal');
-      doc.text('Lattiabetonointi | Laadunvarmistus', 105, y, {align:'center'}); y += 8;
-
-      function rivi(label, arvo) {
-        doc.setFont('helvetica','bold'); doc.setFontSize(8);
-        doc.text(label + ':', left, y);
-        doc.setFont('helvetica','normal');
-        doc.text(String(arvo || '-'), left + 55, y);
-        y += 5;
-      }
-
-      function otsikko(teksti) {
-        y += 2;
-        doc.setFillColor(30,80,140); doc.rect(left, y-4, w, 6, 'F');
-        doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(8);
-        doc.text(teksti, left+2, y); doc.setTextColor(0,0,0); y += 5;
-      }
-
-      function arvoKentasta(id) {
-        var el = document.getElementById(id);
-        if (!el) return '-';
-        if (el.type === 'checkbox') return el.checked ? 'Kyllä' : 'Ei';
-        return el.value || '-';
-      }
-
-      function valitutCheckboxit(luokka) {
-        var els = document.querySelectorAll('.' + luokka + ' input[type=checkbox]:checked');
-        return Array.from(els).map(function(e){ return e.parentElement.textContent.trim(); }).join(', ') || '-';
-      }
-
-      otsikko('1. PROJEKTIN PERUSTIEDOT');
-      rivi('Tilaaja', document.querySelector('#tilaajaNimi')?.value || document.querySelector('input[placeholder="Kirjoita tilaajan nimi..."]')?.value);
-      rivi('Projekti / Kohde', document.querySelector('input[placeholder*="Projekti"]')?.value || arvoKentasta('projektiKohde'));
-      rivi('Työnumero', document.querySelector('input[placeholder*="rnumero"]')?.value);
-      rivi('Yhteyshenkilö', document.querySelector('input[placeholder*="hteyshenkilö"]')?.value);
-      rivi('Valupäivä', document.querySelector('input[type=date]')?.value);
-      rivi('Valumiehiä kpl', document.querySelector('input[placeholder*="alum"]')?.value);
-      rivi('Betonin toimittaja', document.querySelector('#betoninToimittaja')?.value || '-');
-
-      otsikko('2. VALUALUE & RAKENNE');
-      rivi('Valualue / Sijainti', document.querySelector('input[placeholder*="alualue"]')?.value || document.querySelectorAll('.body input[type=text]')[10]?.value);
-      rivi('Neliömäärä (m²)', document.querySelector('input[placeholder*="eliö"]')?.value);
-      rivi('Paksuus (mm)', document.querySelector('input[placeholder*="aksuus"]')?.value);
-
-      otsikko('3. BETONIN TIEDOT');
-      rivi('Lujuusluokka', document.getElementById('lujuusluokka')?.value);
-      rivi('Notkeus', document.getElementById('notkeus')?.value);
-      rivi('Kuitumäärä (kg/m³)', document.getElementById('kuitumaara')?.value);
-      rivi('Kuitutyyppi', document.getElementById('kuitutyyppi')?.value);
-      rivi('Lisäaineet', document.getElementById('lisaaineet')?.value);
-      rivi('Muuta (sementti)', document.getElementById('muuta')?.value);
-
-      otsikko('4. VALU');
-      rivi('Valu alkoi (klo)', document.getElementById('valuAlkoi')?.value);
-      rivi('Valu päättyi (klo)', document.getElementById('valuPaattyi')?.value);
-
-      otsikko('5. PINTATYÖ');
-      rivi('Hierto alkoi (klo)', document.getElementById('hiertoAlkoi')?.value);
-      rivi('Hierto päättyi (klo)', document.getElementById('hiertoLoppu')?.value);
-
-      pdfBlob = doc.output('blob');
+      pdfBlob = await new Promise(function(resolve) {
+        var input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.pdf';
+        var statusEl = document.getElementById('tuontiStatus');
+        if (statusEl) { statusEl.style.display='inline'; statusEl.style.color='white'; statusEl.textContent = '📄 Valitse pöytäkirja-PDF (Tulosta/Tallenna PDF ensin)...'; }
+        input.onchange = function(e) {
+          var f = e.target.files[0];
+          if (f) resolve(f);
+          else resolve(null);
+        };
+        input.oncancel = function() { resolve(null); };
+        // Jos käyttäjä ei valitse mitään 60s sisällä, jatketaan ilman PDF:ää
+        setTimeout(function() { resolve(null); }, 60000);
+        input.click();
+      });
     } catch(e) {
-      console.warn('PDF virhe:', e.message);
       pdfBlob = null;
     }
-    // Hae projektin nimi ja pvm aina ZIP:iä luodessa
-    var zipNimi = 'betonointi';
-    var selZ = document.getElementById('projektiValinta');
-    var pvmEl = document.getElementById('valupaivamaara');
-    var pvmArvo = pvmEl ? pvmEl.value : '';
-    var pvmTeksti = '';
-    if (pvmArvo) {
-      var pvmOsat = pvmArvo.split('-');
-      pvmTeksti = '_' + pvmOsat[2] + '.' + pvmOsat[1];
-    }
-    if (selZ && selZ.selectedIndex > 0) {
-      var optZ = selZ.options[selZ.selectedIndex];
-      var pNimiZ = (optZ.getAttribute('data-tyomaa') || optZ.text).replace(/[^a-zA-Z0-9äöåÄÖÅ ]/g,'').trim().replace(/\s+/g,'_');
-      zipNimi = pNimiZ + pvmTeksti;
-    } else {
-      // Käsin kirjoitettu nimi
-      var kasinEl = document.getElementById('projektiKasin');
-      var kasinNimi = kasinEl ? kasinEl.value.trim() : '';
-      if (!kasinNimi) {
-        // Kokeile Projekti/Kohde -kentästä
-        var projKohde = document.querySelector('input[placeholder="Projekti / Kohde"]') || document.getElementById('projektiKohde');
-        if (projKohde) kasinNimi = projKohde.value.trim();
-      }
-      if (kasinNimi) {
-        zipNimi = kasinNimi.replace(/[^a-zA-Z0-9äöåÄÖÅ ]/g,'').trim().replace(/\s+/g,'_') + pvmTeksti;
-      } else {
-        zipNimi = 'betonointi' + pvmTeksti;
-      }
-    }
-    if (pdfBlob) zip.file(zipNimi + '_poyrakirja.pdf', pdfBlob);
+        if (pdfBlob) zip.file(zipNimi + '_poyrakirja.pdf', pdfBlob);
+    else naytaStatus('ℹ️ ZIP luotu ilman pöytäkirja-PDF:ää', 'white');
     
     naytaStatus('⏳ Pakataan ZIP...', 'white');
     
