@@ -906,6 +906,16 @@ function tallennaTiedosto() {
 <script>
 // ── Anthropic API avain (sama kuin projektipankissa) ──
 function getApiKey() { return ((document.getElementById("apiAvainKentta") || {}).value || "").trim(); }
+function tallennaApiAvain() {
+  var k = getApiKey();
+  if (k) localStorage.setItem('bc_api_key', k);
+}
+// Lataa avain localStoragesta sivun latautuessa
+window.addEventListener('DOMContentLoaded', function() {
+  var tallennettu = localStorage.getItem('bc_api_key');
+  var kentta = document.getElementById('apiAvainKentta');
+  if (tallennettu && kentta) kentta.value = tallennettu;
+});
 
 // ── Kuormakirjojen taltioiminen ──
 var kuormakirjaTiedostot = []; // {nimi, data (Uint8Array)}
