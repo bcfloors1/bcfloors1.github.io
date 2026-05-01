@@ -1412,7 +1412,8 @@ async function luoZipJaLataa() {
         naytaStatus('✅ ZIP tallennettu projektipankkiin!', 'green');
       }
     } catch(e) {
-      console.warn('Tallennus projektipankkiin epäonnistui:', e.message);
+      console.error('Tallennus projektipankkiin epäonnistui:', e);
+      naytaStatus('❌ Tallennus epäonnistui: ' + e.message, 'red');
     }
 
     var url = URL.createObjectURL(blob);
