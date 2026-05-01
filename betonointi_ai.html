@@ -1400,17 +1400,8 @@ async function luoZipJaLataa() {
     var nimi = zipNimi + '.zip';
     
     var blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement('a');
-    a.href = url;
-    a.download = nimi;
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(function() { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
-    
-    naytaStatus('✅ ZIP ladattu: ' + nimi, 'green');
 
-    // Tallenna ZIP Firebase Storageen projektipankkiin
+    // Tallenna ZIP Firebase Storageen ENNEN latauslinkin luontia
     try {
       var sel = document.getElementById('projektiValinta');
       if (sel && sel.selectedIndex > 0) {
@@ -1433,6 +1424,15 @@ async function luoZipJaLataa() {
     } catch(e) {
       console.warn('Tallennus projektipankkiin epäonnistui:', e.message);
     }
+
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = nimi;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function() { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
+    naytaStatus('✅ ZIP ladattu: ' + nimi, 'green');
 
   } catch(err) {
     naytaStatus('❌ ZIP-virhe: ' + err.message, 'red');
