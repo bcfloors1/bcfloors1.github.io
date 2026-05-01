@@ -877,7 +877,8 @@ async function naytaDokumentit(projektinId) {
       html += '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid #f1f5f9;">';
       html += '<span style="font-size:11px;color:#374151;flex:1;">📦 ' + (dok.nimi || 'dokumentti') + '</span>';
       html += '<span style="font-size:10px;color:#94a3b8;">' + (dok.luotu ? dok.luotu.substring(0,10) : '') + '</span>';
-      html += '<button onclick="lataaStorageTiedosto('' + dok.polku + '', '' + (dok.nimi||'tiedosto') + '')" style="background:#2e6da4;color:white;border:none;border-radius:4px;padding:2px 8px;font-size:11px;cursor:pointer;">⬇ Lataa</button>';
+      var btnId = 'dlbtn-' + d.id;
+      html += '<button id="' + btnId + '" data-polku="' + dok.polku + '" data-nimi="' + (dok.nimi||'tiedosto') + '" onclick="lataaStorageTiedosto(this.dataset.polku, this.dataset.nimi)" style="background:#2e6da4;color:white;border:none;border-radius:4px;padding:2px 8px;font-size:11px;cursor:pointer;">⬇ Lataa</button>';
       html += '</div>';
     });
     div.innerHTML = html;
