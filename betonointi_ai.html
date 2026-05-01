@@ -273,6 +273,7 @@ body {
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
   if (typeof pdfjsLib !== 'undefined') {
@@ -305,7 +306,7 @@ body {
   <button onclick="tallennaProjektiksi()" style="flex-shrink:0;padding:5px 10px;background:#006CB1;color:white;border:none;border-radius:6px;font-family:Arial,sans-serif;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">&#128190; Tallenna projektiksi</button>
 </div>
 
-<div class="page">
+<div class="page" id="poyrakirjaLomake">
 <div class="hdr">
   <div class="hdr-logo">
     <img src="https://bcfloors1.github.io/logo.png" onerror="this.style.display='none'" alt="BC Floors" style="height:22mm; width:auto; display:block;">
@@ -1193,7 +1194,7 @@ async function tuoKuormakirjat(input) {
     var sel = document.getElementById('projektiValinta');
     if (sel && sel.selectedIndex > 0) {
       var opt = sel.options[sel.selectedIndex];
-      projNimi = (opt.getAttribute('data-tyomaa') || opt.text).replace(/[^a-zA-Z0-9äöåÄÖÅ]/g,'').toLowerCase();
+      projNimi = (opt.getAttribute('data-tyomaa') || opt.text).replace(/[^a-zA-Z0-9äöåÄÖÅ ]/g,'').trim().replace(/\s+/g,'_');
     }
 
     naytaStatus('🤖 AI analysoi kuormakirjoja...', 'white');
@@ -1226,7 +1227,7 @@ async function tuoKuormakirjat(input) {
     if (tiedot.valupaivamaara) {
       var pvm = tiedot.valupaivamaara.split('-');
       var pvmStr = pvm[2] + '.' + pvm[1];
-      zipTiedostoNimi = (projNimi || 'betoni') + pvmStr;
+      zipTiedostoNimi = (projNimi || 'betonointi') + '_' + pvmStr;
     }
 
     console.log('AI tiedot:', JSON.stringify(tiedot));
@@ -1266,7 +1267,7 @@ async function luePDFTeksti(b64) {
 
 // ── Valmis-nappi: luo ZIP ──
 async function luoZipJaLataa() {
-  naytaStatus('⏳ Pakataan ZIP...', 'white');
+  naytaStatus('⏳ Luodaan pöytäkirja-PDF...', 'white');
   
   try {
     var zip = new JSZip();
@@ -1276,11 +1277,25 @@ async function luoZipJaLataa() {
       zip.file(f.nimi, f.data);
     });
 
-    // 2. Luo PDF betonointipöytäkirjasta
-    window.print();
+    // 2. Luo PDF betonointipöytäkirjasta html2pdf:llä
+    var element = document.getElementById('poyrakirjaLomake');
+    
+    var opt = {
+      margin: 0,
+      filename: 'betonointipoyrakirja.pdf',
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+    
+    var pdfBlob = await html2pdf().set(opt).from(element).outputPdf('blob');
+    var zipNimi = (zipTiedostoNimi || 'betonointi');
+    zip.file(zipNimi + '_poyrakirja.pdf', pdfBlob);
+    
+    naytaStatus('⏳ Pakataan ZIP...', 'white');
     
     // ZIP-nimi
-    var nimi = (zipTiedostoNimi || 'betonointi') + '.zip';
+    var nimi = zipNimi + '.zip';
     
     var blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
     var url = URL.createObjectURL(blob);
