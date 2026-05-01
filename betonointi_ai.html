@@ -997,8 +997,30 @@ function taytaKentat(tiedot) {
     }
   }
 
-  // Kuitutyyppi
-  if (tiedot.kuitutyyppi) asetaDropdown('kuitutyyppi', tiedot.kuitutyyppi);
+  // Kuitutyyppi — mäppää kuormakirjan teksti dropdown-arvoon
+  if (tiedot.kuitutyyppi) {
+    var kt = tiedot.kuitutyyppi.toUpperCase();
+    var kuituMap = [
+      { avain: ['KORKEALUJUUKSINEN','90/60+','HE 90/60+'], arvo: 'Arcelor HE 90/60+' },
+      { avain: ['90/60'], arvo: 'Arcelor HE 90/60' },
+      { avain: ['1/50'], arvo: 'Arcelor HE 1/50' },
+      { avain: ['TABIX','90/35'], arvo: 'Arcelor Tabix 90/35' },
+      { avain: ['+90/60'], arvo: 'Arcelor HE +90/60' },
+      { avain: ['++90/60'], arvo: 'Arcelor HE ++90/60' },
+      { avain: ['FORTA','FERRO'], arvo: 'Forta-Ferro' },
+      { avain: ['LHT'], arvo: 'LHT 50/50' },
+      { avain: ['LHO'], arvo: 'LHO 50/50' },
+      { avain: ['CHT'], arvo: 'CHT 65/60' },
+      { avain: ['CHO'], arvo: 'CHO 80/60' }
+    ];
+    var loydetty = null;
+    for (var i = 0; i < kuituMap.length; i++) {
+      if (kuituMap[i].avain.some(function(a){ return kt.indexOf(a) >= 0; })) {
+        loydetty = kuituMap[i].arvo; break;
+      }
+    }
+    asetaDropdown('kuitutyyppi', loydetty || tiedot.kuitutyyppi);
+  }
 
   // Lisäaineet
   if (tiedot.lisaaineet) asetaDropdown('lisaaineet', tiedot.lisaaineet);
