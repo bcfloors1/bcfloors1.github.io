@@ -470,6 +470,8 @@ var fbConfig = {
 };
 if (!firebase.apps.length) firebase.initializeApp(fbConfig);
 var db = firebase.firestore();
+var fbDb = db;
+var fbStorage = firebase.storage();
 
 var valittuPdfBase64 = null;
 var valittuPdfBase642 = null;
