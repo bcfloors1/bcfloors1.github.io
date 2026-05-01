@@ -1351,20 +1351,8 @@ async function luoZipJaLataa() {
       zip.file(f.nimi, f.data);
     });
 
-    // 2. Luo PDF betonointipöytäkirjasta html2pdf:llä
-    var element = document.getElementById('poyrakirjaLomake');
-    
-    var opt = {
-      margin: 0,
-      filename: 'betonointipoyrakirja.pdf',
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    };
-    
-    var pdfBlob = null; // PDF-generointi poistettu
+    // PDF-generointi poistettu - ZIP sisältää vain kuormakirjat
     var pdfBlob = null;
-    await new Promise(function(res) { html2pdf().set(opt).from(element).outputPdf("blob").then(function(b){ pdfBlob=b; res(); }).catch(function(){ res(); }); });
     // Hae projektin nimi ja pvm aina ZIP:iä luodessa
     var zipNimi = 'betonointi';
     var selZ = document.getElementById('projektiValinta');
