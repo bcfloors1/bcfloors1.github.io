@@ -1416,6 +1416,7 @@ async function luoZipJaLataa() {
       if (sel && sel.selectedIndex > 0) {
         naytaStatus('⏳ Tallennetaan projektipankkiin...', 'white');
         var projId = sel.options[sel.selectedIndex].value;
+        console.log('Tallennetaan projektille ID:', projId, 'nimi:', nimi);
         var storageRef = fbStorage.ref('projects/' + projId + '/' + nimi);
         await storageRef.put(blob);
         // Tallenna viittaus Firestoreen
