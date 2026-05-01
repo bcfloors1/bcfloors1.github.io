@@ -273,12 +273,6 @@ body {
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script>
-if (typeof pdfjsLib !== 'undefined') {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-}
-</script>
 </head>
 <body>
 
@@ -289,7 +283,6 @@ if (typeof pdfjsLib !== 'undefined') {
   <button class="print-btn" onclick="document.getElementById('kuormakirjaInput').click()" style="background:#16a34a;">&#128196; Tuo kuormakirjat</button>
   <input type="file" id="kuormakirjaInput" accept=".zip,.pdf" style="display:none" onchange="tuoKuormakirjat(this)">
   <span id="tuontiStatus" style="color:white;font-size:12px;font-weight:600;display:none"></span>
-  <input id="apiAvainKentta" type="password" placeholder="🔑 Liitä API-avain tähän..." style="flex:3;min-width:220px;border:1px solid #e8a020;border-radius:2px;font-family:Arial,sans-serif;font-size:12px;color:#1a2530;padding:4px 8px;outline:none;" autocomplete="off">
   <button class="print-btn" onclick="luoZipJaLataa()" style="background:#e8a020;">&#128230; Valmis — Luo ZIP</button>
 </div>
 
@@ -904,7 +897,7 @@ function tallennaTiedosto() {
 
 <script>
 // ── Anthropic API avain (sama kuin projektipankissa) ──
-function getApiKey() { return ((document.getElementById('apiAvainKentta') || {}).value || '').trim(); }
+// API-avain syötetään selaimen kentässä
 
 // ── Kuormakirjojen taltioiminen ──
 var kuormakirjaTiedostot = []; // {nimi, data (Uint8Array)}
@@ -1083,8 +1076,8 @@ Palauta VAIN JSON ilman muuta tekstiä:
   "lisaaineet": "pääasiallinen lisäaine",
   "sementtityyppi": "esim CEM II/B-M 52.5N",
   "valuAlkoi": "ensimmäisen kuorman purku alkoi aika HH:MM",
-  "valuPaattyi": "viimeisen kuorman TYÖN PÄÄTTYI-aika HH:MM (Työ päättyi -kentästä viimeisestä kuormakirjasta)",
-  "totBetoni": "KUMULATIIVINEN toimitettu betoni viimeisestä kuormakirjasta — se suurin luku M3 sarakkeesta LAT BETONI -riviltä",
+  "valuPaattyi": "viimeisen kuorman purku päättyi aika HH:MM",
+  "totBetoni": "toimitettu betoni yhteensä m³ numero",
   "valupaivamaara": "YYYY-MM-DD muodossa"
 }`;
 
@@ -1092,7 +1085,7 @@ Palauta VAIN JSON ilman muuta tekstiä:
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': getApiKey(),
+      'x-api-key': ANTHROPIC_API_KEY,
       'anthropic-version': '2023-06-01',
       'anthropic-dangerous-direct-browser-access': 'true'
     },
@@ -1138,18 +1131,15 @@ async function tuoKuormakirjat(input) {
         }
       });
 
-      naytaStatus('⏳ Luetaan ' + pdft.length + ' kuormakirjaa rinnakkain...', 'white');
+      naytaStatus('⏳ Luetaan ' + pdft.length + ' kuormakirjaa...', 'white');
 
-      // Pura kaikki uint8array:t ensin
-      var puretut = await Promise.all(pdft.map(async function(p) {
-        var data = await p.entry.async('uint8array');
-        return { nimi: p.polku, data: data };
-      }));
-      puretut.forEach(function(p) { kuormakirjaTiedostot.push(p); });
-
-      // Lue kaikki PDF:t yhdellä API-kutsulla
-      naytaStatus('⏳ Lähetetään ' + puretut.length + ' kuormakirjaa AI:lle...', 'white');
-      tekstit = await luePDFTekstitYhdessa(puretut.map(function(p) { return lueBase64(p.data); }));
+      for (var i = 0; i < pdft.length; i++) {
+        var data = await pdft[i].entry.async('uint8array');
+        kuormakirjaTiedostot.push({ nimi: pdft[i].polku, data: data });
+        // Lue teksti AI:lle
+        var b64 = lueBase64(data);
+        tekstit.push(await luePDFTeksti(b64));
+      }
 
     } else {
       // Yksittäinen PDF
@@ -1173,46 +1163,22 @@ async function tuoKuormakirjat(input) {
       projNimi = (opt.getAttribute('data-tyomaa') || opt.text).replace(/[^a-zA-Z0-9äöåÄÖÅ]/g,'').toLowerCase();
     }
 
-    var avain = getApiKey();
-  if (!avain || !avain.startsWith('sk-ant-')) {
-    naytaStatus('❌ Syötä ensin API-avain kenttään!', 'red');
-    return;
-  }
-  naytaStatus('🤖 AI analysoi kuormakirjoja...', 'white');
+    naytaStatus('🤖 AI analysoi kuormakirjoja...', 'white');
     
     var tiedot = await kutsuAI(tekstit);
 
     // ── Laske tot.betoni, valu alkoi ja paattyi suoraan tekstista ──
-    var kaikki_m3 = [];
-    var kaikki_purku = [];
-    var kaikki_paattyi = [];
+    var kaikki_m3 = [], kaikki_purku = [], kaikki_paattyi = [];
     tekstit.forEach(function(teksti) {
       var rivit = teksti.split('\n');
       rivit.forEach(function(rivi, i) {
-        // Tot. betoni - LAT BETONI -rivi, poimi suurin M3-luku
         if (rivi.indexOf('LAT BETONI') >= 0) {
-          var osat = rivi.split(' ');
-          var luvut = [];
-          osat.forEach(function(o, j) {
-            if (osat[j+1] === 'M3' || osat[j+1] === 'M3') {
-              var n = parseFloat(o);
-              if (!isNaN(n)) luvut.push(n);
-            }
-          });
-          if (luvut.length > 0) kaikki_m3.push(Math.max.apply(null, luvut));
-        }
-        // Purku alkoi — LAT BETONI -rivillä on tilattu aika (ensimmäinen HH:MM)
-        if (rivi.indexOf('LAT BETONI') >= 0) {
+          var m3t = rivi.match(/(\d+\.?\d*)\s*M3/gi);
+          if (m3t) kaikki_m3.push(Math.max.apply(null, m3t.map(function(s){ return parseFloat(s); })));
           var aikat = rivi.match(/\d{2}:\d{2}/g);
-          if (aikat && aikat.length >= 1) kaikki_purku.push(aikat[0]);
+          if (aikat) kaikki_purku.push(aikat[0]);
         }
-        // Vaihtoehto: Tulostettu Purku alkoi -rivi
-        if (rivi.indexOf('Tulostettu') >= 0 && rivi.indexOf('Purku alkoi') >= 0) {
-          var seuraava = rivit[i+1] || '';
-          var aikat = seuraava.match(/\d{2}:\d{2}/g);
-          if (aikat && aikat.length >= 2) kaikki_purku.push(aikat[1]);
-        }
-        if (rivi.indexOf('Kuormaus') >= 0 && rivi.indexOf('Tyo paattyi') >= 0 || rivi.indexOf('Työ päättyi') >= 0) {
+        if (rivi.indexOf('Kuormaus') >= 0 && rivi.indexOf('p\u00e4\u00e4ttyi') >= 0) {
           var seuraava = rivit[i+1] || '';
           var aikat = seuraava.match(/\d{2}:\d{2}/g);
           if (aikat && aikat.length >= 2) kaikki_paattyi.push(aikat[1]);
@@ -1223,7 +1189,7 @@ async function tuoKuormakirjat(input) {
     if (kaikki_purku.length > 0) tiedot.valuAlkoi = kaikki_purku.sort()[0];
     if (kaikki_paattyi.length > 0) tiedot.valuPaattyi = kaikki_paattyi.sort().reverse()[0];
 
-    // Tallenna zip-nimi projekti+paiva
+    // Tallenna zip-nimi projekti+päivä
     if (tiedot.valupaivamaara) {
       var pvm = tiedot.valupaivamaara.split('-');
       var pvmStr = pvm[2] + '.' + pvm[1];
@@ -1238,32 +1204,29 @@ async function tuoKuormakirjat(input) {
   }
 }
 
-// ── Lue kaikki PDF:t yhdellä API-kutsulla ──
-async function luePDFTekstitYhdessa(b64Array) {
-  var contentBlocks = [];
-  b64Array.forEach(function(b64, i) {
-    contentBlocks.push({
-      type: 'document',
-      source: { type: 'base64', media_type: 'application/pdf', data: b64 }
-    });
-  });
-  contentBlocks.push({
-    type: 'text',
-    text: 'Pura jokaisen kuormakirjan kaikki teksti ja luvut tarkasti. Erottele kuormakirjat toisistaan selkeästi muodossa:\n\n--- KUORMAKIRJA 1 ---\n[teksti]\n\n--- KUORMAKIRJA 2 ---\n[teksti]\n\njne. Älä analysoi, vain pura teksti.'
-  });
-
+// ── Lue PDF tekstiksi Anthropic API:lla ──
+async function luePDFTeksti(b64) {
   var response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': getApiKey(),
+      'x-api-key': ANTHROPIC_API_KEY,
       'anthropic-version': '2023-06-01',
       'anthropic-dangerous-direct-browser-access': 'true'
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-5',
-      max_tokens: 8000,
-      messages: [{ role: 'user', content: contentBlocks }]
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 2000,
+      messages: [{
+        role: 'user',
+        content: [{
+          type: 'document',
+          source: { type: 'base64', media_type: 'application/pdf', data: b64 }
+        }, {
+          type: 'text',
+          text: 'Pura tämän kuormakirjan kaikki teksti ja luvut tarkasti. Älä analysoi, vain pura teksti.'
+        }]
+      }]
     })
   });
   var data = await response.json();
@@ -1271,10 +1234,7 @@ async function luePDFTekstitYhdessa(b64Array) {
     var virhe = (data.error && data.error.message) ? data.error.message : ('HTTP ' + response.status);
     throw new Error('API-virhe (luePDFTeksti): ' + virhe);
   }
-  // Palauta tekstit taulukkona
-  var koko = data.content[0].text;
-  var osat = koko.split(/--- KUORMAKIRJA \d+ ---/);
-  return osat.filter(function(s) { return s.trim().length > 0; });
+  return data.content[0].text;
 }
 
 // ── Valmis-nappi: luo ZIP ──
