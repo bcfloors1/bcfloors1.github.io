@@ -274,7 +274,7 @@ body {
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
   if (typeof pdfjsLib !== 'undefined') {
@@ -1304,7 +1304,6 @@ async function tuoKuormakirjat(input) {
       zipTiedostoNimi = (projNimi || 'betonointi') + '_' + pvmStr;
     }
 
-    console.log('AI tiedot:', JSON.stringify(tiedot));
     taytaKentat(tiedot);
 
   } catch(err) {
@@ -1351,8 +1350,27 @@ async function luoZipJaLataa() {
       zip.file(f.nimi, f.data);
     });
 
-    // PDF-generointi poistettu - ZIP sisältää vain kuormakirjat
+    // Generoi pöytäkirja PDF:ksi jsPDF:llä
     var pdfBlob = null;
+    try {
+      var { jsPDF } = window.jspdf;
+      var doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+      var element = document.getElementById('poyrakirjaLomake');
+      await new Promise(function(resolve) {
+        doc.html(element, {
+          callback: function(pdf) {
+            pdfBlob = pdf.output('blob');
+            resolve();
+          },
+          x: 0, y: 0,
+          width: 210,
+          windowWidth: 794
+        });
+      });
+    } catch(e) {
+      console.warn('PDF virhe:', e.message);
+      pdfBlob = null;
+    }
     // Hae projektin nimi ja pvm aina ZIP:iä luodessa
     var zipNimi = 'betonointi';
     var selZ = document.getElementById('projektiValinta');
@@ -1394,20 +1412,16 @@ async function luoZipJaLataa() {
     // Tallenna ZIP Firebase Storageen ENNEN latauslinkin luontia
     try {
       var sel = document.getElementById('projektiValinta');
-      console.log('sel.selectedIndex:', sel ? sel.selectedIndex : 'ei sel');
       if (sel && sel.selectedIndex > 0) {
         naytaStatus('⏳ Tallennetaan projektipankkiin...', 'white');
         var projId = sel.options[sel.selectedIndex].value;
-        console.log('Tallennetaan projektille ID:', projId, 'nimi:', nimi);
         // Tallenna viittaus Firestoreen (Storage ohitettu toistaiseksi)
-        console.log('Kirjoitetaan Firestoreen...');
         var docRef = await fbDb.collection('projects').doc(projId).collection('dokumentit').add({
           nimi: nimi,
           polku: 'projects/' + projId + '/' + nimi,
           luotu: new Date().toISOString(),
           tyyppi: 'betonointipoyrakirja'
         });
-        console.log('Firestore OK, doc ID:', docRef.id);
         naytaStatus('✅ ZIP tallennettu projektipankkiin!', 'green');
       }
     } catch(e) {
