@@ -849,7 +849,7 @@ db.collection('projects').orderBy('tyomaa').onSnapshot(function(snap) {
     if (p.tarkastusLkm && p.tarkastusLkm > 0) {
       html += '<div style="font-size:10px;color:#16a34a;padding:3px 10px;border-top:1px solid #f1f5f9">✅ ' + p.tarkastusLkm + ' tarkastusta tallennettu</div>';
     }
-    html += '<button class="proj-btn" onclick="naytaDokumentit(\'" + id + "\')" style="color:#7c3aed">📦 Dokumentit</button>';
+    html += '<button class="proj-btn" data-projid="' + id + '" onclick="naytaDokumentit(this.dataset.projid)" style="color:#7c3aed">📦 Dokumentit</button>';
     html += '<button class="proj-btn del" onclick="poistaProjekti(\'" ' + id + '\', \'' + (p.tyomaa||'').replace(/'/g,"\\'") + '\')">🗑 Poista</button>';
     html += '</div>';
     html += '</div>';
