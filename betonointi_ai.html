@@ -1363,22 +1363,23 @@ async function luoZipJaLataa() {
     };
     
     var pdfBlob = await html2pdf().set(opt).from(element).outputPdf('blob');
-    // Hae projektin nimi ZIP:iä luodessa jos ei ole jo tallennettu
-    if (!zipTiedostoNimi) {
-      var sel = document.getElementById('projektiValinta');
-      if (sel && sel.selectedIndex > 0) {
-        var opt = sel.options[sel.selectedIndex];
-        var pNimi = (opt.getAttribute('data-tyomaa') || opt.text).replace(/[^a-zA-Z0-9äöåÄÖÅ ]/g,'').trim().replace(/\s+/g,'_');
-        var pvm = document.getElementById('valupaivamaara') ? document.getElementById('valupaivamaara').value : '';
-        if (pvm) {
-          var pvmOsat = pvm.split('-');
-          zipTiedostoNimi = pNimi + '_' + pvmOsat[2] + '.' + pvmOsat[1];
-        } else {
-          zipTiedostoNimi = pNimi;
-        }
-      }
+    // Hae projektin nimi ja pvm aina ZIP:iä luodessa
+    var zipNimi = 'betonointi';
+    var selZ = document.getElementById('projektiValinta');
+    var pvmEl = document.getElementById('valupaivamaara');
+    var pvmArvo = pvmEl ? pvmEl.value : '';
+    var pvmTeksti = '';
+    if (pvmArvo) {
+      var pvmOsat = pvmArvo.split('-');
+      pvmTeksti = '_' + pvmOsat[2] + '.' + pvmOsat[1];
     }
-    var zipNimi = (zipTiedostoNimi || 'betonointi');
+    if (selZ && selZ.selectedIndex > 0) {
+      var optZ = selZ.options[selZ.selectedIndex];
+      var pNimiZ = (optZ.getAttribute('data-tyomaa') || optZ.text).replace(/[^a-zA-Z0-9äöåÄÖÅ ]/g,'').trim().replace(/\s+/g,'_');
+      zipNimi = pNimiZ + pvmTeksti;
+    } else if (pvmTeksti) {
+      zipNimi = 'betonointi' + pvmTeksti;
+    }
     zip.file(zipNimi + '_poyrakirja.pdf', pdfBlob);
     
     naytaStatus('⏳ Pakataan ZIP...', 'white');
