@@ -1351,6 +1351,22 @@ async function luoZipJaLataa() {
       zip.file(f.nimi, f.data);
     });
 
+    // Laske ZIP-nimi
+    var zipNimi = 'betonointi';
+    var selZ = document.getElementById('projektiValinta');
+    var pvmEl = document.getElementById('valupaivamaara');
+    var pvmArvo = pvmEl ? pvmEl.value : '';
+    var pvmTeksti = '';
+    if (pvmArvo) { var pvmOsat = pvmArvo.split('-'); pvmTeksti = '_' + pvmOsat[2] + '.' + pvmOsat[1]; }
+    if (selZ && selZ.selectedIndex > 0) {
+      var optZ = selZ.options[selZ.selectedIndex];
+      zipNimi = (optZ.getAttribute('data-tyomaa') || optZ.text).replace(/[^a-zA-Z0-9äöåÄÖÅ ]/g,'').trim().replace(/\s+/g,'_') + pvmTeksti;
+    } else {
+      var kasinEl = document.getElementById('projektiKasin');
+      var kasinNimi = kasinEl ? kasinEl.value.trim() : '';
+      zipNimi = (kasinNimi || 'betonointi').replace(/[^a-zA-Z0-9äöåÄÖÅ ]/g,'').trim().replace(/\s+/g,'_') + pvmTeksti;
+    }
+
     // Generoi pöytäkirja PDF:ksi html2pdf:llä
     naytaStatus('⏳ Luodaan pöytäkirja-PDF...', 'white');
     var pdfBlob = null;
