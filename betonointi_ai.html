@@ -1062,7 +1062,7 @@ function lueBase64(uint8array) {
 
 // ── Kutsu Anthropic API ──
 async function kutsuAI(tekstit) {
-  var yhdistetty = tekstit.join('\n\n--- SEURAAVA KUORMAKIRJA ---\n\n').substring(0, 15000);
+  var yhdistetty = tekstit.join('\n\n--- SEURAAVA KUORMAKIRJA ---\n\n').substring(0, 40000);
   
   var prompt = `Olet betonointipöytäkirjan täyttöavustaja. Analysoi nämä betonikuormakirjat ja palauta JSON-objekti.
 
@@ -1207,6 +1207,7 @@ async function tuoKuormakirjat(input) {
       zipTiedostoNimi = (projNimi || 'betoni') + pvmStr;
     }
 
+    console.log('AI tiedot:', JSON.stringify(tiedot));
     taytaKentat(tiedot);
 
   } catch(err) {
