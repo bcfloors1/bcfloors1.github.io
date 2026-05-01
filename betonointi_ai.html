@@ -274,6 +274,7 @@ body {
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
@@ -1350,26 +1351,21 @@ async function luoZipJaLataa() {
       zip.file(f.nimi, f.data);
     });
 
-    // Pyydä käyttäjää valitsemaan pöytäkirja-PDF
+    // Generoi pöytäkirja PDF:ksi html2pdf:llä
+    naytaStatus('⏳ Luodaan pöytäkirja-PDF...', 'white');
     var pdfBlob = null;
     try {
-      pdfBlob = await new Promise(function(resolve) {
-        var input = document.createElement('input');
-        input.type = 'file';
-        input.accept = '.pdf';
-        var statusEl = document.getElementById('tuontiStatus');
-        if (statusEl) { statusEl.style.display='inline'; statusEl.style.color='white'; statusEl.textContent = '📄 Valitse pöytäkirja-PDF (Tulosta/Tallenna PDF ensin)...'; }
-        input.onchange = function(e) {
-          var f = e.target.files[0];
-          if (f) resolve(f);
-          else resolve(null);
-        };
-        input.oncancel = function() { resolve(null); };
-        // Jos käyttäjä ei valitse mitään 60s sisällä, jatketaan ilman PDF:ää
-        setTimeout(function() { resolve(null); }, 60000);
-        input.click();
-      });
+      var element = document.getElementById('poyrakirjaLomake');
+      var opt = {
+        margin: 0,
+        filename: 'poyrakirja.pdf',
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, logging: false },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      };
+      pdfBlob = await html2pdf().set(opt).from(element).outputPdf('blob');
     } catch(e) {
+      console.warn('PDF virhe:', e.message || e);
       pdfBlob = null;
     }
         if (pdfBlob) zip.file(zipNimi + '_poyrakirja.pdf', pdfBlob);
