@@ -904,6 +904,15 @@ async function lataaStorageTiedosto(polku, nimi) {
   }
 }
 
+// ── Event delegation dokumentit-napeille ──
+document.addEventListener('click', function(e) {
+  var btn = e.target.closest('[data-projid]');
+  if (btn && btn.classList.contains('proj-btn')) {
+    var projId = btn.dataset.projid;
+    if (projId) naytaDokumentit(projId);
+  }
+});
+
 // ── Avaa projektin detalji ──
 function avaaDetalji(projektinId) {
   db.collection('projects').doc(projektinId).get().then(function(doc) {
