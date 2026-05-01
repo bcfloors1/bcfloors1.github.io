@@ -1362,7 +1362,8 @@ async function luoZipJaLataa() {
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
     
-    var pdfBlob = await html2pdf().set(opt).from(element).outputPdf('blob');
+    var pdfBlob = null; // PDF-generointi poistettu
+    try { pdfBlob = await html2pdf().set(opt).from(element).outputPdf('blob'); } catch(e) { console.warn('PDF virhe:', e); }
     // Hae projektin nimi ja pvm aina ZIP:iä luodessa
     var zipNimi = 'betonointi';
     var selZ = document.getElementById('projektiValinta');
