@@ -166,6 +166,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f8fafc;color:#1e293
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
 <script>
 
 
@@ -848,13 +849,57 @@ db.collection('projects').orderBy('tyomaa').onSnapshot(function(snap) {
     if (p.tarkastusLkm && p.tarkastusLkm > 0) {
       html += '<div style="font-size:10px;color:#16a34a;padding:3px 10px;border-top:1px solid #f1f5f9">✅ ' + p.tarkastusLkm + ' tarkastusta tallennettu</div>';
     }
-    html += '<button class="proj-btn del" onclick="poistaProjekti(\'' + id + '\', \'' + (p.tyomaa||'').replace(/'/g,"\\'") + '\')">🗑 Poista</button>';
+    html += '<button class="proj-btn" onclick="naytaDokumentit(\'" + id + "\')" style="color:#7c3aed">📦 Dokumentit</button>';
+    html += '<button class="proj-btn del" onclick="poistaProjekti(\'" ' + id + '\', \'' + (p.tyomaa||'').replace(/'/g,"\\'") + '\')">🗑 Poista</button>';
     html += '</div>';
     html += '</div>';
   });
 
   lista.innerHTML = html;
 });
+
+// ── Näytä projektin dokumentit ──
+async function naytaDokumentit(projektinId) {
+  var div = document.getElementById('dokumentit-' + projektinId);
+  if (!div) return;
+  if (div.style.display !== 'none') { div.style.display = 'none'; return; }
+  div.style.display = 'block';
+  div.innerHTML = '<div style="font-size:11px;color:#6b7280">⏳ Ladataan dokumentteja...</div>';
+  try {
+    var snap = await fbDb.collection('projects').doc(projektinId).collection('dokumentit').orderBy('luotu', 'desc').get();
+    if (snap.empty) {
+      div.innerHTML = '<div style="font-size:11px;color:#6b7280">Ei dokumentteja.</div>';
+      return;
+    }
+    var html = '<div style="font-size:11px;font-weight:600;color:#374151;margin-bottom:6px;">📦 Betonointidokumentit</div>';
+    snap.forEach(function(d) {
+      var dok = d.data();
+      html += '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid #f1f5f9;">';
+      html += '<span style="font-size:11px;color:#374151;flex:1;">📦 ' + (dok.nimi || 'dokumentti') + '</span>';
+      html += '<span style="font-size:10px;color:#94a3b8;">' + (dok.luotu ? dok.luotu.substring(0,10) : '') + '</span>';
+      html += '<button onclick="lataaStorageTiedosto('' + dok.polku + '', '' + (dok.nimi||'tiedosto') + '')" style="background:#2e6da4;color:white;border:none;border-radius:4px;padding:2px 8px;font-size:11px;cursor:pointer;">⬇ Lataa</button>';
+      html += '</div>';
+    });
+    div.innerHTML = html;
+  } catch(e) {
+    div.innerHTML = '<div style="font-size:11px;color:red;">Virhe: ' + e.message + '</div>';
+  }
+}
+
+async function lataaStorageTiedosto(polku, nimi) {
+  try {
+    var url = await fbStorage.ref(polku).getDownloadURL();
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = nimi;
+    a.target = '_blank';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  } catch(e) {
+    alert('Lataus epäonnistui: ' + e.message);
+  }
+}
 
 // ── Avaa projektin detalji ──
 function avaaDetalji(projektinId) {
