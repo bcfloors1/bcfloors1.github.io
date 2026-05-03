@@ -94,8 +94,9 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f8fafc;color:#1e293
   <div class="empty">Ladataan projekteja...</div>
 </div>
 
-<div class="bottom-nav">
-  <button class="btn-add" onclick="avaaLisaysSheet()">+ Uusi projekti</button>
+<div class="bottom-nav" style="display:flex;gap:10px;padding:10px;">
+  <button class="btn-add" onclick="avaaLisaysSheet()" style="flex:1">+ Uusi projekti</button>
+  <button class="btn-add" onclick="toggleArkisto()" id="arkistoNappi" style="flex:0 0 auto;background:#f59e0b;">📦 Arkisto</button>
 </div>
 
 <!-- Uusi projekti -sheet -->
@@ -789,6 +790,21 @@ function avaaPdf(projektinId) {
   });
 }
 
+// ── Näytä/piilota arkisto ──
+function toggleArkisto() {
+  window._naytaArkisto = !window._naytaArkisto;
+  var btn = document.getElementById('arkistoNappi');
+  btn.textContent = window._naytaArkisto ? '📂 Aktiiviset' : '📦 Arkisto';
+  btn.style.background = window._naytaArkisto ? '#16a34a' : '#f59e0b';
+}
+
+// ── Arkistoi projekti ──
+function arkistoiProjekti(id, nimi) {
+  if (!confirm('Arkistoidaanko projekti "' + nimi + '"?')) return;
+  db.collection('projects').doc(id).update({ arkistoitu: true })
+    .catch(function(e) { alert('Virhe: ' + e.message); });
+}
+
 // ── Poista projekti ──
 function poistaProjekti(id, nimi) {
   if (confirm('Poistetaanko projekti "' + nimi + '"?')) {
@@ -852,6 +868,7 @@ db.collection('projects').orderBy('tyomaa').onSnapshot(function(snap) {
       html += '<div style="font-size:10px;color:#16a34a;padding:3px 10px;border-top:1px solid #f1f5f9">✅ ' + p.tarkastusLkm + ' tarkastusta tallennettu</div>';
     }
     html += '<button class="proj-btn dok-btn" data-projid="' + id + '" style="color:#7c3aed">📦 Dokumentit</button>';
+    html += '<button class="proj-btn" data-arkid="' + id + '" data-arknimi="' + (p.tyomaa||"").replace(/"/g,"") + '" onclick="arkistoiProjekti(this.dataset.arkid, this.dataset.arknimi)" style="color:#f59e0b">📦 Arkistoi</button>';
     html += '<button class="proj-btn del" onclick="poistaProjekti(\'' + id + '\', \'' + (p.tyomaa||"").replace(/'/g,"\\'") + '\')">🗑 Poista</button>';
     html += '</div>';
     html += '<div id="dokumentit-' + id + '" style="display:none;padding:8px 14px;border-top:1px solid #f1f5f9;background:#fafafa;"></div>';
