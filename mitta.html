@@ -67,31 +67,29 @@ body { padding-bottom: 0 !important; font-family: 'Segoe UI', system-ui, -apple-
 .table-wrap { padding: 10px 14px; }
 table {
   width: 100%; border-collapse: collapse; font-size: 11px;
+  table-layout: fixed;
 }
 th {
   background: #006CB1; color: white; font-size: 8px;
   font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase;
   padding: 5px 6px; text-align: left; border: 1px solid #0058a0;
+  overflow: hidden;
 }
 th.num { text-align: right; }
 td {
   padding: 4px 6px; border: 1px solid #c8d0d8;
   vertical-align: middle;
   overflow: hidden;
-  max-width: 0;
 }
-td input {
+td input, td select {
   width: 100%; border: none; background: transparent;
   font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; font-size: 11px; color: #1a2530;
   outline: none; padding: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  box-sizing: border-box;
 }
 td input[type=number] { text-align: right; }
-td.calc { background: white; font-weight: 700; color: #006CB1; text-align: right; font-size: 11px; white-space: nowrap; max-width: none; overflow: visible; }
-td.yks-cell { max-width: none; overflow: visible; }
-td:has(select) { max-width: none; overflow: visible; }
+td input[type=text], td select { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+td.calc { background: white; font-weight: 700; color: #006CB1; text-align: right; font-size: 11px; white-space: nowrap; }
 td.yks-cell select {
   border: none; background: transparent;
   font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; font-size: 11px; color: #1a2530;
@@ -206,6 +204,8 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   #pvm { color: transparent; }
   #pvm::after { content: attr(data-fi); color: #1a2530; }
   td, td input, td select { background: white !important; background-color: white !important; }
+  td { overflow: visible !important; white-space: normal !important; }
+  td input[type=text], td select { white-space: normal !important; text-overflow: clip !important; overflow: visible !important; }
   td.calc { background: white !important; color: #006CB1 !important; }
   input[type=date] { -webkit-appearance: none; appearance: none; }
   /* Piilota kaikki input-ikonit */
@@ -308,14 +308,23 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   <!-- TAULUKKO -->
   <div class="table-wrap">
     <table id="mittaTable">
+      <colgroup>
+        <col style="width:10%">
+        <col style="width:35%">
+        <col style="width:10%">
+        <col style="width:9%">
+        <col style="width:13%">
+        <col style="width:17%">
+        <col style="width:6%">
+      </colgroup>
       <thead>
         <tr>
-          <th style="width:10%;white-space:nowrap;">Pvm</th>
-          <th style="width:35%">Kuvaus</th>
-          <th class="num" style="width:10%">Määrä</th>
-          <th style="width:9%">Yks</th>
-          <th class="num" style="width:13%">€/yks</th>
-          <th class="num" style="width:17%;white-space:nowrap;">€ Yhteensä</th>
+          <th style="white-space:nowrap;">Pvm</th>
+          <th>Kuvaus</th>
+          <th class="num">Määrä</th>
+          <th>Yks</th>
+          <th class="num">€/yks</th>
+          <th class="num" style="white-space:nowrap;">€ Yhteensä</th>
           <th style="width:6%"></th>
         </tr>
       </thead>
@@ -507,8 +516,7 @@ function markEmptyRows() {
       td.style.maxWidth = 'none';
       td.style.overflow = 'visible';
     }
-  });
-}
+  });}
 
 function updateTotal() {
   var sum = 0;
