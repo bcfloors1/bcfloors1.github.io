@@ -393,42 +393,51 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('sig2date').textContent = fi;
   document.getElementById('ftrDate').textContent = fi;
 
-  addRow(); addRow(); addRow(); addRow();
   initCanvas('sig1');
   initCanvas('sig2');
-  updateTotal();
 
-  // Hae projektin tiedot URL-parametrista automaattisesti
+  // Hae projektin tiedot ensin, lisää rivit vasta sen jälkeen
   var urlParams = new URLSearchParams(window.location.search);
   var projektiId = urlParams.get('projekti');
   if (projektiId) {
     fbDb2.collection('projects').doc(projektiId).get().then(function(doc) {
-      if (!doc.exists) return;
-      var p = doc.data();
-      // Tilaaja
-      if (p.tilaaja) {
-        var tilaajaSel = document.getElementById('tilaaja');
-        var loydetty = false;
-        for (var i = 0; i < tilaajaSel.options.length; i++) {
-          if (tilaajaSel.options[i].text === p.tilaaja) { tilaajaSel.selectedIndex = i; loydetty = true; break; }
+      if (doc.exists) {
+        var p = doc.data();
+        // Tilaaja
+        if (p.tilaaja) {
+          var tilaajaSel = document.getElementById('tilaaja');
+          var loydetty = false;
+          for (var i = 0; i < tilaajaSel.options.length; i++) {
+            if (tilaajaSel.options[i].text === p.tilaaja) { tilaajaSel.selectedIndex = i; loydetty = true; break; }
+          }
+          if (!loydetty) {
+            tilaajaSel.value = '__muu__';
+            var txt = document.getElementById('tilaaja_txt');
+            txt.style.display = 'block'; txt.value = p.tilaaja;
+          }
         }
-        if (!loydetty) {
-          tilaajaSel.value = '__muu__';
-          var txt = document.getElementById('tilaaja_txt');
-          txt.style.display = 'block'; txt.value = p.tilaaja;
+        if (p.tyomaa) document.getElementById('tyomaa').value = p.tyomaa;
+        if (p.tyonro) document.getElementById('tyonro').value = p.tyonro;
+        // Valitse projektiValinta-listassa
+        var sel = document.getElementById('projektiValinta');
+        for (var j = 0; j < sel.options.length; j++) {
+          if (sel.options[j].value === projektiId) { sel.selectedIndex = j; break; }
         }
+        // Aseta tarjoushinnat ENNEN rivien lisäystä
+        if (p.tarjousHinnat && p.tarjousHinnat.length > 0) tarjousHinnat = p.tarjousHinnat;
       }
-      // Työmaa ja työnro
-      if (p.tyomaa) document.getElementById('tyomaa').value = p.tyomaa;
-      if (p.tyonro) document.getElementById('tyonro').value = p.tyonro;
-      // Valitse projektiValinta-listassa
-      var sel = document.getElementById('projektiValinta');
-      for (var j = 0; j < sel.options.length; j++) {
-        if (sel.options[j].value === projektiId) { sel.selectedIndex = j; break; }
-      }
-      // Tarjoushinnat
-      if (p.tarjousHinnat) tarjousHinnat = p.tarjousHinnat;
-    }).catch(function(e) { console.warn('Projektin haku:', e.message); });
+      // Lisää rivit vasta nyt kun tarjoushinnat on asetettu
+      addRow(); addRow(); addRow(); addRow();
+      updateTotal();
+    }).catch(function(e) {
+      console.warn('Projektin haku:', e.message);
+      addRow(); addRow(); addRow(); addRow();
+      updateTotal();
+    });
+  } else {
+    // Ei projekti-parametria — lisää rivit heti
+    addRow(); addRow(); addRow(); addRow();
+    updateTotal();
   }
 });
 
