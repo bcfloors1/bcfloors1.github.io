@@ -275,18 +275,13 @@
     <div class="card sign-section" id="signSection">
       <h2>✍️ Allekirjoitus</h2>
       <p class="sign-intro">
-        Tarkista tiedot huolellisesti ennen allekirjoittamista. Allekirjoittamalla vahvistat, että olet tarkastanut mittakirjan ja hyväksyt sen oikeellisuuden.
+        Tarkista tiedot ennen allekirjoittamista.
       </p>
 
       <div class="form-group">
         <label>Allekirjoittajan nimi *</label>
         <input type="text" id="signNimi" placeholder="Etunimi Sukunimi" oninput="tarkistaValmis()">
       </div>
-      <div class="form-group">
-        <label>Asema (valinnainen)</label>
-        <input type="text" id="signAsema" placeholder="esim. Omistaja, Työnjohtaja...">
-      </div>
-
       <div class="form-group">
         <label>Piirrä allekirjoitus *</label>
         <div class="canvas-wrap" id="canvasWrap">
@@ -410,7 +405,9 @@ function naytaData(data) {
   var total = 0;
   var rivit = data.rivit || [];
   rivit.forEach(function(r) {
-    if (!r.kuvaus && !r.maara) return;
+    var kuvausPuhdas = (r.kuvaus || '').replace(/—\s*Valitse\s*—/g, '').trim();
+    if (!kuvausPuhdas && !r.maara) return;
+    r.kuvaus = kuvausPuhdas || r.kuvaus;
     var summa = (parseFloat(r.maara)||0) * (parseFloat(r.hinta)||0);
     total += summa;
     var tr = document.createElement('tr');
@@ -449,7 +446,7 @@ function naytaData(data) {
 // ── Allekirjoita ─────────────────────────────────────────────
 function allekirjoita() {
   var nimi = document.getElementById('signNimi').value.trim();
-  var asema = document.getElementById('signAsema').value.trim();
+  var asema = '';
   var kommentti = document.getElementById('signKommentti').value.trim();
   if (!nimi || !onPiirretty) return;
 
