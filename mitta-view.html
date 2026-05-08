@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mittakirja – Tarkastus ja allekirjoitus</title>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f0f2f5; color: #1a2530; }
+
+    .topbar {
+      background: #1a2530; color: white;
+      padding: 14px 24px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .topbar .logo { font-size: 1.1rem; font-weight: 700; letter-spacing: 1px; }
+    .status-pill {
+      padding: 5px 14px; border-radius: 20px;
+      font-size: 0.8rem; font-weight: 700;
+    }
+    .pill-waiting { background: #dbeafe; color: #1e40af; }
+    .pill-signed  { background: #dcfce7; color: #166534; }
+
+    .container { max-width: 820px; margin: 0 auto; padding: 24px 16px 60px; }
+
+    /* Loading / error */
+    .loading { text-align: center; padding: 60px 20px; color: #888; }
+    .spinner {
+      width: 36px; height: 36px;
+      border: 3px solid #e0e3e8; border-top-color: #1a2530;
+      border-radius: 50%; animation: spin 0.8s linear infinite;
+      margin: 0 auto 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .error-card {
+      background: #fef2f2; border: 1.5px solid #fecaca;
+      border-radius: 12px; padding: 32px; text-align: center; color: #dc2626;
+    }
+    .error-card .icon { font-size: 2.5rem; margin-bottom: 12px; }
+
+    /* Cards */
+    .hero {
+      background: linear-gradient(135deg, #006CB1 0%, #004f85 100%);
+      color: white; border-radius: 14px;
+      padding: 28px; margin-bottom: 18px;
+      box-shadow: 0 6px 20px rgba(0,108,177,0.2);
+      border-bottom: 4px solid #e8a020;
+    }
+    .hero h1 { font-size: 1.4rem; margin-bottom: 16px; }
+    .hero-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr));
+      gap: 14px;
+    }
+    .hero-item .lbl { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.65; }
+    .hero-item .val { font-size: 0.95rem; font-weight: 600; margin-top: 2px; }
+
+    .card {
+      background: white; border-radius: 12px;
+      padding: 22px; margin-bottom: 18px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    .card h2 {
+      font-size: 0.9rem; font-weight: 700; color: #006CB1;
+      text-transform: uppercase; letter-spacing: 0.5px;
+      margin-bottom: 14px; padding-bottom: 8px;
+      border-bottom: 2px solid #f0f2f5;
+    }
+
+    /* Viesti */
+    .viesti-box {
+      background: #eff6ff; border-left: 4px solid #006CB1;
+      border-radius: 0 8px 8px 0; padding: 14px 16px;
+      font-size: 0.9rem; color: #1e40af; white-space: pre-wrap;
+    }
+
+    /* Rivitaulukko */
+    .rivi-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .rivi-table th {
+      background: #006CB1; color: white;
+      padding: 8px 10px; text-align: left;
+      font-size: 0.72rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.4px;
+    }
+    .rivi-table th.r { text-align: right; }
+    .rivi-table td { padding: 8px 10px; border-bottom: 1px solid #f0f2f5; }
+    .rivi-table td.r { text-align: right; }
+    .rivi-table tr:last-child td { border-bottom: none; }
+    .rivi-table .total-row td {
+      font-weight: 700; background: #f8f9fa;
+      border-top: 2px solid #006CB1; border-bottom: none;
+    }
+    .rivi-table .total-row td.r { color: #006CB1; font-size: 1rem; }
+
+    /* Info grid */
+    .info-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr));
+      gap: 12px;
+    }
+    .info-item .lbl { font-size: 0.72rem; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 2px; }
+    .info-item .val { font-size: 0.9rem; color: #1a2530; }
+
+    /* Allekirjoitus */
+    .sign-intro { font-size: 0.88rem; color: #555; line-height: 1.5; margin-bottom: 18px; }
+
+    .form-group { margin-bottom: 14px; }
+    .form-group label {
+      display: block; font-size: 0.75rem; font-weight: 700;
+      color: #555; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 5px;
+    }
+    .form-group input, .form-group textarea {
+      width: 100%; padding: 9px 12px;
+      border: 1.5px solid #e0e3e8; border-radius: 8px;
+      font-size: 0.9rem; font-family: inherit;
+      background: #fafbfc; transition: border-color 0.2s;
+    }
+    .form-group input:focus, .form-group textarea:focus {
+      outline: none; border-color: #006CB1; background: white;
+    }
+
+    .canvas-wrap {
+      border: 2px dashed #c8d0d8; border-radius: 10px;
+      background: #fafbfc; position: relative; cursor: crosshair;
+      touch-action: none;
+    }
+    .canvas-wrap canvas { display: block; width: 100%; height: 130px; }
+    .canvas-hint {
+      position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%,-50%);
+      color: #ccc; font-size: 0.85rem; pointer-events: none;
+    }
+    .canvas-actions { display: flex; gap: 8px; margin-top: 6px; }
+    .clear-btn {
+      background: none; border: 1.5px solid #e0e3e8; color: #888;
+      padding: 5px 12px; border-radius: 6px; font-size: 0.8rem;
+      cursor: pointer; font-family: inherit;
+    }
+    .clear-btn:hover { border-color: #dc2626; color: #dc2626; }
+
+    .checkbox-row {
+      display: flex; align-items: flex-start; gap: 10px; margin-bottom: 16px;
+    }
+    .checkbox-row input[type=checkbox] {
+      width: 18px; height: 18px; margin-top: 2px;
+      accent-color: #006CB1; flex-shrink: 0; cursor: pointer;
+    }
+    .checkbox-row .check-label { font-size: 0.88rem; color: #444; line-height: 1.4; }
+
+    .sign-btn {
+      width: 100%; padding: 14px;
+      background: #16a34a; color: white;
+      border: none; border-radius: 10px;
+      font-size: 1rem; font-weight: 700; font-family: inherit;
+      cursor: pointer; display: flex; align-items: center;
+      justify-content: center; gap: 8px; transition: all 0.2s;
+    }
+    .sign-btn:hover:not(:disabled) { background: #15803d; transform: translateY(-1px); }
+    .sign-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+    /* Success banner */
+    .signed-banner {
+      background: linear-gradient(135deg, #16a34a, #15803d);
+      color: white; border-radius: 14px; padding: 32px;
+      text-align: center; margin-bottom: 18px; display: none;
+    }
+    .signed-banner.show { display: block; }
+    .signed-banner .icon { font-size: 3rem; margin-bottom: 12px; }
+    .signed-banner h2 { font-size: 1.3rem; margin-bottom: 6px; }
+    .signed-banner p { opacity: 0.85; font-size: 0.9rem; }
+    .signed-banner .time { font-size: 0.8rem; opacity: 0.7; margin-top: 10px; }
+    .pdf-btn {
+      margin-top: 14px; padding: 10px 24px;
+      background: white; color: #16a34a;
+      border: none; border-radius: 8px;
+      font-size: 0.9rem; font-weight: 700; font-family: inherit;
+      cursor: pointer;
+    }
+    .pdf-btn:hover { background: #f0fdf4; }
+
+    /* Toast */
+    .toast {
+      position: fixed; bottom: 24px; right: 24px;
+      background: #1a2530; color: white;
+      padding: 12px 20px; border-radius: 10px;
+      font-size: 0.88rem; z-index: 999;
+      opacity: 0; transform: translateY(10px);
+      transition: all 0.3s; pointer-events: none;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast.ok { background: #16a34a; }
+    .toast.err { background: #dc2626; }
+
+    @media (max-width: 600px) {
+      .hero-grid { grid-template-columns: 1fr 1fr; }
+    }
+
+    @media print {
+      .topbar, .sign-section, .canvas-actions, .pdf-btn { display: none !important; }
+      .signed-banner { display: block !important; }
+      body { background: white; }
+      .card { box-shadow: none; border: 1px solid #e0e3e8; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <span class="logo">⬡ BC Floors</span>
+  <span class="status-pill pill-waiting" id="topStatus">📤 Odottaa allekirjoitusta</span>
+</div>
+
+<div class="container">
+
+  <div id="loadingView" class="loading">
+    <div class="spinner"></div>
+    <div>Ladataan mittakirjaa...</div>
+  </div>
+
+  <div id="errorView" class="error-card" style="display:none">
+    <div class="icon">😕</div>
+    <h3>Mittakirjaa ei löydy</h3>
+    <p style="margin-top:6px;font-size:0.88rem">Linkki saattaa olla vanhentunut tai virheellinen.</p>
+  </div>
+
+  <div id="mainView" style="display:none">
+
+    <!-- Jo allekirjoitettu -banneri -->
+    <div class="signed-banner" id="signedBanner">
+      <div class="icon">✅</div>
+      <h2>Mittakirja on allekirjoitettu</h2>
+      <p>Tämä mittakirja on jo hyväksytty ja allekirjoitettu.</p>
+      <div class="time" id="signedTime"></div>
+      <button class="pdf-btn" onclick="window.print()">🖨️ Tulosta / PDF</button>
+    </div>
+
+    <!-- Hero -->
+    <div class="hero">
+      <h1>📐 Mittapöytäkirja</h1>
+      <div class="hero-grid">
+        <div class="hero-item"><div class="lbl">Tilaaja</div><div class="val" id="vTilaaja">—</div></div>
+        <div class="hero-item"><div class="lbl">Työmaa / Kohde</div><div class="val" id="vTyomaa">—</div></div>
+        <div class="hero-item"><div class="lbl">Työ nro</div><div class="val" id="vTyonro">—</div></div>
+        <div class="hero-item"><div class="lbl">Päiväys</div><div class="val" id="vPvm">—</div></div>
+      </div>
+    </div>
+
+    <!-- Viesti -->
+    <div class="card" id="viestiCard" style="display:none">
+      <h2>💬 Viesti lähettäjältä</h2>
+      <div class="viesti-box" id="vViesti"></div>
+    </div>
+
+    <!-- Rivit -->
+    <div class="card">
+      <h2>📋 Rivit</h2>
+      <div style="overflow-x:auto">
+        <table class="rivi-table">
+          <thead>
+            <tr>
+              <th>Pvm</th>
+              <th>Kuvaus</th>
+              <th class="r">Määrä</th>
+              <th>Yks</th>
+              <th class="r">€/yks</th>
+              <th class="r">€ Yhteensä</th>
+            </tr>
+          </thead>
+          <tbody id="vRivit"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Allekirjoitus -->
+    <div class="card sign-section" id="signSection">
+      <h2>✍️ Allekirjoitus</h2>
+      <p class="sign-intro">
+        Tarkista tiedot huolellisesti ennen allekirjoittamista. Allekirjoittamalla vahvistat, että olet tarkastanut mittakirjan ja hyväksyt sen oikeellisuuden.
+      </p>
+
+      <div class="form-group">
+        <label>Allekirjoittajan nimi *</label>
+        <input type="text" id="signNimi" placeholder="Etunimi Sukunimi" oninput="tarkistaValmis()">
+      </div>
+      <div class="form-group">
+        <label>Asema (valinnainen)</label>
+        <input type="text" id="signAsema" placeholder="esim. Omistaja, Työnjohtaja...">
+      </div>
+
+      <div class="form-group">
+        <label>Piirrä allekirjoitus *</label>
+        <div class="canvas-wrap" id="canvasWrap">
+          <canvas id="signCanvas"></canvas>
+          <div class="canvas-hint" id="canvasHint">✍️ Allekirjoita tähän</div>
+        </div>
+        <div class="canvas-actions">
+          <button class="clear-btn" onclick="tyhjenna()">↺ Tyhjennä</button>
+          <span style="font-size:0.75rem;color:#aaa;align-self:center;">Hiiri tai sormi</span>
+        </div>
+      </div>
+
+      <div class="checkbox-row">
+        <input type="checkbox" id="hyvaksy" onchange="tarkistaValmis()">
+        <label class="check-label" for="hyvaksy">
+          Olen tarkistanut tiedot ja hyväksyn ne.
+        </label>
+      </div>
+
+      <div class="form-group">
+        <label>Kommentit (valinnainen)</label>
+        <textarea id="signKommentti" placeholder="Mahdolliset huomiot..." style="min-height:64px"></textarea>
+      </div>
+
+      <button class="sign-btn" id="signBtn" onclick="allekirjoita()" disabled>
+        ✍️ Allekirjoita ja hyväksy
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── Firebase init ────────────────────────────────────────────
+var fbConfig = {
+  apiKey: "AIzaSyB_SEcmhmzBBldkbh8CQYL7ncQGVyZIDM4",
+  authDomain: "bcfloors-a25ea.firebaseapp.com",
+  projectId: "bcfloors-a25ea",
+  storageBucket: "bcfloors-a25ea.firebasestorage.app",
+  messagingSenderId: "160878550016",
+  appId: "1:160878550016:web:9d42f64d0d02375a178ce5"
+};
+if (!firebase.apps.length) firebase.initializeApp(fbConfig);
+var db = firebase.firestore();
+
+// ── URL-parametri ────────────────────────────────────────────
+var mittaId = new URLSearchParams(location.search).get('id');
+
+// ── Canvas ───────────────────────────────────────────────────
+var canvas, ctx, piirretaan = false, onPiirretty = false;
+
+function initCanvas() {
+  canvas = document.getElementById('signCanvas');
+  var wrap = document.getElementById('canvasWrap');
+  canvas.width  = wrap.offsetWidth  * (window.devicePixelRatio || 1);
+  canvas.height = 130               * (window.devicePixelRatio || 1);
+  ctx = canvas.getContext('2d');
+  ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
+  ctx.strokeStyle = '#1a2530';
+  ctx.lineWidth = 2.2;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  function pos(e) {
+    var r = canvas.getBoundingClientRect();
+    var ratio = canvas.width / r.width / (window.devicePixelRatio || 1);
+    return { x: (e.clientX - r.left) * ratio, y: (e.clientY - r.top) * ratio };
+  }
+  canvas.addEventListener('mousedown',  function(e){ piirretaan=true; var p=pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); });
+  canvas.addEventListener('mousemove',  function(e){ if(!piirretaan) return; var p=pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); merkitsePiirretty(); });
+  canvas.addEventListener('mouseup',    function(){ piirretaan=false; });
+  canvas.addEventListener('mouseleave', function(){ piirretaan=false; });
+  canvas.addEventListener('touchstart', function(e){ e.preventDefault(); piirretaan=true; var p=pos(e.touches[0]); ctx.beginPath(); ctx.moveTo(p.x,p.y); }, {passive:false});
+  canvas.addEventListener('touchmove',  function(e){ e.preventDefault(); if(!piirretaan) return; var p=pos(e.touches[0]); ctx.lineTo(p.x,p.y); ctx.stroke(); merkitsePiirretty(); }, {passive:false});
+  canvas.addEventListener('touchend',   function(){ piirretaan=false; });
+}
+
+function merkitsePiirretty() {
+  if (!onPiirretty) {
+    onPiirretty = true;
+    document.getElementById('canvasHint').style.display = 'none';
+    document.getElementById('canvasWrap').style.borderStyle = 'solid';
+    document.getElementById('canvasWrap').style.borderColor = '#006CB1';
+    tarkistaValmis();
+  }
+}
+
+function tyhjenna() {
+  ctx.clearRect(0, 0, canvas.width / (window.devicePixelRatio||1), canvas.height / (window.devicePixelRatio||1));
+  onPiirretty = false;
+  document.getElementById('canvasHint').style.display = 'block';
+  document.getElementById('canvasWrap').style.borderStyle = 'dashed';
+  document.getElementById('canvasWrap').style.borderColor = '#c8d0d8';
+  tarkistaValmis();
+}
+
+function tarkistaValmis() {
+  var nimi = (document.getElementById('signNimi').value || '').trim();
+  var ok = document.getElementById('hyvaksy').checked;
+  document.getElementById('signBtn').disabled = !(nimi && ok && onPiirretty);
+}
+
+// ── Näytä data ───────────────────────────────────────────────
+function naytaData(data) {
+  // Hero
+  document.getElementById('vTilaaja').textContent = data.tilaaja || data.tilaaja_txt || '—';
+  document.getElementById('vTyomaa').textContent  = data.tyomaa  || '—';
+  document.getElementById('vTyonro').textContent  = data.tyonro  || '—';
+  document.getElementById('vPvm').textContent     = data.pvm     || '—';
+
+  // Viesti
+  if (data.lahetysViesti) {
+    document.getElementById('vViesti').textContent = data.lahetysViesti;
+    document.getElementById('viestiCard').style.display = 'block';
+  }
+
+  // Rivit
+  var tbody = document.getElementById('vRivit');
+  var total = 0;
+  var rivit = data.rivit || [];
+  rivit.forEach(function(r) {
+    if (!r.kuvaus && !r.maara) return;
+    var summa = (parseFloat(r.maara)||0) * (parseFloat(r.hinta)||0);
+    total += summa;
+    var tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td>' + (r.pvm||'') + '</td>' +
+      '<td>' + (r.kuvaus||'') + '</td>' +
+      '<td class="r">' + (r.maara||'') + '</td>' +
+      '<td>' + (r.yksikko||'') + '</td>' +
+      '<td class="r">' + (r.hinta ? parseFloat(r.hinta).toFixed(2)+' €' : '') + '</td>' +
+      '<td class="r"><strong>' + (summa > 0 ? summa.toFixed(2)+' €' : '—') + '</strong></td>';
+    tbody.appendChild(tr);
+  });
+  // Yhteensä-rivi
+  if (total > 0) {
+    var tfoot = document.createElement('tr');
+    tfoot.className = 'total-row';
+    tfoot.innerHTML =
+      '<td colspan="5" style="text-align:right;font-size:0.8rem;letter-spacing:0.3px;">YHTEENSÄ</td>' +
+      '<td class="r">' + total.toFixed(2) + ' €</td>';
+    tbody.appendChild(tfoot);
+  }
+
+  // Jo allekirjoitettu?
+  if (data.tila === 'allekirjoitettu') {
+    document.getElementById('signedBanner').classList.add('show');
+    document.getElementById('signSection').style.display = 'none';
+    document.getElementById('topStatus').className = 'status-pill pill-signed';
+    document.getElementById('topStatus').textContent = '✅ Allekirjoitettu';
+    if (data.allekirjoitettuAika) {
+      document.getElementById('signedTime').textContent =
+        'Allekirjoitettu: ' + new Date(data.allekirjoitettuAika).toLocaleString('fi-FI');
+    }
+  }
+}
+
+// ── Allekirjoita ─────────────────────────────────────────────
+function allekirjoita() {
+  var nimi = document.getElementById('signNimi').value.trim();
+  var asema = document.getElementById('signAsema').value.trim();
+  var kommentti = document.getElementById('signKommentti').value.trim();
+  if (!nimi || !onPiirretty) return;
+
+  var btn = document.getElementById('signBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Tallennetaan...';
+
+  var aikaleima = new Date().toISOString();
+  var kuva = canvas.toDataURL('image/png');
+
+  db.collection('mittakirjat').doc(mittaId).update({
+    tila: 'allekirjoitettu',
+    allekirjoitettuAika: aikaleima,
+    allekirjoittajaNimi: nimi,
+    allekirjoittajaAsema: asema,
+    allekirjoittajaKommentti: kommentti,
+    allekirjoitusKuva: kuva
+  }).then(function() {
+    document.getElementById('signSection').style.display = 'none';
+    var banner = document.getElementById('signedBanner');
+    banner.classList.add('show');
+    document.getElementById('signedTime').textContent =
+      'Allekirjoitettu: ' + new Date(aikaleima).toLocaleString('fi-FI');
+    document.getElementById('topStatus').className = 'status-pill pill-signed';
+    document.getElementById('topStatus').textContent = '✅ Allekirjoitettu';
+    toast('✅ Mittakirja allekirjoitettu!', 'ok');
+  }).catch(function(e) {
+    toast('❌ Virhe: ' + e.message, 'err');
+    btn.disabled = false;
+    btn.textContent = '✍️ Allekirjoita ja hyväksy';
+  });
+}
+
+// ── Toast ────────────────────────────────────────────────────
+function toast(msg, type) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + (type||'');
+  setTimeout(function(){ t.className = 'toast'; }, 3200);
+}
+
+// ── Init ─────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+  if (!mittaId) {
+    document.getElementById('loadingView').style.display = 'none';
+    document.getElementById('errorView').style.display = 'block';
+    return;
+  }
+
+  db.collection('mittakirjat').doc(mittaId).get().then(function(doc) {
+    document.getElementById('loadingView').style.display = 'none';
+    if (!doc.exists) {
+      document.getElementById('errorView').style.display = 'block';
+      return;
+    }
+    document.getElementById('mainView').style.display = 'block';
+    naytaData(doc.data());
+    initCanvas();
+  }).catch(function(e) {
+    document.getElementById('loadingView').style.display = 'none';
+    document.getElementById('errorView').style.display = 'block';
+  });
+});
+</script>
+</body>
+</html>

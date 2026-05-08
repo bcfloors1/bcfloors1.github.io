@@ -249,7 +249,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 
 <div class="no-print">
   <button class="btn-print" onclick="window.print()">🖨️ Tulosta / PDF</button>
-  <button class="btn-share" onclick="shareDoc()">📤 Jaa</button>
+  <button class="btn-share" onclick="shareDoc()">📤 Lähetä asiakkaalle</button>
   <button class="btn-share" onclick="tallennaTiedosto()" style="background:#2e7d32;">💾 Tallenna luonnos</button>
 </div>
 <!-- PROJEKTIN VALINTA -->
@@ -613,15 +613,103 @@ function clearSig(id) {
 }
 
 // ── SHARE ─────────────────────────────────────────────────────
+// ── LÄHETÄ ASIAKKAALLE ───────────────────────────────────────
 function shareDoc() {
-  if (navigator.share) {
-    navigator.share({
-      title: 'Mittapöytäkirja – BC Floors Oy',
-      url: window.location.href
-    }).catch(function(){});
-  } else {
-    window.print();
-  }
+  // Kerää lomakkeen tiedot
+  var tilaaja = document.getElementById('tilaaja');
+  var tilaajaTxt = document.getElementById('tilaaja_txt');
+  var tilaajaNimi = (tilaaja && tilaaja.value && tilaaja.value !== '__muu__')
+    ? tilaaja.options[tilaaja.selectedIndex].text
+    : (tilaajaTxt ? tilaajaTxt.value : '');
+
+  var rivit = [];
+  document.querySelectorAll('#tableBody tr').forEach(function(tr) {
+    var dateEl  = tr.querySelector('input[type=date]');
+    var descEl  = tr.querySelector('input[type=text], select:not(.yks-cell select)');
+    // desc voi olla joko input tai select (tarjoushinnat)
+    var descTd  = tr.cells[1];
+    var kuvaus  = '';
+    if (descTd) {
+      var inp = descTd.querySelector('input');
+      var sel = descTd.querySelector('select');
+      if (inp) kuvaus = inp.value;
+      else if (sel) kuvaus = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : '';
+    }
+    var qtyEl   = tr.querySelector('input[type=number]:nth-of-type(1)') || tr.cells[2] && tr.cells[2].querySelector('input');
+    var unitEl  = tr.querySelector('.yks-cell select') || tr.cells[3] && tr.cells[3].querySelector('select');
+    var priceEl = tr.cells[4] && tr.cells[4].querySelector('input');
+    var maara   = qtyEl   ? qtyEl.value   : '';
+    var yksikko = unitEl  ? unitEl.value  : '';
+    var hinta   = priceEl ? priceEl.value : '';
+    if (!kuvaus && !maara) return; // tyhjä rivi
+    rivit.push({
+      pvm:     dateEl ? (dateEl.getAttribute('data-fi') || dateEl.value) : '',
+      kuvaus:  kuvaus,
+      maara:   maara,
+      yksikko: yksikko,
+      hinta:   hinta
+    });
+  });
+
+  var urlParams = new URLSearchParams(window.location.search);
+  var data = {
+    tilaaja:   tilaajaNimi,
+    tyomaa:    (document.getElementById('tyomaa')  || {}).value || '',
+    tyonro:    (document.getElementById('tyonro')  || {}).value || '',
+    pvm:       document.getElementById('pvm').getAttribute('data-fi') || document.getElementById('pvm').value || '',
+    rivit:     rivit,
+    tila:      'lahetetty',
+    lahetetty: new Date().toISOString(),
+    projektiId: urlParams.get('projekti') || document.getElementById('projektiValinta').value || ''
+  };
+
+  // Avaa modal
+  document.getElementById('lahetysModal').style.display = 'flex';
+  window._lahetysData = data;
+}
+
+function suljeModal() {
+  document.getElementById('lahetysModal').style.display = 'none';
+}
+
+function lahetaAsiakkaalle() {
+  var viesti = (document.getElementById('lahetysViesti') || {}).value || '';
+  var data = window._lahetysData || {};
+  data.lahetysViesti = viesti;
+
+  var btn = document.getElementById('lahetaBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Tallennetaan...';
+
+  fbDb2.collection('mittakirjat').add(data).then(function(ref) {
+    var linkki = 'https://bcfloors1.github.io/mitta-view.html?id=' + ref.id;
+    document.getElementById('linkBox').style.display = 'flex';
+    document.getElementById('genLinkki').value = linkki;
+    btn.textContent = '✅ Tallennettu!';
+    btn.style.background = '#16a34a';
+    naytaIlmoitus('✅ Tallennettu! Kopioi linkki asiakkaalle.', 'ok');
+  }).catch(function(e) {
+    naytaIlmoitus('❌ Virhe: ' + e.message, 'err');
+    btn.disabled = false;
+    btn.textContent = '💾 Tallenna ja luo linkki';
+  });
+}
+
+function kopioiLinkki() {
+  var v = document.getElementById('genLinkki').value;
+  if (!v) return;
+  navigator.clipboard.writeText(v).then(function() {
+    naytaIlmoitus('📋 Linkki kopioitu leikepöydälle!', 'ok');
+    suljeModal();
+  });
+}
+
+function naytaIlmoitus(msg, type) {
+  var t = document.getElementById('ilmoitus');
+  if (!t) return;
+  t.textContent = msg;
+  t.className = 'toast show ' + (type||'');
+  setTimeout(function(){ t.className = 'toast'; }, 3200);
 }
 
 // ── NÄPPÄIMISTÖNAVIGOINTI ────────────────────────────────
@@ -869,3 +957,33 @@ function tallennaTiedosto() {
 
 </body>
 </html>
+<!-- LÄHETYS-MODAL -->
+<div id="lahetysModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:white;border-radius:14px;padding:28px;width:100%;max-width:440px;box-shadow:0 20px 60px rgba(0,0,0,0.25);">
+    <h3 style="font-size:1.1rem;margin-bottom:6px;">📤 Lähetä asiakkaalle</h3>
+    <p style="font-size:0.85rem;color:#666;margin-bottom:20px;">Mittakirja tallennetaan ja saat linkin jonka voit lähettää asiakkaalle allekirjoitettavaksi.</p>
+    <div style="margin-bottom:14px;">
+      <label style="display:block;font-size:0.75rem;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:5px;">Viesti asiakkaalle (valinnainen)</label>
+      <textarea id="lahetysViesti" placeholder="esim. Hei! Tarkistathan mittakirjan ja allekirjoitat sen..." style="width:100%;padding:9px 12px;border:1.5px solid #e0e3e8;border-radius:8px;font-size:0.9rem;font-family:inherit;min-height:72px;background:#fafbfc;resize:vertical;outline:none;"></textarea>
+    </div>
+    <div id="linkBox" style="display:none;margin-bottom:16px;">
+      <label style="display:block;font-size:0.75rem;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:5px;">Asiakkaan linkki</label>
+      <div style="display:flex;gap:8px;">
+        <input type="text" id="genLinkki" readonly style="flex:1;padding:9px 12px;border:1.5px solid #e0e3e8;border-radius:8px;font-size:0.82rem;background:#f0f2f5;color:#444;">
+        <button onclick="kopioiLinkki()" style="background:#006CB1;color:white;border:none;border-radius:8px;padding:9px 14px;cursor:pointer;font-size:0.85rem;font-weight:700;white-space:nowrap;">📋 Kopioi</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button onclick="suljeModal()" style="padding:9px 18px;border:1.5px solid #d0d5dd;background:white;border-radius:8px;cursor:pointer;font-size:0.9rem;font-family:inherit;">Peruuta</button>
+      <button id="lahetaBtn" onclick="lahetaAsiakkaalle()" style="padding:9px 18px;background:#006CB1;color:white;border:none;border-radius:8px;cursor:pointer;font-size:0.9rem;font-weight:700;font-family:inherit;">💾 Tallenna ja luo linkki</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="ilmoitus" style="position:fixed;bottom:24px;right:24px;background:#1a2530;color:white;padding:12px 20px;border-radius:10px;font-size:0.88rem;z-index:2000;opacity:0;transform:translateY(10px);transition:all 0.3s;pointer-events:none;"></div>
+<style>
+#ilmoitus.show { opacity:1 !important; transform:translateY(0) !important; }
+#ilmoitus.ok { background:#16a34a !important; }
+#ilmoitus.err { background:#dc2626 !important; }
+</style>

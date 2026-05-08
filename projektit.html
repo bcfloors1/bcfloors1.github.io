@@ -78,6 +78,19 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f8fafc;color:#1e293
 .detalji-val{color:#1e293b;font-weight:500;flex:1;}
 .toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#1e293b;color:white;padding:10px 20px;border-radius:20px;font-size:13px;font-weight:600;z-index:999;opacity:0;transition:opacity .3s;}
 .toast.show{opacity:1;}
+.mk-section{padding:8px 14px 10px;border-top:1px solid #e2e8f0;background:#f8fafc;}
+.mk-row{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;}
+.mk-label{font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.3px;margin-bottom:4px;}
+.mk-badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:3px 9px;border-radius:12px;}
+.mk-badge-none{background:#f1f5f9;color:#94a3b8;}
+.mk-badge-sent{background:#dbeafe;color:#1e40af;}
+.mk-badge-signed{background:#dcfce7;color:#15803d;}
+.mk-btns{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;}
+.mk-btn{font-size:11px;font-weight:600;padding:5px 10px;border-radius:6px;border:none;cursor:pointer;font-family:inherit;white-space:nowrap;}
+.mk-btn-primary{background:#006CB1;color:white;}
+.mk-btn-outline{background:white;color:#006CB1;border:1px solid #bfdbfe;}
+.mk-btn-green{background:#16a34a;color:white;}
+.mk-btn-copy{background:#f1f5f9;color:#334155;border:1px solid #e2e8f0;}
 </style>
 </head>
 <body>
@@ -872,10 +885,15 @@ db.collection('projects').orderBy('tyomaa').onSnapshot(function(snap) {
     html += '<button class="proj-btn del" onclick="poistaProjekti(\'' + id + '\', \'' + (p.tyomaa||"").replace(/'/g,"\\'") + '\')">🗑 Poista</button>';
     html += '</div>';
     html += '<div id="dokumentit-' + id + '" style="display:none;padding:8px 14px;border-top:1px solid #f1f5f9;background:#fafafa;"></div>';
+    html += '<div class="mk-section"><div class="mk-label">📐 Mittakirja</div><div class="mk-row"><span class="mk-badge mk-badge-none" id="mk-badge-'+id+'">Ei tehty</span></div><div class="mk-btns" id="mk-btns-'+id+'"><button class="mk-btn mk-btn-primary" onclick="avaaLomake('"+id+"')" >📝 Tee mittakirja</button></div></div>';
     html += '</div>';
   });
 
   lista.innerHTML = html;
+  // Lataa mittakirjojen tilat
+  var ids = [];
+  snap.forEach(function(doc) { ids.push(doc.id); });
+  lataaKaikkiMittakirjat(ids);
 });
 
 // ── Näytä projektin dokumentit ──
@@ -920,6 +938,72 @@ async function lataaStorageTiedosto(polku, nimi) {
   } catch(e) {
     alert('Lataus epäonnistui: ' + e.message);
   }
+}
+
+
+// ── Mittakirja-toiminnot ─────────────────────────────────────
+function lataaKaikkiMittakirjat(projektit) {
+  projektit.forEach(function(id) {
+    fbDb.collection('mittakirjat')
+      .where('projektiId', '==', id)
+      .orderBy('lahetetty', 'desc')
+      .limit(1)
+      .get()
+      .then(function(snap) {
+        if (snap.empty) { paivitaMkOsio(id, null, null); return; }
+        var mk = snap.docs[0].data();
+        mk._id = snap.docs[0].id;
+        paivitaMkOsio(id, mk._id, mk);
+      })
+      .catch(function() { paivitaMkOsio(id, null, null); });
+  });
+}
+
+function paivitaMkOsio(projektinId, mkId, mk) {
+  var badge = document.getElementById('mk-badge-' + projektinId);
+  var btns  = document.getElementById('mk-btns-' + projektinId);
+  if (!badge || !btns) return;
+  var baseUrl = 'https://bcfloors1.github.io';
+  if (!mk) {
+    badge.className = 'mk-badge mk-badge-none';
+    badge.textContent = 'Ei tehty';
+    btns.innerHTML = '<button class="mk-btn mk-btn-primary" onclick="avaaLomake(\'' + projektinId + '\')">📝 Tee mittakirja</button>';
+    return;
+  }
+  if (mk.tila === 'allekirjoitettu') {
+    badge.className = 'mk-badge mk-badge-signed';
+    badge.textContent = '✅ Allekirjoitettu';
+    var aika = mk.allekirjoitettuAika ? new Date(mk.allekirjoitettuAika).toLocaleDateString('fi-FI') : '';
+    btns.innerHTML =
+      '<button class="mk-btn mk-btn-outline" onclick="window.open(\'' + baseUrl + '/mitta-view.html?id=' + mkId + '\')">👁 Näytä</button>' +
+      '<button class="mk-btn mk-btn-green" onclick="window.open(\'' + baseUrl + '/mitta-view.html?id=' + mkId + '\')">🖨 PDF</button>' +
+      (aika ? '<span style="font-size:10px;color:#94a3b8;align-self:center">' + aika + '</span>' : '');
+    return;
+  }
+  if (mk.tila === 'lahetetty') {
+    badge.className = 'mk-badge mk-badge-sent';
+    badge.textContent = '📤 Lähetetty';
+    var linkki = baseUrl + '/mitta-view.html?id=' + mkId;
+    btns.innerHTML =
+      '<button class="mk-btn mk-btn-outline" onclick="avaaLomake(\'' + projektinId + '\',\'' + mkId + '\')">✏️ Muokkaa</button>' +
+      '<button class="mk-btn mk-btn-copy" onclick="kopioiMkLinkki(\'' + linkki + '\')">🔗 Kopioi linkki</button>';
+    return;
+  }
+  badge.className = 'mk-badge mk-badge-none';
+  badge.textContent = '📝 Luonnos';
+  btns.innerHTML = '<button class="mk-btn mk-btn-primary" onclick="avaaLomake(\'' + projektinId + '\',\'' + mkId + '\')">✏️ Jatka</button>';
+}
+
+function avaaLomake(projektinId, mkId) {
+  var url = 'mitta.html?projekti=' + projektinId;
+  if (mkId) url += '&id=' + mkId;
+  window.location.href = url;
+}
+
+function kopioiMkLinkki(linkki) {
+  navigator.clipboard.writeText(linkki).then(function() {
+    naytaToast('📋 Linkki kopioitu!');
+  });
 }
 
 // ── Event delegation dokumentit-napeille ──
