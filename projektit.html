@@ -885,7 +885,7 @@ db.collection('projects').orderBy('tyomaa').onSnapshot(function(snap) {
     html += '<button class="proj-btn del" onclick="poistaProjekti(\'' + id + '\', \'' + (p.tyomaa||"").replace(/'/g,"\\'") + '\')">🗑 Poista</button>';
     html += '</div>';
     html += '<div id="dokumentit-' + id + '" style="display:none;padding:8px 14px;border-top:1px solid #f1f5f9;background:#fafafa;"></div>';
-    html += '<div class="mk-section"><div class="mk-label">📐 Mittakirja</div><div class="mk-row"><span class="mk-badge mk-badge-none" id="mk-badge-'+id+'">Ei tehty</span></div><div class="mk-btns" id="mk-btns-'+id+'"><button class="mk-btn mk-btn-primary" onclick="avaaLomake('"+id+"')" >📝 Tee mittakirja</button></div></div>';
+    html += '<div class="mk-section"><div class="mk-label">📐 Mittakirja</div><div class="mk-row"><span class="mk-badge mk-badge-none" id="mk-badge-' + id + '">Ei tehty</span></div><div class="mk-btns" id="mk-btns-' + id + '"><button class="mk-btn mk-btn-primary" onclick="avaaLomake(\'' + id + '\')">📝 Tee mittakirja</button></div></div>';
     html += '</div>';
   });
 
