@@ -1113,8 +1113,8 @@ function lataaIrralliset() {
       var lista = document.getElementById('irrallisetLista');
       var osio  = document.getElementById('irrallisetOsio');
       if (!lista || !osio) return;
-      if (snap.empty) { osio.style.display = 'none'; return; }
       osio.style.display = 'block';
+      if (snap.empty) { lista.innerHTML = '<div style="font-size:12px;color:#94a3b8;padding:4px 0;">Ei mittakirjoja ilman projektia.</div>'; return; }
       var html = '';
       snap.forEach(function(doc) {
         var mk = doc.data(); mk._id = doc.id;
