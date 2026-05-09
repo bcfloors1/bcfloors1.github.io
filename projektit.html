@@ -157,7 +157,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f8fafc;color:#1e293
       <input type="text" id="uusiOsoite">
     </div>
     <div class="ff">
-      <label>📎 Lataa tarjous PDF (valinnainen)</label>
+      <label><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Lataa tarjous PDF (valinnainen)</label>
       <div class="pdf-upload-area" id="uploadArea" onclick="document.getElementById('pdfInput').click()">
         <div>📄 Klikkaa valitaksesi PDF</div>
         <div style="font-size:11px;margin-top:4px;color:#94a3b8">Tarjous tallentuu projektin yhteyteen</div>
@@ -174,7 +174,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f8fafc;color:#1e293
     <button class="sheet-close" onclick="suljeSheet('pdfOverlay')">✕</button>
     <div class="sheet-title" id="pdfSheetTitle">Lataa tarjous</div>
     <div class="ff">
-      <label>📎 Valitse tarjous PDF</label>
+      <label><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Valitse tarjous PDF</label>
       <div class="pdf-upload-area" id="uploadArea2" onclick="document.getElementById('pdfInput2').click()">
         <div>📄 Klikkaa valitaksesi PDF</div>
         <div style="font-size:11px;margin-top:4px;color:#94a3b8">AI lukee hinnat automaattisesti</div>
@@ -769,7 +769,7 @@ function tallennaManuaalinen() {
 function avaaLataaPdf(projektinId, projektinNimi) {
   aktiivisenProjektinId = projektinId;
   valittuPdfBase642 = null;
-  document.getElementById('pdfSheetTitle').textContent = '📎 Tarjous: ' + projektinNimi;
+  document.getElementById('pdfSheetTitle').textContent = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Tarjous: ' + projektinNimi;
   document.getElementById('uploadArea2').innerHTML = '<div>📄 Klikkaa valitaksesi PDF</div><div style="font-size:11px;margin-top:4px;color:#94a3b8">AI lukee hinnat automaattisesti</div>';
   document.getElementById('uploadArea2').classList.remove('has-file');
   document.getElementById('pdfSaveBtn').style.display = 'none';
@@ -878,7 +878,7 @@ db.collection('projects').orderBy('tyomaa').onSnapshot(function(snap) {
     // PDF-status
     var pdfStatus = p.pdfBase64
       ? '<span class="pdf-status pdf-ok tarjous-toggle" onclick="toggleHinnat(\''+id+'\')" title="Näytä/piilota hinnat">📄 Tarjous tallennettu ' + (p.tarjousHinnat && p.tarjousHinnat.length > 0 ? '▼' : '') + '</span>'
-      : '<span class="pdf-status pdf-none">📎 Ei tarjousta</span>';
+      : '<span class="pdf-status pdf-none"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Ei tarjousta</span>';
     var tarkastusToggle = '<span class="pdf-status tarjous-toggle" onclick="toggleTarkastukset(\''+id+'\')" style="background:#f0fdf4;color:#16a34a;border:1px solid #86efac;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:600;cursor:pointer;display:inline-block;margin-top:4px;">📋 Tarkastukset ▼</span>';
 
     html += '<div class="proj-card">';
@@ -893,19 +893,19 @@ db.collection('projects').orderBy('tyomaa').onSnapshot(function(snap) {
     html += '<div class="proj-main" style="padding:4px 14px 8px;border-top:none">' + tarkastusToggle + '</div>';
     html += '<div class="proj-actions">';
     if (p.pdfBase64) {
-      html += '<button class="proj-btn pdf-btn" onclick="avaaPdf(\'' + id + '\')">📄 Avaa PDF</button>';
+      html += '<button class="proj-btn pdf-btn" onclick="avaaPdf(\'' + id + '\')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> Avaa PDF</button>';
     }
-    html += '<button class="proj-btn pdf-btn" onclick="avaaLataaPdf(\'' + id + '\', \'' + (p.tyomaa||'').replace(/'/g,"\\'") + '\')">📎 ' + (p.pdfBase64 ? 'Vaihda PDF' : 'Lataa PDF') + '</button>';
-    html += '<button class="proj-btn" onclick="avaaValunaloitus(\'' + id + '\')" style="color:#006CB1">📋 Tarkastus</button>';
+    html += '<button class="proj-btn pdf-btn" onclick="avaaLataaPdf(\'' + id + '\', \'' + (p.tyomaa||'').replace(/'/g,"\\'") + '\')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> ' + (p.pdfBase64 ? 'Vaihda PDF' : 'Lataa PDF') + '</button>';
+    html += '<button class="proj-btn" onclick="avaaValunaloitus(\'' + id + '\')" style="color:#006CB1"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg> Tarkastus</button>';
     if (p.tarkastusLkm && p.tarkastusLkm > 0) {
       html += '<div style="font-size:10px;color:#16a34a;padding:3px 10px;border-top:1px solid #f1f5f9">✅ ' + p.tarkastusLkm + ' tarkastusta tallennettu</div>';
     }
-    html += '<button class="proj-btn dok-btn" data-projid="' + id + '" style="color:#7c3aed">📦 Dokumentit</button>';
-    html += '<button class="proj-btn" data-arkid="' + id + '" data-arknimi="' + (p.tyomaa||"").replace(/"/g,"") + '" onclick="arkistoiProjekti(this.dataset.arkid, this.dataset.arknimi)" style="color:#f59e0b">📦 Arkistoi</button>';
-    html += '<button class="proj-btn del" onclick="poistaProjekti(\'' + id + '\', \'' + (p.tyomaa||"").replace(/'/g,"\\'") + '\')">🗑 Poista</button>';
+    html += '<button class="proj-btn dok-btn" data-projid="' + id + '" style="color:#7c3aed"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg> Dokumentit</button>';
+    html += '<button class="proj-btn" data-arkid="' + id + '" data-arknimi="' + (p.tyomaa||"").replace(/"/g,"") + '" onclick="arkistoiProjekti(this.dataset.arkid, this.dataset.arknimi)" style="color:#f59e0b"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg> Arkistoi</button>';
+    html += '<button class="proj-btn del" onclick="poistaProjekti(\'' + id + '\', \'' + (p.tyomaa||"").replace(/'/g,"\\'") + '\')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg> Poista</button>';
     html += '</div>';
     html += '<div id="dokumentit-' + id + '" style="display:none;padding:8px 14px;border-top:1px solid #f1f5f9;background:#fafafa;"></div>';
-    html += '<div class="mk-section"><div class="mk-label">📐 Mittakirja</div><div class="mk-row"><span class="mk-badge mk-badge-none" id="mk-badge-' + id + '">Ei tehty</span></div><div class="mk-btns" id="mk-btns-' + id + '"><button class="mk-btn mk-btn-primary" onclick="avaaLomake(\'' + id + '\')"' + '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg> Tee mittakirja</button></div></div>';
+    html += '<div class="mk-section"><div class="mk-label"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:-1px"><path d="M21 3L3 21"/><path d="M21 3h-6M21 3v6"/></svg> Mittakirja</div><div class="mk-row"><span class="mk-badge mk-badge-none" id="mk-badge-' + id + '">Ei tehty</span></div><div class="mk-btns" id="mk-btns-' + id + '"><button class="mk-btn mk-btn-primary" onclick="avaaLomake(\'' + id + '\')"' + '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg> Tee mittakirja</button></div></div>';
     html += '</div>';
   });
 
@@ -1178,7 +1178,7 @@ function avaaDetalji(projektinId) {
     } else {
       html += '<div class="detalji-row"><span style="color:#94a3b8;font-size:13px">Ei tarjousta ladattu</span></div>';
     }
-    html += '<div class="detalji-row"><button onclick="suljeDetalji();avaaLataaPdf(\''+doc.id+'\',\''+( p.tyomaa||'').replace(/'/g,"\\'")+'\')" style="background:#f8fafc;border:1.5px solid #e2e8f0;color:#006CB1;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;margin:4px 0">📎 '+(p.pdfBase64?'Vaihda PDF':'Lataa PDF')+'</button></div>';
+    html += '<div class="detalji-row"><button onclick="suljeDetalji();avaaLataaPdf(\''+doc.id+'\',\''+( p.tyomaa||'').replace(/'/g,"\\'")+'\')" style="background:#f8fafc;border:1.5px solid #e2e8f0;color:#006CB1;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;margin:4px 0"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> '+(p.pdfBase64?'Vaihda PDF':'Lataa PDF')+'</button></div>';
     html += '</div>';
 
     // Hinnat
