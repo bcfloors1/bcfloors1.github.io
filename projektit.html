@@ -91,6 +91,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f8fafc;color:#1e293
 .mk-btn-outline{background:white;color:#006CB1;border:1px solid #bfdbfe;}
 .mk-btn-green{background:#16a34a;color:white;}
 .mk-btn-copy{background:#f1f5f9;color:#334155;border:1px solid #e2e8f0;}
+.mk-btn-danger{background:white;color:#dc2626;border:1px solid #fecaca;}
 </style>
 </head>
 <body>
@@ -942,61 +943,93 @@ async function lataaStorageTiedosto(polku, nimi) {
 
 
 // ── Mittakirja-toiminnot ─────────────────────────────────────
+var baseUrl = 'https://bcfloors1.github.io';
+
 function lataaKaikkiMittakirjat(projektit) {
   projektit.forEach(function(id) {
     fbDb.collection('mittakirjat')
       .where('projektiId', '==', id)
       .orderBy('lahetetty', 'desc')
-      .limit(1)
       .get()
       .then(function(snap) {
-        if (snap.empty) { paivitaMkOsio(id, null, null); return; }
-        var mk = snap.docs[0].data();
-        mk._id = snap.docs[0].id;
-        paivitaMkOsio(id, mk._id, mk);
+        var mklist = [];
+        snap.forEach(function(doc) {
+          var d = doc.data(); d._id = doc.id; mklist.push(d);
+        });
+        paivitaMkOsio(id, mklist);
       })
-      .catch(function() { paivitaMkOsio(id, null, null); });
+      .catch(function() { paivitaMkOsio(id, []); });
   });
+  // Lataa myös irralliset
+  lataaIrralliset();
 }
 
-function paivitaMkOsio(projektinId, mkId, mk) {
+function mkRiviHtml(projektinId, mk) {
+  var mkId = mk._id;
+  var aika = mk.lahetetty ? new Date(mk.lahetetty).toLocaleDateString('fi-FI') : '';
+  var badgeHtml = '';
+  var napit = '';
+
+  if (mk.tila === 'allekirjoitettu') {
+    badgeHtml = '<span class="mk-badge mk-badge-signed">✅ Allekirjoitettu</span>';
+    var allekirjAika = mk.allekirjoitettuAika ? new Date(mk.allekirjoitettuAika).toLocaleDateString('fi-FI') : '';
+    napit =
+      '<button class="mk-btn mk-btn-outline" onclick="window.open(\'' + baseUrl + '/mitta-view.html?id=' + mkId + '\')">👁 Näytä</button>' +
+      '<button class="mk-btn mk-btn-green" onclick="window.open(\'' + baseUrl + '/mitta-view.html?id=' + mkId + '\')">🖨 PDF</button>' +
+      '<button class="mk-btn mk-btn-danger" onclick="poistaMittakirja(\'' + mkId + '\',\'' + (projektinId||'') + '\')">🗑</button>' +
+      (allekirjAika ? '<span style="font-size:10px;color:#94a3b8;align-self:center">' + allekirjAika + '</span>' : '');
+  } else if (mk.tila === 'lahetetty') {
+    badgeHtml = '<span class="mk-badge mk-badge-sent">📤 Lähetetty</span>';
+    var linkki = baseUrl + '/mitta-view.html?id=' + mkId;
+    napit =
+      '<button class="mk-btn mk-btn-outline" onclick="avaaLomake(\'' + (projektinId||'') + '\',\'' + mkId + '\')">✏️ Muokkaa</button>' +
+      '<button class="mk-btn mk-btn-copy" onclick="kopioiMkLinkki(\'' + linkki + '\')">🔗 Linkki</button>' +
+      '<button class="mk-btn mk-btn-danger" onclick="poistaMittakirja(\'' + mkId + '\',\'' + (projektinId||'') + '\')">🗑</button>';
+  } else {
+    badgeHtml = '<span class="mk-badge mk-badge-none">📝 Luonnos</span>';
+    napit =
+      '<button class="mk-btn mk-btn-primary" onclick="avaaLomake(\'' + (projektinId||'') + '\',\'' + mkId + '\')">✏️ Jatka</button>' +
+      '<button class="mk-btn mk-btn-danger" onclick="poistaMittakirja(\'' + mkId + '\',\'' + (projektinId||'') + '\')">🗑</button>';
+  }
+
+  return '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;padding:6px 0;border-bottom:1px solid #f1f5f9;">' +
+    '<div style="display:flex;align-items:center;gap:8px;">' + badgeHtml + (aika ? '<span style="font-size:10px;color:#94a3b8">' + aika + '</span>' : '') + '</div>' +
+    '<div class="mk-btns">' + napit + '</div>' +
+    '</div>';
+}
+
+function paivitaMkOsio(projektinId, mklist) {
   var badge = document.getElementById('mk-badge-' + projektinId);
   var btns  = document.getElementById('mk-btns-' + projektinId);
   if (!badge || !btns) return;
-  var baseUrl = 'https://bcfloors1.github.io';
-  if (!mk) {
+
+  if (!mklist || mklist.length === 0) {
     badge.className = 'mk-badge mk-badge-none';
     badge.textContent = 'Ei tehty';
     btns.innerHTML = '<button class="mk-btn mk-btn-primary" onclick="avaaLomake(\'' + projektinId + '\')">📝 Tee mittakirja</button>';
     return;
   }
-  if (mk.tila === 'allekirjoitettu') {
-    badge.className = 'mk-badge mk-badge-signed';
-    badge.textContent = '✅ Allekirjoitettu';
-    var aika = mk.allekirjoitettuAika ? new Date(mk.allekirjoitettuAika).toLocaleDateString('fi-FI') : '';
-    btns.innerHTML =
-      '<button class="mk-btn mk-btn-outline" onclick="window.open(\'' + baseUrl + '/mitta-view.html?id=' + mkId + '\')">👁 Näytä</button>' +
-      '<button class="mk-btn mk-btn-green" onclick="window.open(\'' + baseUrl + '/mitta-view.html?id=' + mkId + '\')">🖨 PDF</button>' +
-      (aika ? '<span style="font-size:10px;color:#94a3b8;align-self:center">' + aika + '</span>' : '');
-    return;
+
+  // Badge näyttää viimeisimmän tilan
+  var viimeisin = mklist[0];
+  if (viimeisin.tila === 'allekirjoitettu') {
+    badge.className = 'mk-badge mk-badge-signed'; badge.textContent = '✅ Allekirjoitettu';
+  } else if (viimeisin.tila === 'lahetetty') {
+    badge.className = 'mk-badge mk-badge-sent'; badge.textContent = '📤 Lähetetty';
+  } else {
+    badge.className = 'mk-badge mk-badge-none'; badge.textContent = '📝 Luonnos';
   }
-  if (mk.tila === 'lahetetty') {
-    badge.className = 'mk-badge mk-badge-sent';
-    badge.textContent = '📤 Lähetetty';
-    var linkki = baseUrl + '/mitta-view.html?id=' + mkId;
-    btns.innerHTML =
-      '<button class="mk-btn mk-btn-outline" onclick="avaaLomake(\'' + projektinId + '\',\'' + mkId + '\')">✏️ Muokkaa</button>' +
-      '<button class="mk-btn mk-btn-copy" onclick="kopioiMkLinkki(\'' + linkki + '\')">🔗 Kopioi linkki</button>';
-    return;
-  }
-  badge.className = 'mk-badge mk-badge-none';
-  badge.textContent = '📝 Luonnos';
-  btns.innerHTML = '<button class="mk-btn mk-btn-primary" onclick="avaaLomake(\'' + projektinId + '\',\'' + mkId + '\')">✏️ Jatka</button>';
+
+  // Lista kaikista mittakirjoista
+  var html = mklist.map(function(mk) { return mkRiviHtml(projektinId, mk); }).join('');
+  html += '<div style="margin-top:8px;"><button class="mk-btn mk-btn-primary" onclick="avaaLomake(\'' + projektinId + '\')">➕ Uusi mittakirja</button></div>';
+  btns.innerHTML = html;
 }
 
 function avaaLomake(projektinId, mkId) {
-  var url = 'mitta.html?projekti=' + projektinId;
-  if (mkId) url += '&id=' + mkId;
+  var url = 'mitta.html';
+  if (projektinId) url += '?projekti=' + projektinId;
+  if (mkId) url += (projektinId ? '&' : '?') + 'id=' + mkId;
   window.location.href = url;
 }
 
@@ -1004,6 +1037,65 @@ function kopioiMkLinkki(linkki) {
   navigator.clipboard.writeText(linkki).then(function() {
     naytaToast('📋 Linkki kopioitu!');
   });
+}
+
+function poistaMittakirja(mkId, projektinId) {
+  if (!confirm('Poistetaanko mittakirja? Tätä ei voi peruuttaa.')) return;
+  fbDb.collection('mittakirjat').doc(mkId).delete().then(function() {
+    naytaToast('🗑 Mittakirja poistettu');
+    if (projektinId) {
+      // Päivitä projektikortti
+      fbDb.collection('mittakirjat')
+        .where('projektiId', '==', projektinId)
+        .orderBy('lahetetty', 'desc')
+        .get()
+        .then(function(snap) {
+          var mklist = [];
+          snap.forEach(function(doc) { var d = doc.data(); d._id = doc.id; mklist.push(d); });
+          paivitaMkOsio(projektinId, mklist);
+        });
+    } else {
+      lataaIrralliset();
+    }
+  }).catch(function(e) { alert('Virhe: ' + e.message); });
+}
+
+// ── Irralliset mittakirjat ───────────────────────────────────
+function lataaIrralliset() {
+  fbDb.collection('mittakirjat')
+    .where('projektiId', '==', '')
+    .orderBy('lahetetty', 'desc')
+    .get()
+    .then(function(snap) {
+      var lista = document.getElementById('irrallisetLista');
+      var osio  = document.getElementById('irrallisetOsio');
+      if (!lista || !osio) return;
+      if (snap.empty) { osio.style.display = 'none'; return; }
+      osio.style.display = 'block';
+      var html = '';
+      snap.forEach(function(doc) {
+        var mk = doc.data(); mk._id = doc.id;
+        var aika = mk.lahetetty ? new Date(mk.lahetetty).toLocaleDateString('fi-FI') : '';
+        var badgeHtml = mk.tila === 'allekirjoitettu'
+          ? '<span class="mk-badge mk-badge-signed">✅ Allekirjoitettu</span>'
+          : mk.tila === 'lahetetty'
+          ? '<span class="mk-badge mk-badge-sent">📤 Lähetetty</span>'
+          : '<span class="mk-badge mk-badge-none">📝 Luonnos</span>';
+        html += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;padding:10px 0;border-bottom:1px solid #f1f5f9;">' +
+          '<div>' +
+            badgeHtml +
+            '<span style="font-size:12px;margin-left:8px;color:#334155;font-weight:600;">' + (mk.tyomaa || '—') + '</span>' +
+            (aika ? '<span style="font-size:11px;color:#94a3b8;margin-left:6px">' + aika + '</span>' : '') +
+          '</div>' +
+          '<div class="mk-btns">' +
+            '<button class="mk-btn mk-btn-outline" onclick="window.open(\'' + baseUrl + '/mitta-view.html?id=' + mk._id + '\')">👁 Näytä</button>' +
+            '<button class="mk-btn mk-btn-danger" onclick="poistaMittakirja(\'' + mk._id + '\',\'\')">🗑</button>' +
+          '</div>' +
+        '</div>';
+      });
+      lista.innerHTML = html;
+    })
+    .catch(function() {});
 }
 
 // ── Event delegation dokumentit-napeille ──
@@ -1072,5 +1164,6 @@ function suljeDetalji() {
   document.getElementById('detaljitOverlay').classList.remove('open');
 }
 </script>
+  <div id="irrallisetOsio" style="display:none;margin:0 12px 16px;"><div style="background:white;border-radius:12px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,0.06);"><div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">📐 Irralliset mittakirjat</div><div id="irrallisetLista"></div></div></div>
 </body>
 </html>
