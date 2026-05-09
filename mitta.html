@@ -244,13 +244,34 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 </style>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+<link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
-<div class="no-print">
-  <button class="btn-print" onclick="window.print()">🖨️ Tulosta / PDF</button>
-  <button class="btn-share" onclick="shareDoc()">📤 Lähetä asiakkaalle</button>
-  <button class="btn-share" onclick="tallennaTiedosto()" style="background:#2e7d32;">💾 Tallenna luonnos</button>
+<div class="no-print bcf-topbar" style="border-bottom:3px solid #e8a020;">
+  <div class="bcf-topbar-left">
+    <div class="bcf-logo-icon">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+    </div>
+    <div>
+      <div class="bcf-topbar-title">BC FLOORS OY</div>
+      <div class="bcf-topbar-sub">Mittapöytäkirja</div>
+    </div>
+  </div>
+  <div class="bcf-topbar-right">
+    <button class="bcf-btn bcf-btn-ghost bcf-btn-sm" onclick="window.print()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+      PDF
+    </button>
+    <button class="bcf-btn bcf-btn-ghost bcf-btn-sm" onclick="tallennaTiedosto()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+      Tallenna
+    </button>
+    <button class="bcf-btn bcf-btn-orange bcf-btn-sm" onclick="shareDoc()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      Lähetä
+    </button>
+  </div>
 </div>
 <!-- PROJEKTIN VALINTA -->
 <div class="no-print" style="background:#e8f4fc;border-bottom:2px solid #006CB1;padding:8px 14px;display:flex;align-items:center;gap:10px;">

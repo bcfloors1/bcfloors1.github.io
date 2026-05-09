@@ -1,0 +1,481 @@
+/* ============================================================
+   BC Floors – Yhteinen tyylitiedosto
+   Käyttö: <link rel="stylesheet" href="styles.css">
+   ============================================================ */
+
+/* ── Ikonit (Lucide inline SVG apuluokat) ── */
+/* Ikonit lisätään suoraan HTML:ään – ei erillistä kirjastoa */
+
+/* ── CSS Muuttujat ── */
+:root {
+  --blue:        #006CB1;
+  --blue-dark:   #005a94;
+  --blue-light:  #dbeafe;
+  --orange:      #e8a020;
+  --orange-dark: #cf8e1a;
+  --green:       #16a34a;
+  --green-light: #dcfce7;
+  --red:         #dc2626;
+  --red-light:   #fef2f2;
+  --text:        #1a2530;
+  --text-muted:  #64748b;
+  --bg:          #f1f5f9;
+  --bg-card:     #ffffff;
+  --bg-section:  #f8fafc;
+  --border:      #e2e8f0;
+  --border-soft: #f1f5f9;
+  --radius:      10px;
+  --radius-lg:   14px;
+  --shadow:      0 1px 4px rgba(0,0,0,0.06);
+  --shadow-md:   0 4px 16px rgba(0,0,0,0.10);
+}
+
+/* ── Reset ── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* ── Topbar ── */
+.bcf-topbar {
+  background: var(--blue);
+  border-bottom: 3px solid var(--orange);
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 8px rgba(0,108,177,0.25);
+}
+.bcf-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.bcf-logo-icon {
+  background: var(--orange);
+  border-radius: 7px;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.bcf-topbar-title {
+  color: white;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+}
+.bcf-topbar-sub {
+  color: rgba(255,255,255,0.6);
+  font-size: 10px;
+  margin-top: 1px;
+}
+.bcf-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ── Napit ── */
+.bcf-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 7px;
+  border: none;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+  text-decoration: none;
+}
+.bcf-btn:active { transform: scale(0.97); }
+
+.bcf-btn-primary {
+  background: var(--blue);
+  color: white;
+}
+.bcf-btn-primary:hover { background: var(--blue-dark); }
+
+.bcf-btn-secondary {
+  background: white;
+  color: var(--text);
+  border: 0.5px solid var(--border);
+}
+.bcf-btn-secondary:hover { border-color: var(--blue); color: var(--blue); }
+
+.bcf-btn-ghost {
+  background: rgba(255,255,255,0.15);
+  color: white;
+  border: 1px solid rgba(255,255,255,0.2);
+}
+.bcf-btn-ghost:hover { background: rgba(255,255,255,0.25); }
+
+.bcf-btn-danger {
+  background: white;
+  color: var(--red);
+  border: 0.5px solid #fecaca;
+}
+.bcf-btn-danger:hover { background: var(--red-light); }
+
+.bcf-btn-success {
+  background: var(--green);
+  color: white;
+}
+.bcf-btn-success:hover { background: #15803d; }
+
+.bcf-btn-orange {
+  background: var(--orange);
+  color: white;
+}
+.bcf-btn-orange:hover { background: var(--orange-dark); }
+
+.bcf-btn-sm {
+  padding: 4px 9px;
+  font-size: 11px;
+  border-radius: 6px;
+}
+
+.bcf-btn-lg {
+  padding: 11px 20px;
+  font-size: 14px;
+  border-radius: 9px;
+}
+
+.bcf-btn-full {
+  width: 100%;
+  justify-content: center;
+}
+
+/* ── Kortit ── */
+.bcf-card {
+  background: var(--bg-card);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+.bcf-card-body {
+  padding: 14px 16px;
+}
+
+.bcf-card-section {
+  border-top: 0.5px solid var(--border-soft);
+  padding: 8px 14px;
+  background: var(--bg-section);
+}
+
+.bcf-card-footer {
+  border-top: 0.5px solid var(--border);
+  padding: 8px 14px;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* ── Badget ── */
+.bcf-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+.bcf-badge-success  { background: var(--green-light); color: #15803d; }
+.bcf-badge-info     { background: var(--blue-light);  color: #1e40af; }
+.bcf-badge-warning  { background: #fef3c7;            color: #92400e; }
+.bcf-badge-neutral  { background: #f1f5f9;            color: var(--text-muted); border: 0.5px solid var(--border); }
+.bcf-badge-danger   { background: var(--red-light);   color: var(--red); }
+
+/* ── Lomakekentät ── */
+.bcf-form-group {
+  margin-bottom: 12px;
+}
+.bcf-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-bottom: 4px;
+}
+.bcf-input,
+.bcf-select,
+.bcf-textarea {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--text);
+  background: #fafbfc;
+  transition: border-color 0.2s;
+  outline: none;
+}
+.bcf-input:focus,
+.bcf-select:focus,
+.bcf-textarea:focus {
+  border-color: var(--blue);
+  background: white;
+}
+.bcf-textarea {
+  resize: vertical;
+  min-height: 72px;
+}
+
+/* ── Ikonit ── */
+.bcf-icon {
+  display: inline-block;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+/* ── Osiotunniste ── */
+.bcf-section-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* ── Toast ── */
+.bcf-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: var(--text);
+  color: white;
+  padding: 11px 18px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  z-index: 9999;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: all 0.25s;
+  pointer-events: none;
+  max-width: 320px;
+  box-shadow: var(--shadow-md);
+}
+.bcf-toast.show  { opacity: 1; transform: translateY(0); }
+.bcf-toast.ok    { background: var(--green); }
+.bcf-toast.err   { background: var(--red); }
+.bcf-toast.warn  { background: var(--orange); }
+
+/* ── Modaali ── */
+.bcf-modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.bcf-modal-overlay.open { display: flex; }
+.bcf-modal {
+  background: white;
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  width: 100%;
+  max-width: 440px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+}
+.bcf-modal-title {
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.bcf-modal-sub {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 20px;
+}
+.bcf-modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+/* ── Hero (mittakirja asiakassivu) ── */
+.bcf-hero {
+  background: var(--blue);
+  border-bottom: 3px solid var(--orange);
+  color: white;
+  padding: 20px 18px;
+  border-radius: var(--radius-lg);
+  margin-bottom: 14px;
+}
+.bcf-hero h1 { font-size: 17px; margin-bottom: 14px; }
+.bcf-hero-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 12px;
+}
+.bcf-hero-item .lbl {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  opacity: 0.65;
+}
+.bcf-hero-item .val {
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+/* ── Taulukot ── */
+.bcf-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  table-layout: fixed;
+}
+.bcf-table th {
+  background: var(--blue);
+  color: white;
+  padding: 7px 10px;
+  text-align: left;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.bcf-table th.r { text-align: right; }
+.bcf-table td {
+  padding: 8px 10px;
+  border-bottom: 0.5px solid var(--border-soft);
+  overflow: hidden;
+}
+.bcf-table td.r { text-align: right; }
+.bcf-table tr:last-child td { border-bottom: none; }
+.bcf-table .total-row td {
+  font-weight: 700;
+  background: var(--bg-section);
+  border-top: 2px solid var(--blue);
+  color: var(--blue);
+}
+
+/* ── Allekirjoituscanvas ── */
+.bcf-canvas-wrap {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  background: #fafbfc;
+  position: relative;
+  cursor: crosshair;
+  touch-action: none;
+}
+.bcf-canvas-wrap canvas {
+  display: block;
+  width: 100%;
+  height: 130px;
+}
+.bcf-canvas-hint {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #ccc;
+  font-size: 13px;
+  pointer-events: none;
+}
+.bcf-canvas-wrap.active {
+  border-style: solid;
+  border-color: var(--blue);
+}
+
+/* ── Statuspalkit ── */
+.bcf-status-bar {
+  height: 4px;
+  background: #cce3f5;
+  width: 100%;
+}
+.bcf-status-fill {
+  height: 100%;
+  background: var(--blue);
+  transition: width 0.3s;
+}
+
+/* ── Lisää rivi nappi ── */
+.bcf-add-row {
+  width: 100%;
+  padding: 8px;
+  border: 1.5px dashed var(--border);
+  background: none;
+  border-radius: 8px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.15s;
+}
+.bcf-add-row:hover { border-color: var(--blue); color: var(--blue); }
+
+/* ── Apuluokat ── */
+.bcf-container { max-width: 680px; margin: 0 auto; padding: 14px 14px 80px; }
+.bcf-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.bcf-divider { border: none; border-top: 0.5px solid var(--border); margin: 12px 0; }
+.bcf-text-muted { color: var(--text-muted); }
+.bcf-text-blue  { color: var(--blue); }
+.bcf-text-sm    { font-size: 11px; }
+.bcf-mt-8  { margin-top: 8px; }
+.bcf-mt-12 { margin-top: 12px; }
+.bcf-mb-12 { margin-bottom: 12px; }
+.bcf-gap-6 { gap: 6px; }
+
+/* ── Tulostus ── */
+@media print {
+  .bcf-topbar,
+  .bcf-btn,
+  .no-print,
+  .bcf-toast,
+  .bcf-modal-overlay { display: none !important; }
+  body { background: white; }
+  .bcf-card { box-shadow: none; border: 1px solid var(--border); }
+  .bcf-table td { overflow: visible !important; white-space: normal !important; }
+}
+
+/* ── Mobiili ── */
+@media (max-width: 480px) {
+  .bcf-container { padding: 10px 10px 80px; }
+  .bcf-hero-grid { grid-template-columns: 1fr 1fr; }
+  .bcf-btn-lg { padding: 10px 16px; font-size: 13px; }
+}
