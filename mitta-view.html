@@ -204,6 +204,7 @@
       .card { box-shadow: none; border: 1px solid #e0e3e8; }
     }
   </style>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
 </head>
 <body>
 
@@ -288,6 +289,7 @@
         <label>Allekirjoittajan nimi *</label>
         <input type="text" id="signNimi" placeholder="Etunimi Sukunimi" oninput="tarkistaValmis()">
       </div>
+      <div class="checkbox-row">
       <div class="form-group">
         <label>Piirrä allekirjoitus *</label>
         <div class="canvas-wrap" id="canvasWrap">
@@ -299,8 +301,6 @@
           <span style="font-size:0.75rem;color:#aaa;align-self:center;">Hiiri tai sormi</span>
         </div>
       </div>
-
-      <div class="checkbox-row">
         <input type="checkbox" id="hyvaksy" onchange="tarkistaValmis()">
         <label class="check-label" for="hyvaksy">
           Olen tarkistanut tiedot ja hyväksyn ne.
@@ -334,6 +334,19 @@ var fbConfig = {
 };
 if (!firebase.apps.length) firebase.initializeApp(fbConfig);
 var db = firebase.firestore();
+
+// ── EmailJS ─────────────────────────────────────────────────
+emailjs.init('qJpdeChuh-QfUzDQY');
+
+function lahetaIlmoitus(data) {
+  emailjs.send('service_0nh1aql', 'template_xhiz63q', {
+    tyomaa:          data.tyomaa || '—',
+    tilaaja:         data.tilaaja || '—',
+    allekirjoittaja: data.allekirjoittajaNimi || '—',
+    aika:            new Date().toLocaleString('fi-FI'),
+    linkki:          window.location.href
+  }).catch(function(e) { console.warn('EmailJS virhe:', e); });
+}
 
 // ── URL-parametri ────────────────────────────────────────────
 var mittaId = new URLSearchParams(location.search).get('id');
@@ -457,6 +470,7 @@ function naytaData(data) {
 function allekirjoita() {
   var nimi = document.getElementById('signNimi').value.trim();
   var asema = '';
+  var kuva = canvas.toDataURL('image/png');
   var kommentti = document.getElementById('signKommentti').value.trim();
   if (!nimi || !onPiirretty) return;
 
@@ -465,7 +479,6 @@ function allekirjoita() {
   btn.textContent = '⏳ Tallennetaan...';
 
   var aikaleima = new Date().toISOString();
-  var kuva = canvas.toDataURL('image/png');
 
   db.collection('mittakirjat').doc(mittaId).update({
     tila: 'allekirjoitettu',
@@ -473,7 +486,7 @@ function allekirjoita() {
     allekirjoittajaNimi: nimi,
     allekirjoittajaAsema: asema,
     allekirjoittajaKommentti: kommentti,
-    allekirjoitusKuva: kuva
+    allekirjoitusKuva: kuva,
   }).then(function() {
     document.getElementById('signSection').style.display = 'none';
     var banner = document.getElementById('signedBanner');
@@ -487,6 +500,7 @@ function allekirjoita() {
     document.getElementById('topStatus').className = 'status-pill pill-signed';
     document.getElementById('topStatus').textContent = '✅ Allekirjoitettu';
     toast('✅ Mittakirja allekirjoitettu!', 'ok');
+    lahetaIlmoitus(window._mkData || {});
   }).catch(function(e) {
     toast('❌ Virhe: ' + e.message, 'err');
     btn.disabled = false;
@@ -517,6 +531,7 @@ document.addEventListener('DOMContentLoaded', function() {
       return;
     }
     document.getElementById('mainView').style.display = 'block';
+    window._mkData = doc.data();
     naytaData(doc.data());
     initCanvas();
   }).catch(function(e) {
