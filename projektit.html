@@ -1112,6 +1112,7 @@ function lataaIrralliset() {
           '</div>' +
           '<div class="mk-btns">' +
             '<button class="mk-btn mk-btn-outline" onclick="window.open(\'' + baseUrl + '/mitta-view.html?id=' + mk._id + '\')">👁 Näytä</button>' +
+            (mk.asiakasEmail && mk.tila === 'lahetetty' ? '<button class="mk-btn mk-btn-copy" onclick="lahetaMuistutus(\'' + mk._id + '\',\'' + baseUrl + '/mitta-view.html?id=' + mk._id + '\')">🔔 Muistutus</button>' : '') +
             '<button class="mk-btn mk-btn-danger" onclick="poistaMittakirja(\'' + mk._id + '\',\'\')">🗑</button>' +
           '</div>' +
         '</div>';
