@@ -716,6 +716,7 @@ function lahetaAsiakkaalle() {
   var viesti = (document.getElementById('lahetysViesti') || {}).value || '';
   var data = window._lahetysData || {};
   data.lahetysViesti = viesti;
+  data.asiakasEmail = (document.getElementById('asiakasEmail') || {}).value || '';
 
   var btn = document.getElementById('lahetaBtn');
   btn.disabled = true;
@@ -1002,6 +1003,10 @@ function tallennaTiedosto() {
   <div style="background:white;border-radius:14px;padding:28px;width:100%;max-width:440px;box-shadow:0 20px 60px rgba(0,0,0,0.25);">
     <h3 style="font-size:1.1rem;margin-bottom:6px;">📤 Lähetä asiakkaalle</h3>
     <p style="font-size:0.85rem;color:#666;margin-bottom:20px;">Mittakirja tallennetaan ja saat linkin jonka voit lähettää asiakkaalle allekirjoitettavaksi.</p>
+    <div style="margin-bottom:14px;">
+      <label style="display:block;font-size:0.75rem;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:5px;">Asiakkaan sähköposti *</label>
+      <input type="email" id="asiakasEmail" placeholder="asiakas@email.fi" style="width:100%;padding:9px 12px;border:1.5px solid #e0e3e8;border-radius:8px;font-size:0.9rem;font-family:inherit;background:#fafbfc;outline:none;">
+    </div>
     <div style="margin-bottom:14px;">
       <label style="display:block;font-size:0.75rem;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:5px;">Viesti asiakkaalle (valinnainen)</label>
       <textarea id="lahetysViesti" placeholder="esim. Hei! Tarkistathan mittakirjan ja allekirjoitat sen..." style="width:100%;padding:9px 12px;border:1.5px solid #e0e3e8;border-radius:8px;font-size:0.9rem;font-family:inherit;min-height:72px;background:#fafbfc;resize:vertical;outline:none;"></textarea>

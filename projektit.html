@@ -93,6 +93,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f8fafc;color:#1e293
 .mk-btn-copy{background:#f1f5f9;color:#334155;border:1px solid #e2e8f0;}
 .mk-btn-danger{background:white;color:#dc2626;border:1px solid #fecaca;}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
 </head>
 <body>
 
@@ -1024,6 +1025,28 @@ function paivitaMkOsio(projektinId, mklist) {
   var html = mklist.map(function(mk) { return mkRiviHtml(projektinId, mk); }).join('');
   html += '<div style="margin-top:8px;"><button class="mk-btn mk-btn-primary" onclick="avaaLomake(\'' + projektinId + '\')">➕ Uusi mittakirja</button></div>';
   btns.innerHTML = html;
+}
+
+function lahetaMuistutus(mkId, linkki) {
+  fbDb.collection('mittakirjat').doc(mkId).get().then(function(doc) {
+    if (!doc.exists) { alert('Mittakirjaa ei löydy'); return; }
+    var mk = doc.data();
+    if (!mk.asiakasEmail) {
+      alert('Asiakkaan sähköpostia ei ole tallennettu tähän mittakirjaan.');
+      return;
+    }
+    if (!confirm('Lähetetäänkö muistutus osoitteeseen ' + mk.asiakasEmail + '?')) return;
+    emailjs.send('service_0nh1aql', 'template_8zzbx9i', {
+      asiakasEmail:    mk.asiakasEmail,
+      tyomaa:          mk.tyomaa || '—',
+      tilaaja:         mk.tilaaja || '—',
+      linkki:          linkki
+    }).then(function() {
+      naytaToast('🔔 Muistutus lähetetty!');
+    }).catch(function(e) {
+      alert('Virhe: ' + e.message);
+    });
+  });
 }
 
 function avaaLomake(projektinId, mkId) {
