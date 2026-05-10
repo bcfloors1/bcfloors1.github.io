@@ -1005,6 +1005,7 @@ function mkRiviHtml(projektinId, mk) {
     napit =
       '<button class="mk-btn mk-btn-outline" onclick="avaaLomake(\'' + (projektinId||'') + '\',\'' + mkId + '\')">✏️ Muokkaa</button>' +
       '<button class="mk-btn mk-btn-copy" onclick="kopioiMkLinkki(\'' + linkki + '\')">🔗 Linkki</button>' +
+      (mk.asiakasEmail ? '<button class="mk-btn mk-btn-copy" onclick="lahetaMuistutus(\'' + mkId + '\',\'' + linkki + '\')">🔔 Muistutus</button>' : '') +
       '<button class="mk-btn mk-btn-danger" onclick="poistaMittakirja(\'' + mkId + '\',\'' + (projektinId||'') + '\')">🗑</button>';
   } else {
     badgeHtml = '<span class="mk-badge mk-badge-none">📝 Luonnos</span>';
