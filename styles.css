@@ -3,6 +3,8 @@
    Käyttö: <link rel="stylesheet" href="styles.css">
    ============================================================ */
 
+@import url('https://fonts.googleapis.com/css2?family=Spartan:wght@300;400;500;600;700;800&display=swap');
+
 /* ── Ikonit (Lucide inline SVG apuluokat) ── */
 /* Ikonit lisätään suoraan HTML:ään – ei erillistä kirjastoa */
 
@@ -39,7 +41,7 @@
 }
 
 body {
-  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-family: 'Spartan', 'Segoe UI', system-ui, -apple-system, sans-serif;
   background: var(--bg);
   color: var(--text);
   font-size: 14px;

@@ -14,7 +14,7 @@
 <link rel="manifest" href="mitta-manifest.json">
 <style>
 * { box-sizing: border-box; margin:0; padding:0; }
-body { padding-bottom: 0 !important; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: #f0f4f8; color: #1a2530; }
+body { padding-bottom: 0 !important; font-family: 'Spartan', 'Segoe UI', system-ui, -apple-system, sans-serif; background: #f0f4f8; color: #1a2530; }
 
 /* no-print styles replaced by bcf-topbar from styles.css */
 .btn-print { background: #e8a020; color: white; }
@@ -51,7 +51,7 @@ body { padding-bottom: 0 !important; font-family: 'Segoe UI', system-ui, -apple-
 }
 .info-field input, .info-field select {
   border: none; border-bottom: 1px solid #c8d0d8;
-  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; font-size: 11px; color: #1a2530;
+  font-family: 'Spartan', 'Segoe UI', system-ui, -apple-system, sans-serif; font-size: 11px; color: #1a2530;
   background: transparent; outline: none; padding: 1px 0;
 }
 .info-field select { cursor: pointer; }
@@ -76,7 +76,7 @@ td {
 }
 td input, td select {
   width: 100%; border: none; background: transparent;
-  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; font-size: 11px; color: #1a2530;
+  font-family: 'Spartan', 'Segoe UI', system-ui, -apple-system, sans-serif; font-size: 11px; color: #1a2530;
   outline: none; padding: 0;
   box-sizing: border-box;
 }
@@ -85,14 +85,14 @@ td input[type=text], td select { white-space: nowrap; overflow: hidden; text-ove
 td.calc { background: white; font-weight: 700; color: #006CB1; text-align: right; font-size: 11px; white-space: nowrap; }
 td.yks-cell select {
   border: none; background: transparent;
-  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; font-size: 11px; color: #1a2530;
+  font-family: 'Spartan', 'Segoe UI', system-ui, -apple-system, sans-serif; font-size: 11px; color: #1a2530;
   outline: none; width: 100%; cursor: pointer;
 }
 .add-row-btn {
   margin-top: 8px; padding: 6px 14px;
   background: #e8f4fc; border: 1px dashed #006CB1;
   color: #006CB1; font-size: 11px; font-weight: 700;
-  cursor: pointer; border-radius: 4px; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  cursor: pointer; border-radius: 4px; font-family: 'Spartan', 'Segoe UI', system-ui, -apple-system, sans-serif;
 }
 .del-btn {
   background: none; border: none; color: #ccc;
@@ -148,14 +148,14 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 }
 .sig-hint { font-size: 9px; color: #aaa; }
 .sig-clear {
-  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; font-size: 10px; color: #aaa;
+  font-family: 'Spartan', 'Segoe UI', system-ui, -apple-system, sans-serif; font-size: 10px; color: #aaa;
   background: none; border: 1px solid #dde4ec; border-radius: 4px;
   padding: 2px 8px; cursor: pointer;
 }
 .sig-name {
   border: none; border-bottom: 2px solid #c8d0d8;
   height: 36px; font-size: 14px;
-  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; font-size: 10px; color: #1a2530;
+  font-family: 'Spartan', 'Segoe UI', system-ui, -apple-system, sans-serif; font-size: 10px; color: #1a2530;
   background: transparent; outline: none; width: 100%;
   margin-bottom: 3px;
 }
@@ -243,13 +243,8 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 
 <div class="no-print bcf-topbar" style="border-bottom:3px solid #e8a020;">
   <div class="bcf-topbar-left">
-    <div class="bcf-logo-icon">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-    </div>
-    <div>
-      <div class="bcf-topbar-title">BC FLOORS OY</div>
-      <div class="bcf-topbar-sub">Mittapöytäkirja</div>
-    </div>
+    <img src="logo.png" alt="BC Floors" style="height:26px;width:auto;filter:brightness(0) invert(1);">
+    <div class="bcf-topbar-sub" style="color:rgba(255,255,255,0.7);font-size:10px;">Mittapöytäkirja</div>
   </div>
   <div class="bcf-topbar-right">
     <button class="bcf-btn bcf-btn-ghost bcf-btn-sm" onclick="window.print()">
@@ -267,12 +262,13 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   </div>
 </div>
 <!-- PROJEKTIN VALINTA -->
-<div class="no-print" style="background:#e8f4fc;border-bottom:2px solid #006CB1;padding:8px 14px;display:flex;align-items:center;gap:10px;">
-  <span style="font-size:11px;font-weight:700;color:#006CB1;white-space:nowrap;">📁 PROJEKTI:</span>
-  <select id="projektiValinta" onchange="valitseProjekti(this.value)" style="flex:1;border:none;background:transparent;font-family:inherit;font-size:12px;color:#1a2530;outline:none;cursor:pointer;">
-    <option value="">— Valitse projekti tai täytä käsin —</option>
+<div class="no-print" style="background:#1a2530;border-bottom:2px solid #e8a020;padding:8px 14px;display:flex;align-items:center;gap:10px;">
+  <span style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.6);white-space:nowrap;text-transform:uppercase;letter-spacing:0.5px;">Projekti</span>
+  <select id="projektiValinta" onchange="valitseProjekti(this.value)" style="flex:1;border:none;background:transparent;font-family:inherit;font-size:12px;font-weight:600;color:white;outline:none;cursor:pointer;">
+    <option value="" style="color:#1a2530;">— Valitse projekti tai täytä käsin —</option>
   </select>
-  <button onclick="tallennaProjektiksi()" style="flex-shrink:0;padding:5px 10px;background:#006CB1;color:white;border:none;border-radius:6px;font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">💾 Tallenna projektiksi</button>
+  <button onclick="tallennaProjektiksi()" style="flex-shrink:0;padding:5px 12px;background:#e8a020;color:white;border:none;border-radius:6px;font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:-1px;margin-right:4px"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>Tallenna projektiksi</button>
 </div>
 
 
