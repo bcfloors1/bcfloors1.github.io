@@ -242,6 +242,11 @@
         <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.4px;opacity:0.75;margin-bottom:4px;">Asiakkaan kommentti</div>
         <div id="signedKommenttiTeksti"></div>
       </div>
+      <div id="signedKuvaOsio" style="display:none;margin-top:16px;background:white;border-radius:8px;padding:12px;text-align:left;">
+        <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.4px;color:#666;margin-bottom:6px;">Allekirjoitus</div>
+        <img id="signedKuvaImg" src="" alt="Allekirjoitus" style="max-width:100%;height:auto;max-height:100px;border-bottom:1px solid #ddd;padding-bottom:6px;">
+        <div id="signedKuvaHenk" style="font-size:0.8rem;color:#444;margin-top:4px;"></div>
+      </div>
       <button class="pdf-btn" onclick="window.print()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:-2px;margin-right:5px"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Tulosta / PDF</button>
     </div>
 
@@ -467,6 +472,11 @@ function naytaData(data) {
       document.getElementById('signedKommentti').style.display = 'block';
       document.getElementById('signedKommenttiTeksti').textContent = data.allekirjoittajaKommentti;
     }
+    if (data.allekirjoitusKuva) {
+      document.getElementById('signedKuvaOsio').style.display = 'block';
+      document.getElementById('signedKuvaImg').src = data.allekirjoitusKuva;
+      document.getElementById('signedKuvaHenk').textContent = data.allekirjoittajaNimi || '';
+    }
   }
 }
 
@@ -501,10 +511,16 @@ function allekirjoita() {
       document.getElementById('signedKommentti').style.display = 'block';
       document.getElementById('signedKommenttiTeksti').textContent = kommentti;
     }
+    if (kuva) {
+      document.getElementById('signedKuvaOsio').style.display = 'block';
+      document.getElementById('signedKuvaImg').src = kuva;
+      document.getElementById('signedKuvaHenk').textContent = nimi || '';
+    }
     document.getElementById('topStatus').className = 'status-pill pill-signed';
     document.getElementById('topStatus').textContent = '✅ Allekirjoitettu';
     toast('✅ Mittakirja allekirjoitettu!', 'ok');
-    lahetaIlmoitus(window._mkData || {});
+    var ilmData = Object.assign({}, window._mkData || {}, { allekirjoittajaNimi: nimi });
+    lahetaIlmoitus(ilmData);
   }).catch(function(e) {
     toast('❌ Virhe: ' + e.message, 'err');
     btn.disabled = false;
