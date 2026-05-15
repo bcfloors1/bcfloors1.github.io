@@ -486,7 +486,7 @@ function addRow() {
     kuvaustd += '<option value="__muu__">✏️ Kirjoita käsin...</option>';
     kuvaustd += '</select></td>';
   } else {
-    kuvaustd = '<td><input type="text" id="desc_' + id + '" placeholder="Kuvaus..." style="width:100%" oninput="this.nextElementSibling.textContent=this.value"><span class="print-val"></span></td>';
+    kuvaustd = '<td><input type="text" id="desc_' + id + '" placeholder="Kuvaus..." style="width:100%" oninput="this.nextElementSibling.textContent=this.value"><span class="print-val" style="display:none"></span></td>';
   }
 
   var dateCell = '<td style="width:10%;min-width:90px;"><input type="date" style="width:100%;font-size:10px;" id="date_' + id + '"' + ' onfocus="try{this.showPicker()}catch(e){}"' + ' onchange="var p=this.value.split(String.fromCharCode(45));this.setAttribute(String.fromCharCode(100,97,116,97,45,102,105),p.length===3?p[2]+String.fromCharCode(46)+p[1]+String.fromCharCode(46)+p[0]:String.fromCharCode(32));"></td>';
