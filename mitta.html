@@ -198,7 +198,10 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   #pvm::after { content: attr(data-fi); color: #1a2530; }
   td, td input, td select { background: white !important; background-color: white !important; }
   td { overflow: visible !important; white-space: normal !important; word-break: break-word !important; }
-  td input[type=text], td select { white-space: normal !important; text-overflow: clip !important; overflow: visible !important; word-break: break-word !important; }
+  td input[type=text] { display: none !important; }
+  td span { display: block !important; white-space: pre-wrap !important; word-break: break-word !important; overflow-wrap: break-word !important; }
+  td input[type=text], td select { white-space: normal !important; text-overflow: clip !important; overflow: visible !important; word-break: break-all !important; overflow-wrap: break-word !important; }
+  td input { white-space: normal !important; overflow: visible !important; word-break: break-all !important; overflow-wrap: break-word !important; }
   td.calc { background: white !important; color: #006CB1 !important; }
   input[type=date] { -webkit-appearance: none; appearance: none; }
   /* Piilota kaikki input-ikonit */
@@ -321,7 +324,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
       <colgroup>
         <col style="width:12%">
         <col style="width:40%">
-        <col style="width:8%">
+        <col style="width:7%">
         <col style="width:7%">
         <col style="width:11%">
         <col style="width:16%">
@@ -483,7 +486,7 @@ function addRow() {
     kuvaustd += '<option value="__muu__">✏️ Kirjoita käsin...</option>';
     kuvaustd += '</select></td>';
   } else {
-    kuvaustd = '<td><input type="text" id="desc_' + id + '" placeholder="Kuvaus..." style="width:100%"></td>';
+    kuvaustd = '<td style="position:relative"><input type="text" id="desc_' + id + '" placeholder="Kuvaus..." style="width:100%;position:relative;z-index:1" oninput="this.nextElementSibling.textContent=this.value"><span style="display:none;position:absolute;inset:0;padding:2px 0;font-size:11px;color:#1a2530;white-space:pre-wrap;word-break:break-word;overflow-wrap:break-word"></span></td>';
   }
 
   var dateCell = '<td style="width:10%;min-width:90px;"><input type="date" style="width:100%;font-size:10px;" id="date_' + id + '"' + ' onfocus="try{this.showPicker()}catch(e){}"' + ' onchange="var p=this.value.split(String.fromCharCode(45));this.setAttribute(String.fromCharCode(100,97,116,97,45,102,105),p.length===3?p[2]+String.fromCharCode(46)+p[1]+String.fromCharCode(46)+p[0]:String.fromCharCode(32));"></td>';
