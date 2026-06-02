@@ -197,12 +197,50 @@
     }
 
     @media print {
-      .topbar, .sign-section, .canvas-actions, .pdf-btn { display: none !important; }
+      /* Piilota turhat elementit */
+      .topbar, .bcf-topbar, .sign-section, .canvas-actions,
+      .pdf-btn, #viestiCard, .clear-btn { display: none !important; }
+
+      /* Näytä allekirjoitettu-banneri */
       .signed-banner { display: block !important; }
-      #viestiCard { display: none !important; }
       #signedKommentti { display: block !important; }
-      body { background: white; }
-      .card { box-shadow: none; border: 1px solid #e0e3e8; }
+
+      /* Tiivis asettelu */
+      body { background: white !important; font-size: 11px !important; }
+      .container { padding: 0 !important; max-width: 100% !important; }
+
+      /* Kortit ilman varjoja */
+      .card { box-shadow: none !important; border: 1px solid #e0e3e8 !important;
+              margin-bottom: 6px !important; padding: 10px 12px !important; }
+
+      /* Hero tiiviimpi */
+      .hero { padding: 10px 12px !important; margin-bottom: 6px !important; }
+      .hero h1 { font-size: 1rem !important; margin-bottom: 8px !important; }
+      .hero-grid { gap: 8px !important; }
+      .hero-item .lbl { font-size: 9px !important; }
+      .hero-item .val { font-size: 11px !important; }
+
+      /* Banneri tiiviimpi */
+      .signed-banner { padding: 12px !important; margin-bottom: 6px !important; }
+      .signed-banner .icon { font-size: 1.5rem !important; margin-bottom: 4px !important; }
+      .signed-banner h2 { font-size: 1rem !important; margin-bottom: 4px !important; }
+      .signed-banner p { font-size: 0.8rem !important; }
+      .signed-banner .time { font-size: 0.75rem !important; }
+
+      /* Taulukko tiiviimpi */
+      .rivi-table th { padding: 5px 8px !important; font-size: 9px !important; }
+      .rivi-table td { padding: 5px 8px !important; font-size: 11px !important; }
+
+      /* Allekirjoituskuva viimeisenä */
+      #signedKuvaOsio { display: block !important; margin-top: 8px !important;
+                        page-break-inside: avoid !important; }
+
+      /* Estä sivunvaihto tärkeissä kohdissa */
+      .card { page-break-inside: avoid !important; }
+      .signed-banner { page-break-inside: avoid !important; }
+
+      /* Ei marginaaleja */
+      @page { margin: 10mm; }
     }
   </style>
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
@@ -231,24 +269,6 @@
   </div>
 
   <div id="mainView" style="display:none">
-
-    <!-- Jo allekirjoitettu -banneri -->
-    <div class="signed-banner" id="signedBanner">
-      <div class="icon">✅</div>
-      <h2>Mittakirja on allekirjoitettu</h2>
-      <p>Tämä mittakirja on jo hyväksytty ja allekirjoitettu.</p>
-      <div class="time" id="signedTime"></div>
-      <div id="signedKommentti" style="display:none;margin-top:14px;background:rgba(255,255,255,0.15);border-radius:8px;padding:12px 16px;font-size:0.88rem;text-align:left;">
-        <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.4px;opacity:0.75;margin-bottom:4px;">Asiakkaan kommentti</div>
-        <div id="signedKommenttiTeksti"></div>
-      </div>
-      <div id="signedKuvaOsio" style="display:none;margin-top:16px;background:white;border-radius:8px;padding:12px;text-align:left;">
-        <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.4px;color:#666;margin-bottom:6px;">Allekirjoitus</div>
-        <img id="signedKuvaImg" src="" alt="Allekirjoitus" style="max-width:100%;height:auto;max-height:100px;border-bottom:1px solid #ddd;padding-bottom:6px;">
-        <div id="signedKuvaHenk" style="font-size:0.8rem;color:#444;margin-top:4px;"></div>
-      </div>
-      <button class="pdf-btn" onclick="window.print()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:-2px;margin-right:5px"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Tulosta / PDF</button>
-    </div>
 
     <!-- Hero -->
     <div class="hero">
@@ -286,6 +306,25 @@
         </table>
       </div>
     </div>
+
+    <!-- Jo allekirjoitettu -banneri -->
+    <div class="signed-banner" id="signedBanner">
+      <div class="icon">✅</div>
+      <h2>Mittakirja on allekirjoitettu</h2>
+      <p>Tämä mittakirja on jo hyväksytty ja allekirjoitettu.</p>
+      <div class="time" id="signedTime"></div>
+      <div id="signedKommentti" style="display:none;margin-top:14px;background:rgba(255,255,255,0.15);border-radius:8px;padding:12px 16px;font-size:0.88rem;text-align:left;">
+        <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.4px;opacity:0.75;margin-bottom:4px;">Asiakkaan kommentti</div>
+        <div id="signedKommenttiTeksti"></div>
+      </div>
+      <div id="signedKuvaOsio" style="display:none;margin-top:16px;background:white;border-radius:8px;padding:12px;text-align:left;">
+        <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.4px;color:#666;margin-bottom:6px;">Allekirjoitus</div>
+        <img id="signedKuvaImg" src="" alt="Allekirjoitus" style="max-width:100%;height:auto;max-height:100px;border-bottom:1px solid #ddd;padding-bottom:6px;">
+        <div id="signedKuvaHenk" style="font-size:0.8rem;color:#444;margin-top:4px;"></div>
+      </div>
+      <button class="pdf-btn" onclick="window.print()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:-2px;margin-right:5px"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Tulosta / PDF</button>
+    </div>
+
 
     <!-- Allekirjoitus -->
     <div class="card sign-section" id="signSection">
