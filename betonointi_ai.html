@@ -1165,6 +1165,8 @@ async function kutsuAI(tekstit) {
   
   var prompt = `Olet betonointipöytäkirjan täyttöavustaja. Analysoi nämä betonikuormakirjat ja palauta JSON-objekti.
 
+Huom: mukana voi olla myös erillinen pumppauksen kuormakirja/lasku (pumppausurakoitsijalta). Älä käytä pumppauslapun tietoja betonin toimittajana, lujuusluokkana tms. — poimi betonin ominaisuudet vain varsinaisilta betonintoimittajan (esim. Rudus, Lujabetoni, Schwenk) kuormakirjoilta.
+
 KUORMAKIRJAT:
 ${yhdistetty}
 
@@ -1278,10 +1280,19 @@ async function tuoKuormakirjat(input) {
     var tiedot = await kutsuAI(tekstit);
 
     // ── Laske tot.betoni, valu alkoi ja paattyi suoraan tekstista ──
+    // Tuetut toimittajat: Rudus (LAT BETONI / "Kuormaus...päättyi") ja Lujabetoni (Toimitettu määrä / Purun aloitusaika / Purun lopetusaika)
+    // Huom: pumppauksesta tuleva erillinen lappu (ei sisällä betonin toimitustunnisteita) ei saa kasvattaa totBetoni-summaa,
+    // vaikka siinä esiintyisi m3-lukuja tai kellonaikoja.
     var kaikki_m3 = [], kaikki_purku = [], kaikki_paattyi = [];
     tekstit.forEach(function(teksti) {
+      var onPumppauslappu = /pump(p|attu|paus)/i.test(teksti) &&
+                             teksti.indexOf('LAT BETONI') < 0 &&
+                             teksti.indexOf('Toimitettu m\u00e4\u00e4r\u00e4') < 0;
+      if (onPumppauslappu) return; // ohita koko tiedosto — ei betonitoimitusta, vain pumppauspalvelu
+
       var rivit = teksti.split('\n');
       rivit.forEach(function(rivi, i) {
+        // ── Rudus ──
         if (rivi.indexOf('LAT BETONI') >= 0) {
           var m3t = rivi.match(/(\d+\.?\d*)\s*M3/gi);
           if (m3t) kaikki_m3.push(Math.max.apply(null, m3t.map(function(s){ return parseFloat(s); })));
@@ -1293,9 +1304,24 @@ async function tuoKuormakirjat(input) {
           var aikat = seuraava.match(/\d{2}:\d{2}/g);
           if (aikat && aikat.length >= 2) kaikki_paattyi.push(aikat[1]);
         }
+
+        // ── Lujabetoni ──
+        if (rivi.indexOf('Toimitettu m\u00e4\u00e4r\u00e4') >= 0) {
+          // esim "Toimitettu määrä:  33,5 m3" — pilkku desimaalierottimena
+          var lujaM3 = rivi.match(/(\d+[.,]?\d*)\s*m3/i);
+          if (lujaM3) kaikki_m3.push(parseFloat(lujaM3[1].replace(',', '.')));
+        }
+        if (rivi.indexOf('Purun aloitusaika') >= 0) {
+          var lujaAlkoi = rivi.match(/\d{2}:\d{2}/);
+          if (lujaAlkoi) kaikki_purku.push(lujaAlkoi[0]);
+        }
+        if (rivi.indexOf('Purun lopetusaika') >= 0) {
+          var lujaPaattyi = rivi.match(/\d{2}:\d{2}/);
+          if (lujaPaattyi) kaikki_paattyi.push(lujaPaattyi[0]);
+        }
       });
     });
-    if (kaikki_m3.length > 0) tiedot.totBetoni = Math.max.apply(null, kaikki_m3);
+    if (kaikki_m3.length > 0) tiedot.totBetoni = kaikki_m3.reduce(function(a,b){ return a+b; }, 0);
     if (kaikki_purku.length > 0) tiedot.valuAlkoi = kaikki_purku.sort()[0];
     if (kaikki_paattyi.length > 0) tiedot.valuPaattyi = kaikki_paattyi.sort().reverse()[0];
 
