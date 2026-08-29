@@ -992,6 +992,7 @@ function mkRiviHtml(projektinId, mk) {
     napit =
       '<button class="mk-btn mk-btn-outline" onclick="window.open(\'' + baseUrl + '/mitta-view.html?id=' + mkId + '\')">👁 Näytä</button>' +
       '<button class="mk-btn mk-btn-green" onclick="window.open(\'' + baseUrl + '/mitta-view.html?id=' + mkId + '\')">🖨 PDF</button>' +
+      '<button class="mk-btn mk-btn-outline" onclick="avaaLomake(\'' + (projektinId||'') + '\',\'' + mkId + '\')">📄 Käytä pohjana</button>' +
       '<button class="mk-btn mk-btn-danger" onclick="poistaMittakirja(\'' + mkId + '\',\'' + (projektinId||'') + '\')">🗑</button>' +
       (allekirjAika ? '<span style="font-size:10px;color:#94a3b8;align-self:center">' + allekirjAika + '</span>' : '');
   } else if (mk.tila === 'lahetetty') {
