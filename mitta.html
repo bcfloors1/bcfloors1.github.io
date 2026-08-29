@@ -409,10 +409,78 @@ document.addEventListener('DOMContentLoaded', function() {
   initCanvas('sig1');
   initCanvas('sig2');
 
+  function fiPvmIsoksi(fi) {
+    if (!fi) return '';
+    var p = fi.split('.');
+    if (p.length !== 3) return '';
+    return p[2] + '-' + ('0'+p[1]).slice(-2) + '-' + ('0'+p[0]).slice(-2);
+  }
+
   // Hae projektin tiedot ensin, lisää rivit vasta sen jälkeen
   var urlParams = new URLSearchParams(window.location.search);
   var projektiId = urlParams.get('projekti');
-  if (projektiId) {
+  var muokkaaId = urlParams.get('muokkaa') || urlParams.get('id');
+
+  if (muokkaaId) {
+    // Ladataan aiemmin lähetetty (esim. asiakkaan hylkäämä) mittakirja muokattavaksi.
+    // Huom: lähetys luo tästä aina UUDEN linkin — vanha dokumentti ei muutu.
+    fbDb2.collection('mittakirjat').doc(muokkaaId).get().then(function(doc) {
+      if (doc.exists) {
+        var d = doc.data();
+        if (d.tilaaja) {
+          var tilaajaSel = document.getElementById('tilaaja');
+          var loydetty = false;
+          for (var i = 0; i < tilaajaSel.options.length; i++) {
+            if (tilaajaSel.options[i].text === d.tilaaja) { tilaajaSel.selectedIndex = i; loydetty = true; break; }
+          }
+          if (!loydetty) {
+            tilaajaSel.value = '__muu__';
+            var txt = document.getElementById('tilaaja_txt');
+            txt.style.display = 'block'; txt.value = d.tilaaja;
+          }
+        }
+        if (d.tyomaa) document.getElementById('tyomaa').value = d.tyomaa;
+        if (d.tyonro) document.getElementById('tyonro').value = d.tyonro;
+        if (d.pvm) {
+          var isoP = fiPvmIsoksi(d.pvm);
+          if (isoP) { document.getElementById('pvm').value = isoP; document.getElementById('pvm').setAttribute('data-fi', d.pvm); }
+        }
+        var rivitData = d.rivit || [];
+        rivitData.forEach(function(r) {
+          addRow();
+          var rid = rowCount;
+          var descEl = document.getElementById('desc_' + rid);
+          if (descEl) descEl.value = r.kuvaus || '';
+          var dateEl = document.getElementById('date_' + rid);
+          if (dateEl) {
+            var isoR = fiPvmIsoksi(r.pvm);
+            if (isoR) { dateEl.value = isoR; dateEl.setAttribute('data-fi', r.pvm); }
+          }
+          var qtyEl = document.getElementById('qty_' + rid);
+          if (qtyEl) qtyEl.value = r.maara || '';
+          var unitEl = document.getElementById('unit_' + rid);
+          if (unitEl) {
+            for (var u = 0; u < unitEl.options.length; u++) {
+              if (unitEl.options[u].text === r.yksikko) { unitEl.selectedIndex = u; break; }
+            }
+          }
+          var priceEl = document.getElementById('price_' + rid);
+          if (priceEl) priceEl.value = r.hinta || '';
+          calcRow(rid);
+        });
+        if (rivitData.length === 0) { addRow(); addRow(); addRow(); addRow(); }
+        naytaIlmoitus('✏️ Vanha mittakirja ladattu muokattavaksi', 'ok');
+      } else {
+        naytaIlmoitus('❌ Muokattavaa mittakirjaa ei löytynyt', 'err');
+        addRow(); addRow(); addRow(); addRow();
+      }
+      updateTotal();
+    }).catch(function(e) {
+      console.warn('Mittakirjan haku:', e.message);
+      addRow(); addRow(); addRow(); addRow();
+      updateTotal();
+    });
+  } else if (projektiId) {
     fbDb2.collection('projects').doc(projektiId).get().then(function(doc) {
       if (doc.exists) {
         var p = doc.data();
@@ -448,7 +516,7 @@ document.addEventListener('DOMContentLoaded', function() {
       updateTotal();
     });
   } else {
-    // Ei projekti-parametria — lisää rivit heti
+    // Ei projekti- tai muokkaa-parametria — lisää rivit heti
     addRow(); addRow(); addRow(); addRow();
     updateTotal();
   }
