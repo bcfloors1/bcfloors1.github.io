@@ -390,6 +390,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 <script>
 // Globaali tarjoushinnat-muuttuja
 var tarjousHinnat = [];
+var aktiivinenProjektiId = '';
 
 // ── INIT ─────────────────────────────────────────────────────
 window.addEventListener('beforeprint', function() {
@@ -419,6 +420,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // Hae projektin tiedot ensin, lisää rivit vasta sen jälkeen
   var urlParams = new URLSearchParams(window.location.search);
   var projektiId = urlParams.get('projekti');
+  if (projektiId) aktiivinenProjektiId = projektiId;
   var muokkaaId = urlParams.get('muokkaa') || urlParams.get('id');
 
   if (muokkaaId) {
@@ -781,7 +783,7 @@ function shareDoc() {
     rivit:     rivit,
     tila:      'lahetetty',
     lahetetty: new Date().toISOString(),
-    projektiId: urlParams.get('projekti') || document.getElementById('projektiValinta').value || ''
+    projektiId: aktiivinenProjektiId || urlParams.get('projekti') || document.getElementById('projektiValinta').value || ''
   };
 
   // Avaa modal
@@ -974,6 +976,7 @@ function tallennaProjektiksi() {
   if (valittuId) {
     // Projekti on jo valittuna pudotusvalikosta — päivitetään se, ei luoda duplikaattia
     fbDb2.collection('projects').doc(valittuId).update(data).then(function() {
+      aktiivinenProjektiId = valittuId;
       naytaIlmoitus('✅ Projekti päivitetty', 'ok');
     }).catch(function(e) {
       naytaIlmoitus('❌ Virhe: ' + e.message, 'err');
@@ -982,8 +985,9 @@ function tallennaProjektiksi() {
   }
 
   fbDb2.collection('projects').add(data).then(function(ref) {
+    aktiivinenProjektiId = ref.id;
     naytaIlmoitus('✅ Projekti tallennettu', 'ok');
-    // Valitaan uusi projekti automaattisesti listasta kun se ilmestyy sinne
+    // Valitaan uusi projekti automaattisesti listasta kun se ilmestyy sinne (vain visuaalinen, ei enää lähetyksen kannalta kriittinen)
     setTimeout(function() {
       var sel = document.getElementById('projektiValinta');
       for (var j = 0; j < sel.options.length; j++) {
@@ -996,6 +1000,7 @@ function tallennaProjektiksi() {
 }
 
 function valitseProjekti(id) {
+  aktiivinenProjektiId = id || '';
   if (!id) { tarjousHinnat = []; return; }
   var sel = document.getElementById('projektiValinta');
   var opt = sel.options[sel.selectedIndex];
