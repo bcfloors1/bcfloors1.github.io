@@ -198,6 +198,12 @@
     }
 
     @media print {
+      html, body, * {
+        -webkit-print-color-adjust: exact !important;
+        color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+
       /* Piilota turhat elementit */
       .topbar, .bcf-topbar, .sign-section, .canvas-actions,
       .pdf-btn, #viestiCard, .clear-btn { display: none !important; }
@@ -401,15 +407,16 @@ function lahetaIlmoitus(data) {
 var mittaId = new URLSearchParams(location.search).get('id');
 
 // ── Canvas ───────────────────────────────────────────────────
-var canvas, ctx, piirretaan = false, onPiirretty = false;
+var canvas, ctx, piirretaan = false, onPiirretty = false, sigScale = 3;
 
 function initCanvas() {
   canvas = document.getElementById('signCanvas');
   var wrap = document.getElementById('canvasWrap');
-  canvas.width  = wrap.offsetWidth  * (window.devicePixelRatio || 1);
-  canvas.height = 130               * (window.devicePixelRatio || 1);
+  sigScale = Math.max(window.devicePixelRatio || 1, 3); // min. 3x, myös laitteilla joilla DPR=1
+  canvas.width  = wrap.offsetWidth  * sigScale;
+  canvas.height = 130               * sigScale;
   ctx = canvas.getContext('2d');
-  ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
+  ctx.scale(sigScale, sigScale);
   ctx.strokeStyle = '#1a2530';
   ctx.lineWidth = 2.2;
   ctx.lineCap = 'round';
@@ -417,7 +424,7 @@ function initCanvas() {
 
   function pos(e) {
     var r = canvas.getBoundingClientRect();
-    var ratio = canvas.width / r.width / (window.devicePixelRatio || 1);
+    var ratio = canvas.width / r.width / sigScale;
     return { x: (e.clientX - r.left) * ratio, y: (e.clientY - r.top) * ratio };
   }
   canvas.addEventListener('mousedown',  function(e){ piirretaan=true; var p=pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); });
@@ -440,7 +447,7 @@ function merkitsePiirretty() {
 }
 
 function tyhjenna() {
-  ctx.clearRect(0, 0, canvas.width / (window.devicePixelRatio||1), canvas.height / (window.devicePixelRatio||1));
+  ctx.clearRect(0, 0, canvas.width / sigScale, canvas.height / sigScale);
   onPiirretty = false;
   document.getElementById('canvasHint').style.display = 'block';
   document.getElementById('canvasWrap').style.borderStyle = 'dashed';
