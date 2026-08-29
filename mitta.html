@@ -947,6 +947,54 @@ fbDb2.collection('projects').orderBy('tyomaa').onSnapshot(function(snap) {
   });
 });
 
+function tallennaProjektiksi() {
+  var tilaaja = document.getElementById('tilaaja');
+  var tilaajaTxt = document.getElementById('tilaaja_txt');
+  var tilaajaNimi = (tilaaja && tilaaja.value && tilaaja.value !== '__muu__')
+    ? tilaaja.options[tilaaja.selectedIndex].text
+    : (tilaajaTxt ? tilaajaTxt.value : '');
+  var tyomaa = (document.getElementById('tyomaa') || {}).value || '';
+  var tyonro = (document.getElementById('tyonro') || {}).value || '';
+
+  if (!tyomaa.trim()) {
+    naytaIlmoitus('❌ Täytä vähintään Työmaa / Kohde ennen tallennusta', 'err');
+    return;
+  }
+
+  var data = {
+    tilaaja: tilaajaNimi,
+    tyomaa:  tyomaa,
+    tyonro:  tyonro,
+    tarjousHinnat: tarjousHinnat || [],
+    luotu: new Date().toISOString()
+  };
+
+  var valittuId = (document.getElementById('projektiValinta') || {}).value || '';
+
+  if (valittuId) {
+    // Projekti on jo valittuna pudotusvalikosta — päivitetään se, ei luoda duplikaattia
+    fbDb2.collection('projects').doc(valittuId).update(data).then(function() {
+      naytaIlmoitus('✅ Projekti päivitetty', 'ok');
+    }).catch(function(e) {
+      naytaIlmoitus('❌ Virhe: ' + e.message, 'err');
+    });
+    return;
+  }
+
+  fbDb2.collection('projects').add(data).then(function(ref) {
+    naytaIlmoitus('✅ Projekti tallennettu', 'ok');
+    // Valitaan uusi projekti automaattisesti listasta kun se ilmestyy sinne
+    setTimeout(function() {
+      var sel = document.getElementById('projektiValinta');
+      for (var j = 0; j < sel.options.length; j++) {
+        if (sel.options[j].value === ref.id) { sel.selectedIndex = j; break; }
+      }
+    }, 500);
+  }).catch(function(e) {
+    naytaIlmoitus('❌ Virhe: ' + e.message, 'err');
+  });
+}
+
 function valitseProjekti(id) {
   if (!id) { tarjousHinnat = []; return; }
   var sel = document.getElementById('projektiValinta');
