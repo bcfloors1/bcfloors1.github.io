@@ -742,6 +742,7 @@ function lahetaAsiakkaalle() {
     btn.textContent = '✅ Tallennettu!';
     btn.style.background = '#16a34a';
     naytaIlmoitus('✅ Tallennettu! Kopioi linkki asiakkaalle.', 'ok');
+    tyhjennaLuonnos();
   }).catch(function(e) {
     naytaIlmoitus('❌ Virhe: ' + e.message, 'err');
     btn.disabled = false;
@@ -937,6 +938,109 @@ function valitseProjekti(id) {
     });
   });
 }
+
+// ── LUONNOKSEN AUTOTALLENNUS (tällä laitteella/selaimella) ─────
+// Tallentaa täytön automaattisesti selaimen omaan muistiin, jotta
+// keskeneräiseen mittakirjaan voi palata myöhemmin samalla laitteella
+// ilman erillistä tiedoston lataamista. Ei toimi eri laitteiden välillä.
+var LUONNOS_AVAIN = 'bcf_mitta_luonnos_v1';
+var luonnosAjastin = null;
+
+function keraaLuonnos() {
+  var kentat = {};
+  ['tilaaja','tilaaja_txt','tyomaa','tyonro','pvm','sig1name','sig2name'].forEach(function(id){
+    var el = document.getElementById(id);
+    if (el) kentat[id] = el.value;
+  });
+  document.querySelectorAll('#tableBody tr').forEach(function(tr){
+    var rid = tr.id.replace('row_', '');
+    ['date_','desc_','qty_','unit_','price_'].forEach(function(p){
+      var el = document.getElementById(p+rid);
+      if (el) kentat[p+rid] = el.value;
+    });
+  });
+  var sig1 = document.getElementById('sig1');
+  var sig2 = document.getElementById('sig2');
+  return {
+    savedAt: new Date().toISOString(),
+    rowCount: rowCount,
+    kentat: kentat,
+    sig1: (sig1 && sig1.classList.contains('has-sig')) ? sig1.toDataURL() : '',
+    sig2: (sig2 && sig2.classList.contains('has-sig')) ? sig2.toDataURL() : ''
+  };
+}
+
+function onkoLuonnosTyhja(l) {
+  for (var k in l.kentat) { if (l.kentat[k]) return false; }
+  return !l.sig1 && !l.sig2;
+}
+
+function autotallennaLuonnos() {
+  clearTimeout(luonnosAjastin);
+  luonnosAjastin = setTimeout(function() {
+    try {
+      var l = keraaLuonnos();
+      if (onkoLuonnosTyhja(l)) { localStorage.removeItem(LUONNOS_AVAIN); return; }
+      localStorage.setItem(LUONNOS_AVAIN, JSON.stringify(l));
+    } catch(e) { /* esim. yksityinen selaus - ei tehdä mitään */ }
+  }, 800);
+}
+
+function tyhjennaLuonnos() {
+  try { localStorage.removeItem(LUONNOS_AVAIN); } catch(e) {}
+}
+
+function palautaLuonnos(l) {
+  while (rowCount < l.rowCount) addRow();
+  Object.keys(l.kentat).forEach(function(id){
+    var el = document.getElementById(id);
+    if (el) el.value = l.kentat[id];
+  });
+  if (l.sig1) {
+    var c1 = document.getElementById('sig1'), img1 = new Image();
+    img1.onload = function(){ c1.getContext('2d').drawImage(img1,0,0,c1.width,c1.height); c1.classList.add('has-sig'); };
+    img1.src = l.sig1;
+  }
+  if (l.sig2) {
+    var c2 = document.getElementById('sig2'), img2 = new Image();
+    img2.onload = function(){ c2.getContext('2d').drawImage(img2,0,0,c2.width,c2.height); c2.classList.add('has-sig'); };
+    img2.src = l.sig2;
+  }
+  for (var i = 1; i <= rowCount; i++) { if (document.getElementById('qty_'+i)) calcRow(i); }
+  markEmptyRows();
+  updateTotal();
+  naytaIlmoitus('↺ Luonnos palautettu', 'ok');
+}
+
+function naytaLuonnosBanneri(l) {
+  if (document.getElementById('luonnosBanneri')) return;
+  var aika = new Date(l.savedAt).toLocaleString('fi-FI');
+  var b = document.createElement('div');
+  b.id = 'luonnosBanneri';
+  b.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#fef3c7;color:#92400e;padding:10px 16px;display:flex;gap:12px;align-items:center;justify-content:center;flex-wrap:wrap;font-size:13px;font-family:Spartan,"Segoe UI",system-ui,sans-serif;z-index:3000;box-shadow:0 2px 8px rgba(0,0,0,0.1);';
+  b.innerHTML = '<span>📝 Löytyi tallentamaton luonnos (' + aika + ')</span>' +
+    '<button id="luonnosPalautaBtn" style="background:#006CB1;color:white;border:none;border-radius:6px;padding:5px 12px;font-weight:700;cursor:pointer;font-size:12px;">Palauta</button>' +
+    '<button id="luonnosHylkaaBtn" style="background:none;border:1px solid #92400e;color:#92400e;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:12px;">Hylkää</button>';
+  document.body.appendChild(b);
+  document.getElementById('luonnosPalautaBtn').onclick = function() { palautaLuonnos(l); b.remove(); };
+  document.getElementById('luonnosHylkaaBtn').onclick = function() { tyhjennaLuonnos(); b.remove(); };
+}
+
+document.addEventListener('input', autotallennaLuonnos, true);
+document.addEventListener('change', autotallennaLuonnos, true);
+
+document.addEventListener('DOMContentLoaded', function() {
+  // Pieni viive, jotta mahdollinen ?projekti=-haku ehtii täyttää kentät ensin
+  setTimeout(function() {
+    try {
+      var raw = localStorage.getItem(LUONNOS_AVAIN);
+      if (raw) {
+        var l = JSON.parse(raw);
+        if (l && l.kentat && !onkoLuonnosTyhja(l)) naytaLuonnosBanneri(l);
+      }
+    } catch(e) {}
+  }, 500);
+});
 
 // ── TALLENNA LUONNOS ──────────────────────────────────────────
 function tallennaTiedosto() {
