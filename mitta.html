@@ -258,6 +258,10 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
       Tallenna
     </button>
+    <button id="luonnosBtn" class="bcf-btn bcf-btn-ghost bcf-btn-sm" onclick="tallennaLuonnosProjektipankkiin()" title="Tallentaa luonnoksen projektipankkiin — näkyy kaikille ja sitä voi jatkaa miltä tahansa laitteelta">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+      Luonnos
+    </button>
     <button class="bcf-btn bcf-btn-orange bcf-btn-sm" onclick="shareDoc()">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
       Lähetä
@@ -391,6 +395,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 // Globaali tarjoushinnat-muuttuja
 var tarjousHinnat = [];
 var aktiivinenProjektiId = '';
+var luonnosDokumenttiId = null; // jos avattu luonnos ladataan jatkettavaksi, tähän tulee sen Firestore-ID
 
 // ── INIT ─────────────────────────────────────────────────────
 window.addEventListener('beforeprint', function() {
@@ -471,7 +476,14 @@ document.addEventListener('DOMContentLoaded', function() {
           calcRow(rid);
         });
         if (rivitData.length === 0) { addRow(); addRow(); addRow(); addRow(); }
-        naytaIlmoitus('✏️ Vanha mittakirja ladattu muokattavaksi', 'ok');
+        if (d.tila === 'luonnos' || !d.tila) {
+          // Jatketaan samaa luonnosta — "Luonnos"-tallennus päivittää tämän saman dokumentin,
+          // ja lähetys asiakkaalle muuttaa tämän saman dokumentin tilaksi "lahetetty".
+          luonnosDokumenttiId = muokkaaId;
+          naytaIlmoitus('✏️ Luonnos ladattu jatkettavaksi', 'ok');
+        } else {
+          naytaIlmoitus('✏️ Vanha mittakirja ladattu muokattavaksi', 'ok');
+        }
       } else {
         naytaIlmoitus('❌ Muokattavaa mittakirjaa ei löytynyt', 'err');
         addRow(); addRow(); addRow(); addRow();
@@ -614,7 +626,7 @@ function calcRow(id) {
   var price = parseFloat(document.getElementById('price_'+id).value) || 0;
   var total = qty * price;
   var cell = document.getElementById('total_'+id);
-  if (qty > 0 && price > 0) {
+  if (qty !== 0 && price !== 0) {
     cell.textContent = total.toLocaleString('fi-FI', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €';
   } else {
     cell.textContent = '—';
@@ -628,8 +640,8 @@ function markEmptyRows() {
     var qty = tr.querySelectorAll('input[type="number"]')[0];
     var price = tr.querySelectorAll('input[type="number"]')[1];
     var hasDesc = desc && desc.value && desc.value.trim() !== '';
-    var hasQty = qty && parseFloat(qty.value) > 0;
-    var hasPrice = price && parseFloat(price.value) > 0;
+    var hasQty = qty && parseFloat(qty.value) !== 0 && !isNaN(parseFloat(qty.value));
+    var hasPrice = price && parseFloat(price.value) !== 0 && !isNaN(parseFloat(price.value));
     var isEmpty = !hasDesc && !hasQty && !hasPrice;
     tr.classList.toggle('empty-row', isEmpty);
   });
@@ -737,14 +749,15 @@ function clearSig(id) {
 
 // ── SHARE ─────────────────────────────────────────────────────
 // ── LÄHETÄ ASIAKKAALLE ───────────────────────────────────────
-function shareDoc() {
-  // Kerää lomakkeen tiedot
+function keraaTilaajaNimi() {
   var tilaaja = document.getElementById('tilaaja');
   var tilaajaTxt = document.getElementById('tilaaja_txt');
-  var tilaajaNimi = (tilaaja && tilaaja.value && tilaaja.value !== '__muu__')
+  return (tilaaja && tilaaja.value && tilaaja.value !== '__muu__')
     ? tilaaja.options[tilaaja.selectedIndex].text
     : (tilaajaTxt ? tilaajaTxt.value : '');
+}
 
+function keraaRivitData() {
   var rivit = [];
   document.querySelectorAll('#tableBody tr').forEach(function(tr) {
     var dateEl  = tr.querySelector('input[type=date]');
@@ -773,22 +786,55 @@ function shareDoc() {
       hinta:   hinta
     });
   });
+  return rivit;
+}
 
+function keraaPerustiedot() {
   var urlParams = new URLSearchParams(window.location.search);
-  var data = {
-    tilaaja:   tilaajaNimi,
-    tyomaa:    (document.getElementById('tyomaa')  || {}).value || '',
-    tyonro:    (document.getElementById('tyonro')  || {}).value || '',
-    pvm:       document.getElementById('pvm').getAttribute('data-fi') || document.getElementById('pvm').value || '',
-    rivit:     rivit,
-    tila:      'lahetetty',
-    lahetetty: new Date().toISOString(),
+  return {
+    tilaaja:    keraaTilaajaNimi(),
+    tyomaa:     (document.getElementById('tyomaa')  || {}).value || '',
+    tyonro:     (document.getElementById('tyonro')  || {}).value || '',
+    pvm:        document.getElementById('pvm').getAttribute('data-fi') || document.getElementById('pvm').value || '',
+    rivit:      keraaRivitData(),
     projektiId: aktiivinenProjektiId || urlParams.get('projekti') || document.getElementById('projektiValinta').value || ''
   };
+}
+
+function shareDoc() {
+  var data = keraaPerustiedot();
+  data.tila = 'lahetetty';
+  data.lahetetty = new Date().toISOString();
 
   // Avaa modal
   document.getElementById('lahetysModal').style.display = 'flex';
   window._lahetysData = data;
+}
+
+// ── LUONNOKSEN TALLENNUS PROJEKTIPANKKIIN (Firestore) ──────────
+// Toisin kuin selaimen oma autotallennus (muistissa vain tällä laitteella),
+// tämä tallentaa luonnoksen mittakirjat-kokoelmaan tilassa "luonnos",
+// jolloin se näkyy kaikille projektipankissa ja sitä voi jatkaa miltä
+// tahansa laitteelta "✏️ Jatka" -napista.
+function tallennaLuonnosProjektipankkiin() {
+  var data = keraaPerustiedot();
+  data.tila = 'luonnos';
+  data.lahetetty = new Date().toISOString(); // käytetään myös "viimeksi muokattu" -aikaleimana ja listan järjestykseen
+
+  var btn = document.getElementById('luonnosBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Tallennetaan...'; }
+
+  var promise = luonnosDokumenttiId
+    ? fbDb2.collection('mittakirjat').doc(luonnosDokumenttiId).set(data)
+    : fbDb2.collection('mittakirjat').add(data).then(function(ref) { luonnosDokumenttiId = ref.id; });
+
+  promise.then(function() {
+    naytaIlmoitus('📝 Luonnos tallennettu projektipankkiin', 'ok');
+    if (btn) { btn.disabled = false; btn.textContent = '📝 Luonnos'; }
+  }).catch(function(e) {
+    naytaIlmoitus('❌ Virhe: ' + e.message, 'err');
+    if (btn) { btn.disabled = false; btn.textContent = '📝 Luonnos'; }
+  });
 }
 
 function suljeModal() {
@@ -805,8 +851,15 @@ function lahetaAsiakkaalle() {
   btn.disabled = true;
   btn.textContent = '⏳ Tallennetaan...';
 
-  fbDb2.collection('mittakirjat').add(data).then(function(ref) {
-    var linkki = 'https://bcfloors1.github.io/mitta-view.html?id=' + ref.id;
+  // Jos tätä mittakirjaa oli jo tallennettu luonnoksena projektipankkiin,
+  // päivitetään sama dokumentti (ei luoda erillistä kaksoiskappaletta).
+  var tallennus = luonnosDokumenttiId
+    ? fbDb2.collection('mittakirjat').doc(luonnosDokumenttiId).set(data).then(function() { return luonnosDokumenttiId; })
+    : fbDb2.collection('mittakirjat').add(data).then(function(ref) { return ref.id; });
+
+  tallennus.then(function(id) {
+    luonnosDokumenttiId = null; // ei enää luonnos
+    var linkki = 'https://bcfloors1.github.io/mitta-view.html?id=' + id;
     document.getElementById('linkBox').style.display = 'flex';
     document.getElementById('genLinkki').value = linkki;
     btn.textContent = '✅ Tallennettu!';

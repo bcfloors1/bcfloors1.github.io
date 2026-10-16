@@ -1115,24 +1115,11 @@ function lataaIrralliset() {
       var html = '';
       snap.forEach(function(doc) {
         var mk = doc.data(); mk._id = doc.id;
-        var aika = mk.lahetetty ? new Date(mk.lahetetty).toLocaleDateString('fi-FI') : '';
-        var badgeHtml = mk.tila === 'allekirjoitettu'
-          ? '<span class="mk-badge mk-badge-signed">✅ Allekirjoitettu</span>'
-          : mk.tila === 'lahetetty'
-          ? '<span class="mk-badge mk-badge-sent">📤 Lähetetty</span>'
-          : '<span class="mk-badge mk-badge-none">📝 Luonnos</span>';
-        html += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;padding:10px 0;border-bottom:1px solid #f1f5f9;">' +
-          '<div>' +
-            badgeHtml +
-            '<span style="font-size:12px;margin-left:8px;color:#334155;font-weight:600;">' + (mk.tyomaa || '—') + '</span>' +
-            (aika ? '<span style="font-size:11px;color:#94a3b8;margin-left:6px">' + aika + '</span>' : '') +
-          '</div>' +
-          '<div class="mk-btns">' +
-            '<button class="mk-btn mk-btn-outline" onclick="window.open(\'' + baseUrl + '/mitta-view.html?id=' + mk._id + '\')">👁 Näytä</button>' +
-            (mk.asiakasEmail && mk.tila === 'lahetetty' ? '<button class="mk-btn mk-btn-copy" onclick="lahetaMuistutus(\'' + mk._id + '\',\'' + baseUrl + '/mitta-view.html?id=' + mk._id + '\')">🔔 Muistutus</button>' : '') +
-            '<button class="mk-btn mk-btn-danger" onclick="poistaMittakirja(\'' + mk._id + '\',\'\')">🗑</button>' +
-          '</div>' +
-        '</div>';
+        html +=
+          '<div style="padding:10px 0;border-bottom:1px solid #f1f5f9;">' +
+            '<div style="font-size:12px;color:#334155;font-weight:600;margin-bottom:6px;">' + (mk.tyomaa || '—') + '</div>' +
+            mkRiviHtml('', mk) +
+          '</div>';
       });
       lista.innerHTML = html;
     })

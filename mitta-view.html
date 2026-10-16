@@ -492,11 +492,11 @@ function naytaData(data) {
       '<td class="r">' + (r.maara||'') + '</td>' +
       '<td>' + (r.yksikko||'') + '</td>' +
       '<td class="r">' + (r.hinta ? parseFloat(r.hinta).toFixed(2)+' €' : '') + '</td>' +
-      '<td class="r"><strong>' + (summa > 0 ? summa.toFixed(2)+' €' : '—') + '</strong></td>';
+      '<td class="r"><strong>' + (summa !== 0 ? summa.toFixed(2)+' €' : '—') + '</strong></td>';
     tbody.appendChild(tr);
   });
   // Yhteensä-rivi
-  if (total > 0) {
+  if (total !== 0) {
     var tfoot = document.createElement('tr');
     tfoot.className = 'total-row';
     tfoot.innerHTML =
