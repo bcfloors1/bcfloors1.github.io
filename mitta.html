@@ -247,6 +247,10 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 <div class="no-print bcf-topbar" style="border-bottom:3px solid #e8a020;">
   <div class="bcf-topbar-left">
     <img src="logo.png" alt="BC Floors" style="height:32px;width:auto;">
+    <a href="projektit.html" onclick="avaaProjektipankki(); return false;" style="color:rgba(255,255,255,0.75);font-size:10px;text-decoration:none;margin-left:12px;display:flex;align-items:center;gap:4px;">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+      Projektipankki
+    </a>
     <div class="bcf-topbar-sub" style="color:rgba(255,255,255,0.7);font-size:10px;">Mittapöytäkirja</div>
   </div>
   <div class="bcf-topbar-right">
@@ -396,6 +400,12 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 var tarjousHinnat = [];
 var aktiivinenProjektiId = '';
 var luonnosDokumenttiId = null; // jos avattu luonnos ladataan jatkettavaksi, tähän tulee sen Firestore-ID
+
+function avaaProjektipankki() {
+  var urlParams = new URLSearchParams(window.location.search);
+  var id = aktiivinenProjektiId || urlParams.get('projekti') || (document.getElementById('projektiValinta') || {}).value || '';
+  window.location.href = 'projektit.html' + (id ? '?avaa=' + id : '');
+}
 
 // ── INIT ─────────────────────────────────────────────────────
 window.addEventListener('beforeprint', function() {

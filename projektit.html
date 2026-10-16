@@ -878,7 +878,7 @@ db.collection('projects').orderBy('tyomaa').onSnapshot(function(snap) {
       : '<span class="pdf-status pdf-none">&#128228; Ei tarjousta</span>';
     var tarkastusToggle = '<span class="pdf-status tarjous-toggle" onclick="toggleTarkastukset(\''+id+'\')" style="background:#f0fdf4;color:#16a34a;border:1px solid #86efac;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:600;cursor:pointer;display:inline-block;margin-top:4px;">📋 Tarkastukset ▼</span>';
 
-    html += '<div class="proj-card">';
+    html += '<div class="proj-card" id="proj-' + id + '">';
     html += '<div class="proj-main" onclick="avaaDetalji(\''+id+'\')" style="cursor:pointer">';
     html += '<div class="proj-name">' + (p.tyomaa || '') + ' <span style="font-size:10px;color:#94a3b8">▶</span></div>';
     if (p.tilaaja) html += '<div class="proj-sub">' + p.tilaaja + '</div>';
@@ -911,7 +911,27 @@ db.collection('projects').orderBy('tyomaa').onSnapshot(function(snap) {
   var ids = [];
   snap.forEach(function(doc) { ids.push(doc.id); });
   lataaKaikkiMittakirjat(ids);
+  kohdistaProjektiin();
 });
+
+// ── Vieritä ja korosta tietty projekti, kun tultu tänne mittakirjasta ("← Projektipankki") ──
+var avaaKohdistusTehty = false;
+function kohdistaProjektiin() {
+  if (avaaKohdistusTehty) return;
+  var avaaId = new URLSearchParams(window.location.search).get('avaa');
+  if (!avaaId) { avaaKohdistusTehty = true; return; }
+  var kortti = document.getElementById('proj-' + avaaId);
+  if (!kortti) return; // projekti ei vielä renderöity — yritetään seuraavalla onSnapshot-päivityksellä
+  avaaKohdistusTehty = true;
+  kortti.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  kortti.style.transition = 'box-shadow 0.4s, border-color 0.4s';
+  kortti.style.boxShadow = '0 0 0 3px #006CB1';
+  kortti.style.borderColor = '#006CB1';
+  setTimeout(function() {
+    kortti.style.boxShadow = '';
+    kortti.style.borderColor = '';
+  }, 2500);
+}
 
 // ── Näytä projektin dokumentit ──
 async function naytaDokumentit(projektinId) {
