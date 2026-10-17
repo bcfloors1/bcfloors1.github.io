@@ -602,7 +602,7 @@ function pdfValittu(input) {
         .then(function(tiedot) {
           if (!tiedot) {
             document.getElementById('uploadArea').innerHTML =
-              '<div>✅ ' + file.name + '</div><div style="font-size:11px;color:#ef4444;margin-top:4px">AI-lukeminen epäonnistui — täytä käsin</div>';
+              '<div>✅ ' + file.name + '</div><div style="font-size:11px;color:#ef4444;margin-top:4px">AI-lukeminen epäonnistui — täytä käsin<br>' + (viimeisinAiVirhe || '') + '</div>';
             return;
           }
           luetutHinnat = tiedot.hinnat || [];
@@ -711,7 +711,13 @@ function siistiHinnat(arr) {
 }
 
 // ── AI lukee KAIKKI tiedot PDF:stä ──
+var viimeisinAiVirhe = '';
 async function lueKaikkiTiedotAIlla(pdfBase64) {
+  viimeisinAiVirhe = '';
+  if (!haeApiAvain()) {
+    viimeisinAiVirhe = 'API-avainta ei ole asetettu tässä selaimessa/osoitteessa (' + location.host + ').';
+    return null;
+  }
   try {
     var response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -743,6 +749,9 @@ async function lueKaikkiTiedotAIlla(pdfBase64) {
     // Tarkista API-vastaus
     if (!data.content || !data.content[0]) {
       console.error('API virhe:', data);
+      viimeisinAiVirhe = data.error
+        ? (data.error.type || 'virhe') + ': ' + (data.error.message || '')
+        : 'Tuntematon API-vastaus';
       return null;
     }
     var teksti = data.content[0].text.trim();
@@ -755,6 +764,7 @@ async function lueKaikkiTiedotAIlla(pdfBase64) {
     return tulos;
   } catch(e) {
     console.error('AI virhe:', e);
+    viimeisinAiVirhe = 'Hintojen luku epäonnistui: ' + e.message;
     return null;
   }
 }
@@ -839,7 +849,7 @@ function tallennaManuaalinen() {
 function avaaLataaPdf(projektinId, projektinNimi) {
   aktiivisenProjektinId = projektinId;
   valittuPdfBase642 = null;
-  document.getElementById('pdfSheetTitle').textContent = '&#128228; Tarjous: ' + projektinNimi;
+  document.getElementById('pdfSheetTitle').textContent = '📤 Tarjous: ' + projektinNimi;
   document.getElementById('uploadArea2').innerHTML = '<div>📄 Klikkaa valitaksesi PDF</div><div style="font-size:11px;margin-top:4px;color:#94a3b8">AI lukee hinnat automaattisesti</div>';
   document.getElementById('uploadArea2').classList.remove('has-file');
   document.getElementById('pdfSaveBtn').style.display = 'none';
@@ -859,6 +869,7 @@ async function tallennaUusiPdf() {
     pdfLadattu: new Date().toISOString()
   };
 
+  if (!haeApiAvain()) tarkistaApiAvain(); // pyytää avaimen jos puuttuu tästä selaimesta
   var hinnat = await lueHinnatAIlla(valittuPdfBase642);
   var hintojaLuettu = !!(hinnat && hinnat.hinnat && hinnat.hinnat.length > 0);
   if (hintojaLuettu) {
@@ -871,7 +882,7 @@ async function tallennaUusiPdf() {
       btn.textContent = '🤖 Tallenna + Lue hinnat AI:lla';
       btn.disabled = false;
       if (hintojaLuettu) naytaToast('✅ Tarjous tallennettu, ' + paivitys.tarjousHinnat.length + ' hintaa luettu.');
-      else alert('Tarjous tallennettiin, mutta hintoja ei saatu luettua PDF:stä. Mittakirjaan ei tule hintavalikkoa. Tarkista API-avain (🔑 API) ja yritä Vaihda PDF uudelleen.');
+      else alert('Tarjous tallennettiin, mutta hintoja ei saatu luettua PDF:stä. Mittakirjaan ei tule hintavalikkoa.\n\nSyy: ' + (viimeisinAiVirhe || 'AI ei löytänyt PDF:stä hintoja.') + '\n\nTarkista API-avain (🔑 API) ja yritä Vaihda PDF uudelleen.');
     })
     .catch(function(e) {
       alert('Virhe: ' + e.message);
