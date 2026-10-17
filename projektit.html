@@ -622,8 +622,9 @@ function pdfValittu(input) {
               el.parentNode.replaceChild(uusi, el);
             }
           });
-          document.getElementById('uploadArea').innerHTML =
-            '<div>✅ ' + file.name + ' — tiedot luettu!</div>';
+          document.getElementById('uploadArea').innerHTML = luetutHinnat.length > 0
+            ? '<div>✅ ' + file.name + ' — tiedot luettu, ' + luetutHinnat.length + ' hintaa!</div>'
+            : '<div>✅ ' + file.name + '</div><div style="font-size:11px;color:#ef4444;margin-top:4px">Hintoja ei löytynyt — mittakirjaan ei tule hintavalikkoa</div>';
         })
         .catch(function(err) {
           document.getElementById('uploadArea').innerHTML =
@@ -700,6 +701,15 @@ function taytaKentat() {
   });
 }
 
+// ── Siivoa AI:n palauttamat hinnat: hinta aina numeroksi, tyhjät pois ──
+function siistiHinnat(arr) {
+  if (!Array.isArray(arr)) return [];
+  return arr.map(function(h) {
+    var hinta = typeof h.hinta === 'number' ? h.hinta : parseFloat(String(h.hinta).replace(/\s/g, '').replace(',', '.'));
+    return { nimi: String(h.nimi || '').trim(), hinta: hinta, yksikko: h.yksikko || 'm²' };
+  }).filter(function(h) { return h.nimi && isFinite(h.hinta); });
+}
+
 // ── AI lukee KAIKKI tiedot PDF:stä ──
 async function lueKaikkiTiedotAIlla(pdfBase64) {
   try {
@@ -712,8 +722,8 @@ async function lueKaikkiTiedotAIlla(pdfBase64) {
         'anthropic-dangerous-direct-browser-access': 'true'
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-5',
-        max_tokens: 2000,
+        model: 'claude-sonnet-5-5',
+        max_tokens: 8000,
         messages: [{
           role: 'user',
           content: [
@@ -737,7 +747,12 @@ async function lueKaikkiTiedotAIlla(pdfBase64) {
     }
     var teksti = data.content[0].text.trim();
     teksti = teksti.replace(/```json|```/g, '').trim();
-    return JSON.parse(teksti);
+    var a = teksti.indexOf('{'), b = teksti.lastIndexOf('}');
+    if (a >= 0 && b > a) teksti = teksti.substring(a, b + 1);
+    if (data.stop_reason === 'max_tokens') console.warn('AI-vastaus katkesi max_tokens-rajaan');
+    var tulos = JSON.parse(teksti);
+    tulos.hinnat = siistiHinnat(tulos.hinnat);
+    return tulos;
   } catch(e) {
     console.error('AI virhe:', e);
     return null;
@@ -845,7 +860,8 @@ async function tallennaUusiPdf() {
   };
 
   var hinnat = await lueHinnatAIlla(valittuPdfBase642);
-  if (hinnat && hinnat.hinnat) {
+  var hintojaLuettu = !!(hinnat && hinnat.hinnat && hinnat.hinnat.length > 0);
+  if (hintojaLuettu) {
     paivitys.tarjousHinnat = hinnat.hinnat;
   }
 
@@ -854,7 +870,8 @@ async function tallennaUusiPdf() {
       suljeSheet('pdfOverlay');
       btn.textContent = '🤖 Tallenna + Lue hinnat AI:lla';
       btn.disabled = false;
-      naytaToast('✅ Tarjous tallennettu! Hinnat luettu.');
+      if (hintojaLuettu) naytaToast('✅ Tarjous tallennettu, ' + paivitys.tarjousHinnat.length + ' hintaa luettu.');
+      else alert('Tarjous tallennettiin, mutta hintoja ei saatu luettua PDF:stä. Mittakirjaan ei tule hintavalikkoa. Tarkista API-avain (🔑 API) ja yritä Vaihda PDF uudelleen.');
     })
     .catch(function(e) {
       alert('Virhe: ' + e.message);
@@ -864,18 +881,50 @@ async function tallennaUusiPdf() {
 }
 
 // ── Avaa PDF ──
+// Näytetään sivun omassa katselimessa (iframe) + latausnappi. Pelkkä window.open(blob:) jää
+// tyhjäksi, jos selaimessa on Adobe Acrobat -laajennus, joka ottaa blob-PDF:n haltuunsa.
 function avaaPdf(projektinId) {
   db.collection('projects').doc(projektinId).get().then(function(doc) {
-    if (doc.exists && doc.data().pdfBase64) {
-      var byteStr = atob(doc.data().pdfBase64);
-      var ab = new ArrayBuffer(byteStr.length);
-      var ia = new Uint8Array(ab);
-      for (var i = 0; i < byteStr.length; i++) ia[i] = byteStr.charCodeAt(i);
-      var blob = new Blob([ab], {type: 'application/pdf'});
-      var url = URL.createObjectURL(blob);
-      window.open(url, '_blank');
-    }
-  });
+    if (!doc.exists || !doc.data().pdfBase64) return;
+    var d = doc.data();
+    var byteStr = atob(d.pdfBase64);
+    var ab = new ArrayBuffer(byteStr.length);
+    var ia = new Uint8Array(ab);
+    for (var i = 0; i < byteStr.length; i++) ia[i] = byteStr.charCodeAt(i);
+    var blob = new Blob([ab], {type: 'application/pdf'});
+    if (window._pdfUrl) URL.revokeObjectURL(window._pdfUrl);
+    var url = URL.createObjectURL(blob);
+    window._pdfUrl = url;
+    var tiedosto = 'Tarjous_' + (d.tyomaa || 'projekti').replace(/[^A-Za-z0-9äöåÄÖÅ-]+/g, '_') + '.pdf';
+    naytaPdfNakyma(url, d.tyomaa || 'Tarjous', tiedosto);
+  }).catch(function(e) { alert('PDF:n avaus epäonnistui: ' + e.message); });
+}
+
+function naytaPdfNakyma(url, otsikko, tiedosto) {
+  var vanha = document.getElementById('pdfNakyma');
+  if (vanha) vanha.remove();
+  var o = document.createElement('div');
+  o.id = 'pdfNakyma';
+  o.style.cssText = 'position:fixed;inset:0;z-index:9000;background:#1a2530;display:flex;flex-direction:column;';
+  var bar = document.createElement('div');
+  bar.style.cssText = 'display:flex;align-items:center;gap:8px;padding:8px 12px;background:#006CB1;color:white;flex-shrink:0;';
+  var t = document.createElement('div');
+  t.style.cssText = 'flex:1;font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+  t.textContent = '📄 ' + otsikko;
+  var btnStyle = 'background:rgba(255,255,255,0.18);border:none;color:white;font-size:12px;font-weight:600;padding:7px 12px;border-radius:7px;cursor:pointer;font-family:inherit;text-decoration:none;white-space:nowrap;';
+  var dl = document.createElement('a');
+  dl.href = url; dl.download = tiedosto; dl.textContent = '⬇ Lataa'; dl.style.cssText = btnStyle;
+  var uusi = document.createElement('a');
+  uusi.href = url; uusi.target = '_blank'; uusi.rel = 'noopener'; uusi.textContent = '↗ Uusi välilehti'; uusi.style.cssText = btnStyle;
+  var sulje = document.createElement('button');
+  sulje.textContent = '✕ Sulje'; sulje.style.cssText = btnStyle;
+  sulje.onclick = function() { o.remove(); };
+  bar.appendChild(t); bar.appendChild(dl); bar.appendChild(uusi); bar.appendChild(sulje);
+  var frame = document.createElement('iframe');
+  frame.src = url;
+  frame.style.cssText = 'flex:1;width:100%;border:none;background:white;';
+  o.appendChild(bar); o.appendChild(frame);
+  document.body.appendChild(o);
 }
 
 // ── Näytä/piilota arkisto ──
@@ -941,7 +990,7 @@ function renderProjektit(snap) {
       p.tarjousHinnat.forEach(function(h) {
         hinnatHtml += '<div class="hinta-rivi">';
         hinnatHtml += '<span class="hinta-nimi">' + h.nimi + '</span>';
-        hinnatHtml += '<span><span class="hinta-arvo">' + h.hinta.toFixed(2) + ' €</span>';
+        hinnatHtml += '<span><span class="hinta-arvo">' + Number(h.hinta).toFixed(2) + ' €</span>';
         hinnatHtml += '<span class="hinta-yksikko">/ ' + (h.yksikko || 'm²') + '</span></span>';
         hinnatHtml += '</div>';
       });
@@ -982,7 +1031,7 @@ function renderProjektit(snap) {
     html += '<button class="proj-btn del" onclick="poistaProjekti(\'' + id + '\', \'' + (p.tyomaa||"").replace(/'/g,"\\'") + '\')">&#128465; Poista</button>';
     html += '</div>';
     html += '<div id="dokumentit-' + id + '" style="display:none;padding:8px 14px;border-top:1px solid #f1f5f9;background:#fafafa;"></div>';
-    html += '<div class="mk-section"><div class="mk-label"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:-1px"><path d="M21 3L3 21"/><path d="M21 3h-6M21 3v6"/></svg> Mittakirja</div><div class="mk-row"><span class="mk-badge mk-badge-none" id="mk-badge-' + id + '">Ei tehty</span></div><div class="mk-btns" id="mk-btns-' + id + '"><button class="mk-btn mk-btn-primary" onclick="avaaLomake(\'' + id + '\')"' + '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg> Tee mittakirja</button></div></div>';
+    html += '<div class="mk-section"><div class="mk-label"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:-1px"><path d="M21 3L3 21"/><path d="M21 3h-6M21 3v6"/></svg> Mittakirja</div><div class="mk-row"><span class="mk-badge mk-badge-none" id="mk-badge-' + id + '">Ei tehty</span></div><div class="mk-btns" id="mk-btns-' + id + '"><button class="mk-btn mk-btn-primary" onclick="avaaLomake(\'' + id + '\')">' + '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg> Tee mittakirja</button></div></div>';
     html += '</div>';
   });
 
@@ -1131,7 +1180,7 @@ function paivitaMkOsio(projektinId, mklist) {
   if (!mklist || mklist.length === 0) {
     badge.className = 'mk-badge mk-badge-none';
     badge.textContent = 'Ei tehty';
-    btns.innerHTML = '<button class="mk-btn mk-btn-primary" onclick="avaaLomake(\'' + projektinId + '\')"' + '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg> Tee mittakirja</button>';
+    btns.innerHTML = '<button class="mk-btn mk-btn-primary" onclick="avaaLomake(\'' + projektinId + '\')">' + '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg> Tee mittakirja</button>';
     return;
   }
 
@@ -1147,7 +1196,7 @@ function paivitaMkOsio(projektinId, mklist) {
 
   // Lista kaikista mittakirjoista
   var html = mklist.map(function(mk) { return mkRiviHtml(projektinId, mk); }).join('');
-  html += '<div style="margin-top:8px;"><button class="mk-btn mk-btn-primary" onclick="avaaLomake(\'' + projektinId + '\')"' + '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Uusi mittakirja</button></div>';
+  html += '<div style="margin-top:8px;"><button class="mk-btn mk-btn-primary" onclick="avaaLomake(\'' + projektinId + '\')">' + '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Uusi mittakirja</button></div>';
   btns.innerHTML = html;
 }
 

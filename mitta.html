@@ -399,6 +399,13 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 // Globaali tarjoushinnat-muuttuja
 var tarjousHinnat = [];
 var aktiivinenProjektiId = '';
+function siistiTarjousHinnat(arr) {
+  if (!Array.isArray(arr)) return [];
+  return arr.map(function(h) {
+    var hinta = typeof h.hinta === 'number' ? h.hinta : parseFloat(String(h.hinta).replace(/\s/g, '').replace(',', '.'));
+    return { nimi: String(h.nimi || '').trim(), hinta: hinta, yksikko: h.yksikko || 'm²' };
+  }).filter(function(h) { return h.nimi && isFinite(h.hinta); });
+}
 var luonnosDokumenttiId = null; // jos avattu luonnos ladataan jatkettavaksi, tähän tulee sen Firestore-ID
 
 function avaaProjektipankki() {
@@ -529,7 +536,7 @@ document.addEventListener('DOMContentLoaded', function() {
           if (sel.options[j].value === projektiId) { sel.selectedIndex = j; break; }
         }
         // Aseta tarjoushinnat ENNEN rivien lisäystä
-        if (p.tarjousHinnat && p.tarjousHinnat.length > 0) tarjousHinnat = p.tarjousHinnat;
+        tarjousHinnat = siistiTarjousHinnat(p.tarjousHinnat);
       }
       // Lisää rivit vasta nyt kun tarjoushinnat on asetettu
       addRow(); addRow(); addRow(); addRow();
@@ -1088,7 +1095,7 @@ function valitseProjekti(id) {
 
   // Hae tarjoushinnat
   fbDb2.collection('projects').doc(id).get().then(function(doc) {
-    tarjousHinnat = (doc.exists && doc.data().tarjousHinnat) ? doc.data().tarjousHinnat : [];
+    tarjousHinnat = (doc.exists && doc.data().tarjousHinnat) ? siistiTarjousHinnat(doc.data().tarjousHinnat) : [];
     // Päivitä olemassaolevat rivit
     document.querySelectorAll('#tableBody tr').forEach(function(tr) {
       var rowId = tr.id.replace('row_', '');
