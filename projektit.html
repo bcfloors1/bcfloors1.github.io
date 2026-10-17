@@ -884,6 +884,15 @@ function toggleArkisto() {
   var btn = document.getElementById('arkistoNappi');
   btn.textContent = window._naytaArkisto ? '📂 Aktiiviset' : '📦 Arkisto';
   btn.style.background = window._naytaArkisto ? '#16a34a' : '#f59e0b';
+  if (viimeisinProjektiSnap) renderProjektit(viimeisinProjektiSnap);
+  window.scrollTo({ top: 0 });
+}
+
+// ── Palauta projekti arkistosta ──
+function palautaArkistosta(id, nimi) {
+  if (!confirm('Palautetaanko projekti "' + nimi + '" arkistosta aktiivisiin?')) return;
+  db.collection('projects').doc(id).update({ arkistoitu: false })
+    .catch(function(e) { alert('Virhe: ' + e.message); });
 }
 
 // ── Arkistoi projekti ──
@@ -903,19 +912,26 @@ function poistaProjekti(id, nimi) {
 }
 
 // ── Lataa projektit ──
-db.collection('projects').orderBy('tyomaa').onSnapshot(function(snap) {
+var viimeisinProjektiSnap = null;
+function renderProjektit(snap) {
   var lista = document.getElementById('projektilista');
+  var arkistossa = !!window._naytaArkisto;
   if (snap.empty) {
     lista.innerHTML = '<div class="empty">Ei projekteja vielä.<br>Lisää ensimmäinen projekti!</div>';
     return;
   }
 
   var html = '';
+  var naytettavat = [];
   projektiNimet = {};
-  snap.forEach(function(doc) { projektiNimet[doc.id] = doc.data().tyomaa || doc.id; });
+  snap.forEach(function(doc) {
+    if (!doc.data().arkistoitu) projektiNimet[doc.id] = doc.data().tyomaa || doc.id;
+  });
   snap.forEach(function(doc) {
     var p = doc.data();
     var id = doc.id;
+    if (!!p.arkistoitu !== arkistossa) return; // aktiivinen näkymä: ei arkistoituja, arkisto-näkymä: vain arkistoidut
+    naytettavat.push(id);
 
     // Hinnat
     var hinnatHtml = '';
@@ -958,7 +974,11 @@ db.collection('projects').orderBy('tyomaa').onSnapshot(function(snap) {
       html += '<div style="font-size:10px;color:#16a34a;padding:3px 10px;border-top:1px solid #f1f5f9">✅ ' + p.tarkastusLkm + ' tarkastusta tallennettu</div>';
     }
     html += '<button class="proj-btn dok-btn" data-projid="' + id + '" style="color:#7c3aed">&#128193; Dokumentit</button>';
-    html += '<button class="proj-btn" data-arkid="' + id + '" data-arknimi="' + (p.tyomaa||"").replace(/"/g,"") + '" onclick="arkistoiProjekti(this.dataset.arkid, this.dataset.arknimi)" style="color:#f59e0b">&#128230; Arkistoi</button>';
+    if (p.arkistoitu) {
+      html += '<button class="proj-btn" data-arkid="' + id + '" data-arknimi="' + (p.tyomaa||"").replace(/"/g,"") + '" onclick="palautaArkistosta(this.dataset.arkid, this.dataset.arknimi)" style="color:#16a34a">&#128194; Palauta arkistosta</button>';
+    } else {
+      html += '<button class="proj-btn" data-arkid="' + id + '" data-arknimi="' + (p.tyomaa||"").replace(/"/g,"") + '" onclick="arkistoiProjekti(this.dataset.arkid, this.dataset.arknimi)" style="color:#f59e0b">&#128230; Arkistoi</button>';
+    }
     html += '<button class="proj-btn del" onclick="poistaProjekti(\'' + id + '\', \'' + (p.tyomaa||"").replace(/'/g,"\\'") + '\')">&#128465; Poista</button>';
     html += '</div>';
     html += '<div id="dokumentit-' + id + '" style="display:none;padding:8px 14px;border-top:1px solid #f1f5f9;background:#fafafa;"></div>';
@@ -966,12 +986,18 @@ db.collection('projects').orderBy('tyomaa').onSnapshot(function(snap) {
     html += '</div>';
   });
 
+  if (!html) {
+    html = '<div class="empty">' + (arkistossa ? 'Arkisto on tyhjä.' : 'Ei aktiivisia projekteja.<br>Arkistoidut projektit löytyvät Arkisto-napista.') + '</div>';
+  }
   lista.innerHTML = html;
-  // Lataa mittakirjojen tilat
-  var ids = [];
-  snap.forEach(function(doc) { ids.push(doc.id); });
-  lataaKaikkiMittakirjat(ids);
+  // Lataa mittakirjojen tilat (vain näkyville projekteille)
+  lataaKaikkiMittakirjat(naytettavat);
   kohdistaProjektiin();
+}
+
+db.collection('projects').orderBy('tyomaa').onSnapshot(function(snap) {
+  viimeisinProjektiSnap = snap;
+  renderProjektit(snap);
 });
 
 // ── Vieritä ja korosta tietty projekti, kun tultu tänne mittakirjasta ("← Projektipankki") ──
