@@ -115,6 +115,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f8fafc;color:#1e293
 <div class="content" id="projektilista">
   <div class="empty">Ladataan projekteja...</div>
 </div>
+<div id="irrTarkastuksetOsio" style="display:none;padding:0 16px 12px;"><div style="background:white;border-radius:12px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,0.06);"><div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">&#128203; Tarkastukset ilman projektia</div><div id="irrTarkastuksetLista"></div></div></div>
 <div id="irrallisetOsio" style="display:none;padding:0 16px 220px;"><div style="background:white;border-radius:12px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,0.06);"><div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">&#128208; Mittakirjat ilman projektia</div><div id="irrallisetLista"></div></div></div>
 
 <div class="bottom-nav" style="display:flex;gap:10px;padding:10px;">
@@ -200,6 +201,83 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f8fafc;color:#1e293
 <script>
 
 
+var projektiNimet = {};
+
+// ── Yhteinen tarkastusrivi (projektikortti + irralliset) ──
+function tarkastusRiviHtml(doc, projektinId) {
+  var t = doc.data();
+  var pvm = t.paivamaara ? t.paivamaara.split('-').reverse().join('.') : '';
+  var tulosClass = t.tulos === 'ok' ? 'tark-tulos-ok' : t.tulos === 'warn' ? 'tark-tulos-warn' : 'tark-tulos-error';
+  var tulosTxt = t.tulos === 'ok' ? '✅ Hyväksytty' : t.tulos === 'warn' ? '⚠️ Huomautuksella' : '❌ Hylätty';
+  var html = '<div class="tarkastus-rivi" style="flex-direction:column;align-items:flex-start;gap:6px">';
+  html += '<div style="display:flex;justify-content:space-between;width:100%;align-items:center">';
+  html += '<div><div style="font-weight:600">' + pvm + (!projektinId && t.projekti ? ' – ' + t.projekti : '') + '</div>';
+  html += '<div style="color:#6b7280">' + (t.valualue || '') + '</div>';
+  html += '<div class="' + tulosClass + '">' + tulosTxt + '</div></div>';
+  html += '<div style="display:flex;gap:4px">';
+  html += '<button class="tark-pdf-btn" onclick="lataaVanhaPDF(&quot;' + doc.id + '&quot;)">PDF</button>';
+  html += '<button class="tark-pdf-btn" onclick="poistaTarkastus(&quot;' + doc.id + '&quot;, &quot;' + (projektinId || '') + '&quot;)" style="background:#ef4444">🗑</button>';
+  html += '</div></div>';
+  if (!projektinId) {
+    var opts = '<option value="">Siirrä projektille…</option>';
+    Object.keys(projektiNimet).sort(function(a, b) { return projektiNimet[a].localeCompare(projektiNimet[b], 'fi'); }).forEach(function(id) {
+      opts += '<option value="' + id + '">' + projektiNimet[id].replace(/</g, '&lt;') + '</option>';
+    });
+    html += '<select onchange="siirraTarkastus(&quot;' + doc.id + '&quot;, this)" style="width:100%;font-size:12px;padding:5px 8px;border:1px solid #86efac;border-radius:6px;background:white;color:#15803d;font-family:inherit;">' + opts + '</select>';
+  }
+  if (t.kuvat && t.kuvat.length > 0) {
+    html += '<div style="display:flex;gap:4px;flex-wrap:wrap">';
+    t.kuvat.forEach(function(url) {
+      html += '<img src="' + url + '" style="width:60px;height:60px;object-fit:cover;border-radius:4px;border:1px solid #86efac;cursor:pointer" onclick="window.open(this.src)">';
+    });
+    html += '</div>';
+  }
+  html += '</div>';
+  return html;
+}
+
+// ── Siirrä projektiton tarkastus projektille ──
+function siirraTarkastus(tarkastusId, selectEl) {
+  var projektiId = selectEl.value;
+  if (!projektiId) return;
+  var nimi = projektiNimet[projektiId] || '';
+  if (!confirm('Siirretäänkö tarkastus projektille "' + nimi + '"?')) { selectEl.value = ''; return; }
+  selectEl.disabled = true;
+  db.collection('raudoitustarkastukset').doc(tarkastusId).update({ projektiId: projektiId })
+    .then(function() {
+      tarkastusCache[projektiId] = false; // projektin lista ladataan uudelleen seuraavalla avauksella
+      var el = document.getElementById('tarkastukset-' + projektiId);
+      if (el && el.classList.contains('auki')) { el.classList.remove('auki'); toggleTarkastukset(projektiId); }
+      lataaIrrallisetTarkastukset();
+    })
+    .catch(function(err) {
+      alert('Virhe: ' + err.message);
+      selectEl.disabled = false;
+      selectEl.value = '';
+    });
+}
+
+// ── Tarkastukset ilman projektia ──
+function lataaIrrallisetTarkastukset() {
+  db.collection('raudoitustarkastukset')
+    .where('projektiId', '==', null)
+    .orderBy('luotu', 'desc')
+    .get()
+    .then(function(snap) {
+      var osio = document.getElementById('irrTarkastuksetOsio');
+      var lista = document.getElementById('irrTarkastuksetLista');
+      if (!osio || !lista) return;
+      if (snap.empty) { osio.style.display = 'none'; return; }
+      osio.style.display = 'block';
+      var html = '';
+      snap.forEach(function(doc) { html += tarkastusRiviHtml(doc, ''); });
+      lista.innerHTML = html;
+    })
+    .catch(function(err) {
+      console.warn('Irrallisten tarkastusten haku:', err.message);
+    });
+}
+
 // ── Toggle & lataa tarkastukset ──
 var tarkastusCache = {};
 function toggleTarkastukset(projektinId) {
@@ -220,28 +298,7 @@ function toggleTarkastukset(projektinId) {
         }
         var html = '<div style="font-size:11px;font-weight:700;color:#15803d;margin-bottom:6px">📋 TARKASTUKSET</div>';
         snap.forEach(function(doc) {
-          var t = doc.data();
-          var pvm = t.paivamaara ? t.paivamaara.split('-').reverse().join('.') : '';
-          var tulosClass = t.tulos === 'ok' ? 'tark-tulos-ok' : t.tulos === 'warn' ? 'tark-tulos-warn' : 'tark-tulos-error';
-          var tulosTxt = t.tulos === 'ok' ? '✅ Hyväksytty' : t.tulos === 'warn' ? '⚠️ Huomautuksella' : '❌ Hylätty';
-          html += '<div class="tarkastus-rivi" style="flex-direction:column;align-items:flex-start;gap:6px">';
-          html += '<div style="display:flex;justify-content:space-between;width:100%;align-items:center">';
-          html += '<div><div style="font-weight:600">' + pvm + '</div>';
-          html += '<div style="color:#6b7280">' + (t.valualue || '') + '</div>';
-          html += '<div class="' + tulosClass + '">' + tulosTxt + '</div></div>';
-          html += '<div style="display:flex;gap:4px">';
-          html += '<button class="tark-pdf-btn" onclick="lataaVanhaPDF(&quot;' + doc.id + '&quot;)">PDF</button>';
-          html += '<button class="tark-pdf-btn" onclick="poistaTarkastus(&quot;' + doc.id + '&quot;, &quot;' + projektinId + '&quot;)" style="background:#ef4444">🗑</button>';
-          html += '</div></div>';
-          // Kuvat
-          if (t.kuvat && t.kuvat.length > 0) {
-            html += '<div style="display:flex;gap:4px;flex-wrap:wrap">';
-            t.kuvat.forEach(function(url) {
-              html += '<img src="' + url + '" style="width:60px;height:60px;object-fit:cover;border-radius:4px;border:1px solid #86efac;cursor:pointer" onclick="window.open(this.src)">';
-            });
-            html += '</div>';
-          }
-          html += '</div>';
+          html += tarkastusRiviHtml(doc, projektinId);
         });
         el.innerHTML = html;
       })
@@ -467,6 +524,7 @@ function poistaTarkastus(tarkastusId, projektinId) {
   if (!confirm('Haluatko varmasti poistaa tämän tarkastuksen?')) return;
   db.collection('raudoitustarkastukset').doc(tarkastusId).delete()
     .then(function() {
+      if (!projektinId) { lataaIrrallisetTarkastukset(); return; }
       // Tyhjennä cache ja päivitä lista
       tarkastusCache[projektinId] = false;
       var el = document.getElementById('tarkastukset-' + projektinId);
@@ -853,6 +911,8 @@ db.collection('projects').orderBy('tyomaa').onSnapshot(function(snap) {
   }
 
   var html = '';
+  projektiNimet = {};
+  snap.forEach(function(doc) { projektiNimet[doc.id] = doc.data().tyomaa || doc.id; });
   snap.forEach(function(doc) {
     var p = doc.data();
     var id = doc.id;
@@ -998,6 +1058,7 @@ function lataaKaikkiMittakirjat(projektit) {
   });
   // Lataa myös irralliset
   lataaIrralliset();
+  lataaIrrallisetTarkastukset();
 }
 
 function mkRiviHtml(projektinId, mk) {
