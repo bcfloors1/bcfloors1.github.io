@@ -449,6 +449,16 @@ document.addEventListener('DOMContentLoaded', function() {
     // Ladataan aiemmin lähetetty (esim. asiakkaan hylkäämä) mittakirja muokattavaksi.
     // Huom: lähetys luo tästä aina UUDEN linkin — vanha dokumentti ei muutu.
     fbDb2.collection('mittakirjat').doc(muokkaaId).get().then(function(doc) {
+      var d0 = doc.exists ? doc.data() : {};
+      var pId = d0.projektiId || projektiId || '';
+      if (pId) aktiivinenProjektiId = pId;
+      // Hae projektin tarjoushinnat ENNEN rivien rakentamista, jotta hintavalikot ovat käytössä
+      var hinnatValmis = pId
+        ? fbDb2.collection('projects').doc(pId).get().then(function(pd) {
+            tarjousHinnat = (pd.exists && pd.data().tarjousHinnat) ? siistiTarjousHinnat(pd.data().tarjousHinnat) : [];
+          }).catch(function(e) { console.warn('Tarjoushintojen haku:', e.message); })
+        : Promise.resolve();
+      return hinnatValmis.then(function() {
       if (doc.exists) {
         var d = doc.data();
         if (d.tilaaja) {
@@ -474,7 +484,7 @@ document.addEventListener('DOMContentLoaded', function() {
           addRow();
           var rid = rowCount;
           var descEl = document.getElementById('desc_' + rid);
-          if (descEl) descEl.value = r.kuvaus || '';
+          asetaKuvaus(rid, r.kuvaus || '');
           var dateEl = document.getElementById('date_' + rid);
           if (dateEl) {
             var isoR = fiPvmIsoksi(r.pvm);
@@ -506,6 +516,7 @@ document.addEventListener('DOMContentLoaded', function() {
         addRow(); addRow(); addRow(); addRow();
       }
       updateTotal();
+      });
     }).catch(function(e) {
       console.warn('Mittakirjan haku:', e.message);
       addRow(); addRow(); addRow(); addRow();
@@ -599,6 +610,24 @@ function addRow() {
   document.getElementById('tableBody').appendChild(tr);
   markEmptyRows();
   updateTotal();
+}
+
+// Asettaa rivin kuvauksen: jos rivillä on hintavalikko ja teksti löytyy sieltä, valitaan se;
+// muuten valikko vaihdetaan tekstikentäksi, jotta tallennettu kuvaus ei katoa.
+function asetaKuvaus(id, teksti) {
+  var el = document.getElementById('desc_' + id);
+  if (!el) return;
+  if (el.tagName !== 'SELECT') { el.value = teksti; return; }
+  for (var i = 0; i < el.options.length; i++) {
+    if (el.options[i].text === teksti) { el.selectedIndex = i; return; }
+  }
+  if (!teksti) return; // tyhjä rivi: jätetään valikko
+  var input = document.createElement('input');
+  input.type = 'text';
+  input.id = 'desc_' + id;
+  input.style.width = '100%';
+  input.value = teksti;
+  el.parentNode.replaceChild(input, el);
 }
 
 function valitseHinta(id, sel) {
@@ -1005,6 +1034,7 @@ var fbDb2 = firebase.firestore();
 
 fbDb2.collection('projects').orderBy('tyomaa').onSnapshot(function(snap) {
   var sel = document.getElementById('projektiValinta');
+  var edellinenValinta = sel.value || aktiivinenProjektiId || '';
   sel.innerHTML = '<option value="">— Valitse projekti tai täytä käsin —</option>';
   snap.forEach(function(d) {
     var p = d.data();
@@ -1017,6 +1047,11 @@ fbDb2.collection('projects').orderBy('tyomaa').onSnapshot(function(snap) {
     opt.setAttribute('data-yhteys', p.yhteys||'');
     sel.appendChild(opt);
   });
+  if (edellinenValinta) {
+    for (var k = 0; k < sel.options.length; k++) {
+      if (sel.options[k].value === edellinenValinta) { sel.selectedIndex = k; break; }
+    }
+  }
 });
 
 function tallennaProjektiksi() {
