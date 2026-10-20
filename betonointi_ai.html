@@ -422,7 +422,7 @@ body {
       <div class="cbrow">
         <span class="cblabel">Rasitusluokka:</span>
         <div class="cbgroup">
-          <label class="cbi"><input type="checkbox" checked><span>XC1</span></label>
+          <label class="cbi"><input type="checkbox"><span>XC1</span></label>
           <label class="cbi"><input type="checkbox"><span>XC2</span></label>
           <label class="cbi"><input type="checkbox"><span>XC3</span></label>
           <label class="cbi"><input type="checkbox"><span>XC4</span></label>
@@ -442,7 +442,7 @@ body {
       <div class="cbrow">
         <span class="cblabel">Käyttöikä:</span>
         <div class="cbgroup" style="margin-right:18px">
-          <label class="cbi"><input type="checkbox" checked><span>50 v</span></label>
+          <label class="cbi"><input type="checkbox"><span>50 v</span></label>
           <label class="cbi"><input type="checkbox"><span>100 v</span></label>
         </div>
         <span class="cblabel">Raekoko:</span>
@@ -450,7 +450,7 @@ body {
           <select class="cb-select" id="raekoko">
             <option value="">— Valitse —</option>
             <option>#8 mm</option>
-            <option selected>#16 mm</option>
+            <option>#16 mm</option>
             <option>#32 mm</option>
           </select>
         </div>
@@ -462,7 +462,7 @@ body {
             <option value="">— Valitse —</option>
             <option>20 kg/m³</option>
             <option>25 kg/m³</option>
-            <option selected>30 kg/m³</option>
+            <option>30 kg/m³</option>
             <option>35 kg/m³</option>
             <option>40 kg/m³</option>
             <option>3,5 kg/m³</option>
@@ -1215,7 +1215,7 @@ Palauta VAIN JSON ilman muuta tekstiä:
   "kayttoika": "esim 50 tai 100 tai 50 ja 100",
   "raekoko": "esim 16",
   "kuitumaara": "kg/m³ numero esim 40",
-  "kuitutyyppi": "esim Arcelor HE 90/60 tai Arcelor HE ++90/60",
+  "kuitutyyppi": "vain jos kuormakirjassa lukee kuidun tyyppi/malli (esim Arcelor HE 90/60); jos lukee vain 'Teräskuidut', palauta null — älä arvaa",
   "lisaaineet": "pääasiallinen lisäaine",
   "sementtityyppi": "esim CEM II/B-M 52.5N",
   "valuAlkoi": "ensimmäisen kuorman purku alkoi aika HH:MM",
@@ -1388,6 +1388,7 @@ async function tuoKuormakirjat(input) {
     var muuM3 = kaikki_m3.reduce(function(a,b){ return a+b; }, 0);
     var tuontiHuomio = '';
     if (schwenkMaara > 0) {
+      if (!tiedot.toimittaja) tiedot.toimittaja = 'Schwenk Oy'; // lapussa vain logo, ei nimitekstiä
       // Schwenkin "toimitettu yhteensä" -luku on varmin; kuormien summa tarkistaa, ettei lappuja puutu
       var schwenkYht = schwenkKumMax || schwenkSumma;
       tiedot.totBetoni = muuM3 + schwenkYht;
