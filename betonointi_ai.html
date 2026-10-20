@@ -1046,7 +1046,7 @@ function taytaKentat(tiedot) {
   var kaikkirasitukset = ['XC1','XC2','XC3','XC4','XF1','XF2','XF3','XF4','XD1','XD2','XD3','XS1','XS2','XS3','NP'];
   kaikkirasitukset.forEach(function(r) { asetaCheckbox(r, false); });
   if (tiedot.rasitusluokat && Array.isArray(tiedot.rasitusluokat)) {
-    tiedot.rasitusluokat.forEach(function(r) { asetaCheckbox(r.trim(), true); });
+    tiedot.rasitusluokat.forEach(function(r) { asetaCheckbox(String(r).trim(), true); });
   }
 
   // Käyttöikä
@@ -1063,13 +1063,13 @@ function taytaKentat(tiedot) {
 
   // Raekoko
   if (tiedot.raekoko) {
-    var raeArvo = '#' + tiedot.raekoko.replace('#','').replace('mm','').trim() + ' mm';
+    var raeArvo = '#' + String(tiedot.raekoko).replace('#','').replace('mm','').trim() + ' mm';
     asetaDropdown('raekoko', raeArvo);
   }
 
   // Kuitumäärä
   if (tiedot.kuitumaara) {
-    var kuituArvo = tiedot.kuitumaara.trim();
+    var kuituArvo = String(tiedot.kuitumaara).trim();
     if (!asetaDropdown('kuitumaara', kuituArvo + ' kg/m³')) {
       asetaDropdown('kuitumaara', kuituArvo);
     }
@@ -1240,11 +1240,14 @@ Palauta VAIN JSON ilman muuta tekstiä:
   });
 
   var data = await response.json();
-  if (!response.ok || !data.content || !data.content[0]) {
+  if (!response.ok || !data.content || !data.content.length) {
     var virhe = (data.error && data.error.message) ? data.error.message : ('HTTP ' + response.status);
     throw new Error('API-virhe (kutsuAI): ' + virhe);
   }
-  var teksti = data.content[0].text.trim();
+  // Uudet mallit voivat palauttaa ensin ajatteluosion — otetaan ensimmäinen tekstiosa
+  var tekstiOsa = data.content.filter(function(b) { return b.type === 'text' && b.text; })[0];
+  if (!tekstiOsa) throw new Error('API-virhe (kutsuAI): vastauksessa ei ollut tekstiä');
+  var teksti = tekstiOsa.text.trim();
   // Poista mahdolliset ```json ``` merkit
   teksti = teksti.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
   return JSON.parse(teksti);
