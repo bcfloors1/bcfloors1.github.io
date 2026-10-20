@@ -1234,7 +1234,7 @@ Palauta VAIN JSON ilman muuta tekstiä:
     },
     body: JSON.stringify({
       model: 'claude-sonnet-5-5',
-      max_tokens: 2000,
+      max_tokens: 8000,
       messages: [{ role: 'user', content: prompt }]
     })
   });
@@ -1246,7 +1246,7 @@ Palauta VAIN JSON ilman muuta tekstiä:
   }
   // Uudet mallit voivat palauttaa ensin ajatteluosion — otetaan ensimmäinen tekstiosa
   var tekstiOsa = data.content.filter(function(b) { return b.type === 'text' && b.text; })[0];
-  if (!tekstiOsa) throw new Error('API-virhe (kutsuAI): vastauksessa ei ollut tekstiä');
+  if (!tekstiOsa) throw new Error('API-virhe (kutsuAI): vastauksessa ei ollut tekstiä (stop_reason: ' + data.stop_reason + ', osat: ' + data.content.map(function(b){return b.type;}).join(',') + ')');
   var teksti = tekstiOsa.text.trim();
   // Poista mahdolliset ```json ``` merkit
   teksti = teksti.replace(/```json|```/gi, '').trim();
