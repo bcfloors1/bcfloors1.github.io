@@ -1249,8 +1249,23 @@ Palauta VAIN JSON ilman muuta tekstiä:
   if (!tekstiOsa) throw new Error('API-virhe (kutsuAI): vastauksessa ei ollut tekstiä');
   var teksti = tekstiOsa.text.trim();
   // Poista mahdolliset ```json ``` merkit
-  teksti = teksti.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
-  return JSON.parse(teksti);
+  teksti = teksti.replace(/```json|```/gi, '').trim();
+  // Malli saattaa lisätä JSON:n perään selitystekstiä — poimitaan ensimmäinen täydellinen {...}-olio
+  var alku = teksti.indexOf('{');
+  if (alku < 0) throw new Error('API-virhe (kutsuAI): vastauksessa ei ollut JSON-oliota');
+  var syvyys = 0, merkkijono = false, esc = false, loppu = -1;
+  for (var ci = alku; ci < teksti.length; ci++) {
+    var ch = teksti[ci];
+    if (merkkijono) {
+      if (esc) esc = false;
+      else if (ch === '\\') esc = true;
+      else if (ch === '"') merkkijono = false;
+    } else if (ch === '"') merkkijono = true;
+    else if (ch === '{') syvyys++;
+    else if (ch === '}') { syvyys--; if (syvyys === 0) { loppu = ci; break; } }
+  }
+  if (loppu < 0) throw new Error('API-virhe (kutsuAI): JSON jäi kesken');
+  return JSON.parse(teksti.substring(alku, loppu + 1));
 }
 
 // ── Pää-funktio: tuo kuormakirjat ──
