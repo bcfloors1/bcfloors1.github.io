@@ -1201,9 +1201,17 @@ function paivitaKortti(id) {
     chip('dok').textContent = 'Dokumentit ' + dok.length;
     if (dEl) {
       dEl.innerHTML = dok.length ? dok.map(function(x) {
+        var napit;
+        var roskis = '<button type="button" class="mk-btn mk-btn-danger mk-btn-icon" aria-label="Poista dokumentti" title="Poista" data-act="poistaDok" data-id="' + id + '" data-dok="' + esc(x._id) + '"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button>';
+        if (x.pdfBase64) {
+          napit = '<button type="button" class="mk-btn mk-btn-green" data-act="avaaDok" data-id="' + id + '" data-dok="' + esc(x._id) + '">Avaa</button>' + roskis;
+        } else {
+          // Vanha rivi ilman tallennettua tiedostoa (ZIP-viittaus) — Lataa toimii vain, jos tiedosto on Storagessa
+          napit = '<button type="button" class="mk-btn mk-btn-outline" data-polku="' + esc(x.polku || '') + '" data-nimi="' + esc(x.nimi || 'tiedosto') + '" onclick="lataaStorageTiedosto(this.dataset.polku, this.dataset.nimi)">Lataa</button>' + roskis;
+        }
         return '<div class="pk-rivi"><span class="pk-pvm">' + fiPvm(x.luotu) + '</span>' +
-          '<span class="pk-rivi-nimi">' + esc(x.nimi || 'dokumentti') + '</span><span class="pk-grow"></span>' +
-          '<div class="pk-rivi-napit"><button type="button" class="mk-btn mk-btn-outline" data-polku="' + esc(x.polku || '') + '" data-nimi="' + esc(x.nimi || 'tiedosto') + '" onclick="lataaStorageTiedosto(this.dataset.polku, this.dataset.nimi)">Lataa</button></div></div>';
+          '<span class="pk-rivi-nimi">' + esc(x.nimi || 'dokumentti') + '</span>' + (x.pdfBase64 ? '' : '<span class="pk-lisa">vanha ZIP-rivi</span>') + '<span class="pk-grow"></span>' +
+          '<div class="pk-rivi-napit">' + napit + '</div></div>';
       }).join('') : '<div class="pk-tyhja">Ei dokumentteja vielä.</div>';
     }
   } else if (dok && dok.virhe) {
@@ -1282,6 +1290,8 @@ document.addEventListener('click', function(e) {
   else if (act === 'arkistoi') arkistoiProjekti(id, nimi);
   else if (act === 'palauta') palautaArkistosta(id, nimi);
   else if (act === 'poista') poistaProjekti(id, nimi);
+  else if (act === 'avaaDok') avaaDokumentti(id, el.dataset.dok);
+  else if (act === 'poistaDok') poistaDokumentti(id, el.dataset.dok);
 });
 document.addEventListener('keydown', function(e) { if (e.key === 'Escape') suljeValikot(); });
 
@@ -1310,12 +1320,38 @@ function kohdistaProjektiin() {
   }, 2500);
 }
 
+// ── Avaa tallennettu dokumentti (betonointipöytäkirja-PDF) ──
+function avaaDokumentti(projektinId, dokId) {
+  fbDb.collection('projects').doc(projektinId).collection('dokumentit').doc(dokId).get().then(function(doc) {
+    if (!doc.exists || !doc.data().pdfBase64) { alert('Dokumentin tiedostoa ei löytynyt.'); return; }
+    var d = doc.data();
+    var byteStr = atob(d.pdfBase64);
+    var ab = new ArrayBuffer(byteStr.length);
+    var ia = new Uint8Array(ab);
+    for (var i = 0; i < byteStr.length; i++) ia[i] = byteStr.charCodeAt(i);
+    var blob = new Blob([ab], {type: 'application/pdf'});
+    if (window._pdfUrl) URL.revokeObjectURL(window._pdfUrl);
+    var url = URL.createObjectURL(blob);
+    window._pdfUrl = url;
+    var tiedosto = (d.nimi || 'betonointipoytakirja.pdf').replace(/[^A-Za-z0-9äöåÄÖÅ._-]+/g, '_');
+    naytaPdfNakyma(url, d.nimi || 'Betonointipöytäkirja', tiedosto);
+  }).catch(function(e) { alert('Dokumentin avaus epäonnistui: ' + e.message); });
+}
+
+// ── Poista dokumenttirivi ──
+function poistaDokumentti(projektinId, dokId) {
+  if (!confirm('Poistetaanko dokumentti? Tätä ei voi peruuttaa.')) return;
+  fbDb.collection('projects').doc(projektinId).collection('dokumentit').doc(dokId).delete()
+    .then(function() { naytaToast('🗑 Dokumentti poistettu'); return lataaProjektinDokumentit(projektinId); })
+    .catch(function(e) { alert('Virhe: ' + e.message); });
+}
+
 // ── Projektin dokumentit (esim. betonointipöytäkirjat) ──
 function lataaProjektinDokumentit(projektinId) {
   return fbDb.collection('projects').doc(projektinId).collection('dokumentit').orderBy('luotu', 'desc').get()
     .then(function(snap) {
       var lista = [];
-      snap.forEach(function(d) { lista.push(d.data()); });
+      snap.forEach(function(d) { var x = d.data(); x._id = d.id; lista.push(x); });
       dokCache[projektinId] = lista;
       paivitaKortti(projektinId);
     })

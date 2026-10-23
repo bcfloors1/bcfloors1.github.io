@@ -1499,24 +1499,60 @@ async function luoZipJaLataa() {
     
     var blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
 
-    // Tallenna ZIP Firebase Storageen ENNEN latauslinkin luontia
+    // Tallenna pelkkä betonointipöytäkirja-PDF projektille (kuormakirjat jäävät ZIP-lataukseen)
+    var tallennusHuomio = '';
+    var tallennusOnnistui = false;
     try {
       var sel = document.getElementById('projektiValinta');
-      if (sel && sel.selectedIndex > 0) {
-        naytaStatus('⏳ Tallennetaan projektipankkiin...', 'white');
+      if (!(sel && sel.selectedIndex > 0)) {
+        tallennusHuomio = ' Pöytäkirjaa ei tallennettu projektille: valitse projekti ylhäältä.';
+      } else if (!pdfBlob) {
+        tallennusHuomio = ' ⚠️ Pöytäkirja-PDF:n luonti epäonnistui, joten sitä ei tallennettu projektille.';
+      } else {
+        naytaStatus('⏳ Tallennetaan pöytäkirja projektipankkiin...', 'white');
         var projId = sel.options[sel.selectedIndex].value;
-        // Tallenna viittaus Firestoreen (Storage ohitettu toistaiseksi)
-        var docRef = await fbDb.collection('projects').doc(projId).collection('dokumentit').add({
-          nimi: nimi,
-          polku: 'projects/' + projId + '/' + nimi,
-          luotu: new Date().toISOString(),
-          tyyppi: 'betonointipoyrakirja'
-        });
-        naytaStatus('✅ ZIP tallennettu projektipankkiin!', 'green');
+        var tallennettava = pdfBlob;
+        var RAJA = 700000; // Firestore: dokumentti max 1 MiB, base64 kasvattaa kokoa ~33 %
+        if (tallennettava.size > RAJA) {
+          // Pienennä PDF:n laatua tallennusta varten (ladattava ZIP säilyttää täyslaatuisen)
+          var asetukset = [{ scale: 1.5, quality: 0.8 }, { scale: 1.2, quality: 0.65 }, { scale: 1, quality: 0.5 }];
+          for (var ai = 0; ai < asetukset.length && tallennettava.size > RAJA; ai++) {
+            try {
+              tallennettava = await html2pdf().set({
+                margin: 0,
+                filename: 'poyrakirja.pdf',
+                image: { type: 'jpeg', quality: asetukset[ai].quality },
+                html2canvas: { scale: asetukset[ai].scale, useCORS: true, logging: false },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+              }).from(document.getElementById('poyrakirjaLomake')).outputPdf('blob');
+            } catch (pe) { console.warn('PDF:n pienennys epäonnistui:', pe); break; }
+          }
+        }
+        if (tallennettava.size > RAJA) {
+          tallennusHuomio = ' ⚠️ Pöytäkirja-PDF on liian suuri tallennettavaksi projektille (' + Math.round(tallennettava.size / 1000) + ' kt). Se on mukana ladatussa ZIP:ssä.';
+        } else {
+          var dataUrl = await new Promise(function(res, rej) {
+            var fr = new FileReader();
+            fr.onload = function() { res(fr.result); };
+            fr.onerror = function() { rej(fr.error); };
+            fr.readAsDataURL(tallennettava);
+          });
+          var b64 = String(dataUrl).split(',')[1] || '';
+          // Sama projekti + päivä korvaa edellisen tallennuksen (ei kaksoiskappaleita)
+          var dokId = 'poyta_' + zipNimi.replace(/[^A-Za-z0-9]/g, '_');
+          await fbDb.collection('projects').doc(projId).collection('dokumentit').doc(dokId).set({
+            nimi: zipNimi + '_poytakirja.pdf',
+            tyyppi: 'betonointipoyrakirja',
+            luotu: new Date().toISOString(),
+            koko: tallennettava.size,
+            pdfBase64: b64
+          });
+          tallennusOnnistui = true;
+        }
       }
     } catch(e) {
       console.error('Tallennus projektipankkiin epäonnistui:', e);
-      naytaStatus('❌ Tallennus epäonnistui: ' + e.message, 'red');
+      tallennusHuomio = ' ❌ Tallennus projektille epäonnistui: ' + e.message;
     }
 
     var url = URL.createObjectURL(blob);
@@ -1526,7 +1562,8 @@ async function luoZipJaLataa() {
     document.body.appendChild(a);
     a.click();
     setTimeout(function() { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
-    naytaStatus('✅ ZIP ladattu: ' + nimi, 'green');
+    if (tallennusOnnistui) naytaStatus('✅ Pöytäkirja tallennettu projektille. ZIP ladattu: ' + nimi, 'green');
+    else naytaStatus('ZIP ladattu: ' + nimi + '.' + tallennusHuomio, tallennusHuomio ? 'red' : 'green');
 
   } catch(err) {
     naytaStatus('❌ ZIP-virhe: ' + err.message, 'red');
