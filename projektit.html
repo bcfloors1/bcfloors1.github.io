@@ -12,8 +12,9 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f8fafc;color:#1e293
 .hdr{background:#006CB1;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid #e8a020;position:sticky;top:0;z-index:100;}
 .hdr-title{color:white;font-size:12px;font-weight:700;letter-spacing:.5px;}
 .hdr-sub{color:rgba(255,255,255,.6);font-size:10px;margin-top:1px;}
-.content{padding:14px 16px 220px;}
-.proj-card{background:white;border-radius:12px;border:1px solid #e2e8f0;margin-bottom:10px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06);}
+.content{padding:6px 16px 220px;max-width:1100px;margin:0 auto;}
+#irrTarkastuksetOsio,#irrallisetOsio{max-width:1100px;margin-left:auto;margin-right:auto;}
+.proj-card{background:white;border-radius:12px;border:1px solid #e2e8f0;margin-bottom:10px;overflow:visible;box-shadow:0 1px 4px rgba(0,0,0,.06);}
 .proj-main{padding:12px 14px;}
 .proj-name{font-size:14px;font-weight:700;color:#1e293b;margin-bottom:2px;}
 .proj-sub{font-size:12px;color:#64748b;margin-top:2px;}
@@ -28,7 +29,8 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f8fafc;color:#1e293
 .tarjous-toggle{cursor:pointer;user-select:none;}
 .tarkastus-section{padding:10px 14px;background:#f0fdf4;border-top:1px solid #86efac;display:none;}
 .tarkastus-section.auki{display:block;}
-.tarkastus-rivi{display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid #dcfce7;font-size:12px;}
+.tarkastus-rivi{display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-top:1px solid #eef2f6;font-size:12px;}
+.tarkastus-rivi:first-child{border-top:none;}
 .tarkastus-rivi:last-child{border-bottom:none;}
 .tark-tulos-ok{color:#16a34a;font-weight:600;}
 .tark-tulos-warn{color:#92400e;font-weight:600;}
@@ -94,6 +96,67 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f8fafc;color:#1e293
 .mk-btn-green{background:#16a34a;color:white;}
 .mk-btn-copy{background:#f1f5f9;color:#334155;border:1px solid #e2e8f0;}
 .mk-btn-danger{background:white;color:#dc2626;border:1px solid #fecaca;}
+
+/* ── Uusi projektikortti ── */
+[hidden]{display:none!important;}
+button:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid #e8a020;outline-offset:2px;}
+.pk-toolbar{max-width:1100px;margin:0 auto;padding:14px 16px 6px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;}
+.pk-haku{flex:1 1 260px;min-width:0;height:44px;border:1px solid #cbd5e1;border-radius:10px;padding:0 14px;font-family:inherit;font-size:14px;background:white;color:#1e293b;}
+.pk-filters{display:flex;gap:8px;flex-wrap:wrap;}
+.pk-filter{height:36px;padding:0 14px;border-radius:999px;border:1px solid #b9c7d6;background:white;color:#34485c;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;}
+.pk-filter.on{background:#006CB1;border-color:#006CB1;color:white;}
+.pk-ei-tuloksia{max-width:1100px;margin:0 auto;padding:18px 16px;color:#64748b;font-size:14px;text-align:center;}
+.pk-head{padding:16px 18px;display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;}
+.pk-title{flex:1 1 240px;min-width:0;}
+.pk-toggle{display:flex;align-items:center;gap:8px;background:none;border:none;padding:0;font-family:inherit;text-align:left;color:#1e293b;cursor:pointer;max-width:100%;}
+.pk-chev{flex:none;color:#006CB1;transition:transform .15s;}
+.pk-toggle[aria-expanded="true"] .pk-chev{transform:rotate(90deg);}
+.pk-name{font-size:17px;font-weight:700;overflow-wrap:anywhere;}
+.pk-sub{margin:3px 0 0 26px;font-size:12px;color:#64748b;}
+.pk-chips{display:flex;flex-wrap:wrap;gap:6px;}
+.pk-chip{display:inline-block;border-radius:999px;padding:4px 11px;font-size:11px;font-weight:600;background:#e8f1fa;color:#0b5189;white-space:nowrap;}
+.pk-chip-ok{background:#e7f6ec;color:#17612f;}
+.pk-chip-none{background:#f1f5f9;color:#64748b;}
+.pk-chip-wait{background:#fff4d6;color:#7a4b00;}
+.pk-chip-draft{background:#f1f5f9;color:#475569;}
+.pk-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
+.pk-btn{display:inline-flex;align-items:center;gap:7px;height:38px;padding:0 14px;border-radius:9px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;border:1px solid transparent;}
+.pk-btn-primary{background:#006CB1;color:white;}
+.pk-btn-primary:hover{background:#005a96;}
+.pk-btn-outline{background:white;color:#0b5189;border-color:#b9c7d6;}
+.pk-btn-outline:hover,.pk-btn-icon:hover{background:#eef4fa;}
+.pk-btn-icon{width:38px;padding:0;justify-content:center;background:white;color:#34485c;border-color:#b9c7d6;}
+.pk-menu-wrap{position:relative;}
+.pk-menu{display:none;position:absolute;right:0;top:44px;z-index:30;min-width:210px;background:white;border:1px solid #cbd5e1;border-radius:10px;box-shadow:0 10px 24px rgba(15,35,55,.16);padding:6px;flex-direction:column;}
+.pk-menu-wrap.open .pk-menu{display:flex;}
+.pk-menu button{text-align:left;background:none;border:none;border-radius:7px;padding:11px 12px;font-family:inherit;font-size:13px;color:#1e293b;cursor:pointer;}
+.pk-menu button:hover{background:#f1f5f9;}
+.pk-menu .pk-menu-danger{color:#b42318;font-weight:700;}
+.pk-menu-sep{height:1px;background:#e2e8f0;margin:4px 6px;}
+.pk-body{border-top:1px solid #e2e8f0;background:#fafcfe;padding:4px 18px 18px;border-radius:0 0 12px 12px;}
+.pk-sec{margin-top:14px;}
+.pk-sec-head{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+.pk-sec-head h3{flex:1;font-size:12px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:#34485c;}
+.pk-mini{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 11px;border:1px solid #b9c7d6;background:white;border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;color:#0b5189;cursor:pointer;}
+.pk-mini:hover{background:#eef4fa;}
+.pk-list{background:white;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;}
+.pk-tyhja{padding:12px 14px;font-size:12px;color:#64748b;}
+.pk-rivi{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;padding:9px 14px;border-top:1px solid #eef2f6;}
+.pk-rivi:first-child{border-top:none;}
+.pk-pvm{min-width:78px;font-size:12px;color:#475569;}
+.pk-rivi-nimi{font-size:13px;font-weight:600;color:#1e293b;}
+.pk-lisa{font-size:11px;color:#64748b;}
+.pk-grow{flex:1 1 0;}
+.pk-rivi-napit{display:flex;flex-wrap:wrap;gap:6px;}
+.pk-hinnat{background:white;border:1px solid #e2e8f0;border-radius:10px;padding:0 14px;}
+.pk-hinnat summary{cursor:pointer;padding:11px 0;font-size:12px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:#34485c;}
+.pk-hinnat[open] summary{border-bottom:1px solid #eef2f6;margin-bottom:4px;}
+.mk-btn{min-height:32px;padding:0 12px;}
+.mk-btn-icon{width:32px;padding:0;display:inline-flex;align-items:center;justify-content:center;}
+.mk-badge-draft{background:#f1f5f9;color:#475569;}
+.mk-badge-sent{background:#dbeafe;color:#0b4a8f;}
+.mk-badge-signed{background:#dcfce7;color:#14602d;}
+@media (max-width:560px){.pk-head{padding:14px;}.pk-body{padding:4px 12px 14px;}.pk-btn{flex:1 1 auto;justify-content:center;}.pk-btn-icon{flex:none;}.pk-pvm{min-width:70px;}}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
 </head>
@@ -112,6 +175,15 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f8fafc;color:#1e293
   </div>
 </div>
 
+<div class="pk-toolbar">
+  <label for="pkHaku" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Hae projektia</label>
+  <input type="search" id="pkHaku" class="pk-haku" placeholder="Hae projektia, tilaajaa tai työnumeroa…" oninput="sovellaSuodatus()" autocomplete="off">
+  <div class="pk-filters">
+    <button type="button" class="pk-filter on" data-filter="kaikki" aria-pressed="true" onclick="asetaSuodatin('kaikki')">Kaikki</button>
+    <button type="button" class="pk-filter" data-filter="odottaa" aria-pressed="false" onclick="asetaSuodatin('odottaa')">Odottaa allekirjoitusta</button>
+  </div>
+</div>
+<div class="pk-ei-tuloksia" id="pkTyhja" hidden>Ei hakua vastaavia projekteja.</div>
 <div class="content" id="projektilista">
   <div class="empty">Ladataan projekteja...</div>
 </div>
@@ -245,9 +317,7 @@ function siirraTarkastus(tarkastusId, selectEl) {
   selectEl.disabled = true;
   db.collection('raudoitustarkastukset').doc(tarkastusId).update({ projektiId: projektiId })
     .then(function() {
-      tarkastusCache[projektiId] = false; // projektin lista ladataan uudelleen seuraavalla avauksella
-      var el = document.getElementById('tarkastukset-' + projektiId);
-      if (el && el.classList.contains('auki')) { el.classList.remove('auki'); toggleTarkastukset(projektiId); }
+      lataaProjektinTarkastukset(projektiId); // päivittää projektikortin tarkastukset ja merkin
       lataaIrrallisetTarkastukset();
     })
     .catch(function(err) {
@@ -278,35 +348,24 @@ function lataaIrrallisetTarkastukset() {
     });
 }
 
-// ── Toggle & lataa tarkastukset ──
+// ── Lataa projektin tarkastukset (kortin sisältö piirtyy paivitaKortti-funktiossa) ──
 var tarkastusCache = {};
-function toggleTarkastukset(projektinId) {
-  var el = document.getElementById('tarkastukset-' + projektinId);
-  if (!el) return;
-  var auki = el.classList.toggle('auki');
-  if (auki && !tarkastusCache[projektinId]) {
-    // Lataa Firestoresta
-    db.collection('raudoitustarkastukset')
-      .where('projektiId', '==', projektinId)
-      .orderBy('luotu', 'desc')
-      .get()
-      .then(function(snap) {
-        tarkastusCache[projektinId] = true;
-        if (snap.empty) {
-          el.innerHTML = '<div style="font-size:12px;color:#6b7280">Ei tallennettuja tarkastuksia</div>';
-          return;
-        }
-        var html = '<div style="font-size:11px;font-weight:700;color:#15803d;margin-bottom:6px">📋 TARKASTUKSET</div>';
-        snap.forEach(function(doc) {
-          html += tarkastusRiviHtml(doc, projektinId);
-        });
-        el.innerHTML = html;
-      })
-      .catch(function(err) {
-        el.innerHTML = '<div style="font-size:12px;color:#dc2626">Virhe: ' + err.message + '</div>';
-      });
-  }
+function lataaProjektinTarkastukset(projektinId) {
+  return db.collection('raudoitustarkastukset')
+    .where('projektiId', '==', projektinId)
+    .orderBy('luotu', 'desc')
+    .get()
+    .then(function(snap) {
+      tarkCache[projektinId] = snap.docs.slice();
+      paivitaKortti(projektinId);
+    })
+    .catch(function(err) {
+      tarkCache[projektinId] = { virhe: err.message };
+      paivitaKortti(projektinId);
+    });
 }
+// Vanha nimi säilytetty: lataa projektin tarkastukset uudelleen
+function toggleTarkastukset(projektinId) { lataaProjektinTarkastukset(projektinId); }
 
 // ── Lataa vanha tarkastus PDF:nä suoraan ──
 function lataaVanhaPDF(tarkastusId) {
@@ -525,11 +584,7 @@ function poistaTarkastus(tarkastusId, projektinId) {
   db.collection('raudoitustarkastukset').doc(tarkastusId).delete()
     .then(function() {
       if (!projektinId) { lataaIrrallisetTarkastukset(); return; }
-      // Tyhjennä cache ja päivitä lista
-      tarkastusCache[projektinId] = false;
-      var el = document.getElementById('tarkastukset-' + projektinId);
-      if (el) el.innerHTML = '<div style="font-size:11px;color:#6b7280">Ladataan...</div>';
-      toggleTarkastukset(projektinId);
+      lataaProjektinTarkastukset(projektinId);
     })
     .catch(function(err) {
       alert('Virhe: ' + err.message);
@@ -973,8 +1028,104 @@ function poistaProjekti(id, nimi) {
   }
 }
 
+// ── Apufunktiot (uusi projektikortti) ──
+function esc(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+function fiPvm(iso) {
+  if (!iso) return '';
+  var d = String(iso).substring(0, 10).split('-');
+  return d.length === 3 ? d[2] + '.' + d[1] + '.' + d[0] : '';
+}
+var ICON_PLUS = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
+var ICON_DOC = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>';
+var ICON_UPLOAD = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M5 20h14"/></svg>';
+var ICON_DOTS = '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>';
+var ICON_CHEV = '<svg class="pk-chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
+
+// Välimuistit: kortin sisältö piirretään uudelleen näistä (esim. kun projektilista päivittyy)
+var mkCache = {};      // projektiId -> [mittakirjat]
+var tarkCache = {};    // projektiId -> [tarkastus-dokumentit] tai {virhe}
+var dokCache = {};     // projektiId -> [dokumentit] tai {virhe}
+var avoimetKortit = {}; // projektiId -> true kun kortti on auki
+window._pkSuodatin = 'kaikki';
+
 // ── Lataa projektit ──
 var viimeisinProjektiSnap = null;
+
+function korttiHtml(id, p) {
+  var nimi = p.tyomaa || '(nimetön projekti)';
+  var auki = !!avoimetKortit[id];
+  var h = '';
+  var haku = ((p.tyomaa || '') + ' ' + (p.tilaaja || '') + ' ' + (p.tyonro || '') + ' ' + (p.yhteys || '')).toLowerCase();
+  h += '<div class="proj-card" id="proj-' + id + '" data-haku="' + esc(haku) + '" data-odottaa="0">';
+
+  // Otsikko
+  h += '<div class="pk-head">';
+  h += '<div class="pk-title">';
+  h += '<button type="button" class="pk-toggle" data-act="toggle" data-id="' + id + '" aria-expanded="' + (auki ? 'true' : 'false') + '">' + ICON_CHEV + '<span class="pk-name">' + esc(nimi) + '</span></button>';
+  var alarivi = [];
+  if (p.tilaaja) alarivi.push(esc(p.tilaaja));
+  if (p.tyonro) alarivi.push('Työnro ' + esc(p.tyonro));
+  if (alarivi.length) h += '<div class="pk-sub">' + alarivi.join(' · ') + '</div>';
+  h += '</div>';
+
+  // Tilamerkit
+  h += '<div class="pk-chips">';
+  h += p.pdfBase64 ? '<span class="pk-chip pk-chip-ok">Tarjous ✓</span>' : '<span class="pk-chip pk-chip-none">Ei tarjousta</span>';
+  h += '<span class="pk-chip" data-chip="mk">Mittakirjat …</span>';
+  h += '<span class="pk-chip" data-chip="tark">Tarkastukset …</span>';
+  h += '<span class="pk-chip" data-chip="dok">Dokumentit …</span>';
+  h += '<span class="pk-chip pk-chip-wait" data-chip="wait" hidden>Odottaa allekirjoitusta</span>';
+  h += '<span class="pk-chip pk-chip-draft" data-chip="draft" hidden>Luonnos</span>';
+  h += '</div>';
+
+  // Päätoiminnot
+  h += '<div class="pk-actions">';
+  if (p.pdfBase64) {
+    h += '<button type="button" class="pk-btn pk-btn-outline" data-act="avaaPdf" data-id="' + id + '">' + ICON_DOC + ' Avaa tarjous</button>';
+  } else {
+    h += '<button type="button" class="pk-btn pk-btn-outline" data-act="lataaPdf" data-id="' + id + '" data-nimi="' + esc(p.tyomaa || '') + '">' + ICON_UPLOAD + ' Lataa tarjous</button>';
+  }
+  h += '<button type="button" class="pk-btn pk-btn-primary" data-act="uusiMk" data-id="' + id + '">' + ICON_PLUS + ' Mittakirja</button>';
+  h += '<button type="button" class="pk-btn pk-btn-primary" data-act="uusiTark" data-id="' + id + '">' + ICON_PLUS + ' Tarkastus</button>';
+  h += '<div class="pk-menu-wrap">';
+  h += '<button type="button" class="pk-btn pk-btn-icon" data-act="menu" data-id="' + id + '" aria-label="Lisää toimintoja" aria-haspopup="true" aria-expanded="false">' + ICON_DOTS + '</button>';
+  h += '<div class="pk-menu" role="menu">';
+  h += '<button type="button" role="menuitem" data-act="tiedot" data-id="' + id + '">Projektin tiedot</button>';
+  if (p.pdfBase64) h += '<button type="button" role="menuitem" data-act="lataaPdf" data-id="' + id + '" data-nimi="' + esc(p.tyomaa || '') + '">Vaihda tarjous-PDF</button>';
+  if (p.arkistoitu) {
+    h += '<button type="button" role="menuitem" data-act="palauta" data-id="' + id + '" data-nimi="' + esc(p.tyomaa || '') + '">Palauta arkistosta</button>';
+  } else {
+    h += '<button type="button" role="menuitem" data-act="arkistoi" data-id="' + id + '" data-nimi="' + esc(p.tyomaa || '') + '">Arkistoi projekti</button>';
+  }
+  h += '<div class="pk-menu-sep"></div>';
+  h += '<button type="button" role="menuitem" class="pk-menu-danger" data-act="poista" data-id="' + id + '" data-nimi="' + esc(p.tyomaa || '') + '">Poista projekti…</button>';
+  h += '</div></div>';
+  h += '</div>'; // pk-actions
+  h += '</div>'; // pk-head
+
+  // Avattava sisältö
+  h += '<div class="pk-body" id="pk-body-' + id + '"' + (auki ? '' : ' hidden') + '>';
+  if (p.tarjousHinnat && p.tarjousHinnat.length > 0) {
+    h += '<details class="pk-sec pk-hinnat"><summary>Tarjoushinnat (' + p.tarjousHinnat.length + ')</summary>';
+    p.tarjousHinnat.forEach(function(x) {
+      h += '<div class="hinta-rivi"><span class="hinta-nimi">' + esc(x.nimi) + '</span>';
+      h += '<span><span class="hinta-arvo">' + Number(x.hinta).toFixed(2) + ' €</span><span class="hinta-yksikko">/ ' + esc(x.yksikko || 'm²') + '</span></span></div>';
+    });
+    h += '</details>';
+  }
+  h += '<div class="pk-sec"><div class="pk-sec-head"><h3>Mittakirjat</h3><button type="button" class="pk-mini" data-act="uusiMk" data-id="' + id + '">' + ICON_PLUS + ' Uusi mittakirja</button></div>';
+  h += '<div class="pk-list" id="mk-lista-' + id + '"><div class="pk-tyhja">Ladataan…</div></div></div>';
+  h += '<div class="pk-sec"><div class="pk-sec-head"><h3>Tarkastukset</h3><button type="button" class="pk-mini" data-act="uusiTark" data-id="' + id + '">' + ICON_PLUS + ' Uusi tarkastus</button></div>';
+  h += '<div class="pk-list" id="tarkastukset-' + id + '"><div class="pk-tyhja">Ladataan…</div></div></div>';
+  h += '<div class="pk-sec"><div class="pk-sec-head"><h3>Dokumentit</h3></div>';
+  h += '<div class="pk-list" id="dokumentit-' + id + '"><div class="pk-tyhja">Ladataan…</div></div></div>';
+  h += '</div>'; // pk-body
+  h += '</div>'; // proj-card
+  return h;
+}
+
 function renderProjektit(snap) {
   var lista = document.getElementById('projektilista');
   var arkistossa = !!window._naytaArkisto;
@@ -994,68 +1145,145 @@ function renderProjektit(snap) {
     var id = doc.id;
     if (!!p.arkistoitu !== arkistossa) return; // aktiivinen näkymä: ei arkistoituja, arkisto-näkymä: vain arkistoidut
     naytettavat.push(id);
-
-    // Hinnat
-    var hinnatHtml = '';
-    if (p.tarjousHinnat && p.tarjousHinnat.length > 0) {
-      hinnatHtml = '<div class="tarjous-section" id="hinnat-' + id + '">';
-      hinnatHtml += '<div class="tarjous-title">📋 Tarjoushinnat</div>';
-      p.tarjousHinnat.forEach(function(h) {
-        hinnatHtml += '<div class="hinta-rivi">';
-        hinnatHtml += '<span class="hinta-nimi">' + h.nimi + '</span>';
-        hinnatHtml += '<span><span class="hinta-arvo">' + Number(h.hinta).toFixed(2) + ' €</span>';
-        hinnatHtml += '<span class="hinta-yksikko">/ ' + (h.yksikko || 'm²') + '</span></span>';
-        hinnatHtml += '</div>';
-      });
-      hinnatHtml += '</div>';
-    }
-
-    // PDF-status
-    var pdfStatus = p.pdfBase64
-      ? '<span class="pdf-status pdf-ok tarjous-toggle" onclick="toggleHinnat(\''+id+'\')" title="Näytä/piilota hinnat">📄 Tarjous tallennettu ' + (p.tarjousHinnat && p.tarjousHinnat.length > 0 ? '▼' : '') + '</span>'
-      : '<span class="pdf-status pdf-none">&#128228; Ei tarjousta</span>';
-    var tarkastusToggle = '<span class="pdf-status tarjous-toggle" onclick="toggleTarkastukset(\''+id+'\')" style="background:#f0fdf4;color:#16a34a;border:1px solid #86efac;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:600;cursor:pointer;display:inline-block;margin-top:4px;">📋 Tarkastukset ▼</span>';
-
-    html += '<div class="proj-card" id="proj-' + id + '">';
-    html += '<div class="proj-main" onclick="avaaDetalji(\''+id+'\')" style="cursor:pointer">';
-    html += '<div class="proj-name">' + (p.tyomaa || '') + ' <span style="font-size:10px;color:#94a3b8">▶</span></div>';
-    if (p.tilaaja) html += '<div class="proj-sub">' + p.tilaaja + '</div>';
-    if (p.tyonro) html += '<div class="proj-sub">Työnro: ' + p.tyonro + '</div>';
-    html += pdfStatus;
-    html += '</div>';
-    if (hinnatHtml) html += hinnatHtml;
-    html += '<div id="tarkastukset-' + id + '" class="tarkastus-section"><div style="font-size:11px;color:#6b7280">Ladataan...</div></div>';
-    html += '<div class="proj-main" style="padding:4px 14px 8px;border-top:none">' + tarkastusToggle + '</div>';
-    html += '<div class="proj-actions">';
-    if (p.pdfBase64) {
-      html += '<button class="proj-btn pdf-btn" onclick="avaaPdf(\'' + id + '\')">&#128196; Avaa PDF</button>';
-    }
-    html += '<button class="proj-btn pdf-btn" onclick="avaaLataaPdf(\'' + id + '\', \'' + (p.tyomaa||'').replace(/'/g,"\\'") + '\')">&#128228; ' + (p.pdfBase64 ? 'Vaihda PDF' : 'Lataa PDF') + '</button>';
-    html += '<button class="proj-btn" onclick="avaaValunaloitus(\'' + id + '\')" style="color:#006CB1">&#10003; Tarkastus</button>';
-    if (p.tarkastusLkm && p.tarkastusLkm > 0) {
-      html += '<div style="font-size:10px;color:#16a34a;padding:3px 10px;border-top:1px solid #f1f5f9">✅ ' + p.tarkastusLkm + ' tarkastusta tallennettu</div>';
-    }
-    html += '<button class="proj-btn dok-btn" data-projid="' + id + '" style="color:#7c3aed">&#128193; Dokumentit</button>';
-    if (p.arkistoitu) {
-      html += '<button class="proj-btn" data-arkid="' + id + '" data-arknimi="' + (p.tyomaa||"").replace(/"/g,"") + '" onclick="palautaArkistosta(this.dataset.arkid, this.dataset.arknimi)" style="color:#16a34a">&#128194; Palauta arkistosta</button>';
-    } else {
-      html += '<button class="proj-btn" data-arkid="' + id + '" data-arknimi="' + (p.tyomaa||"").replace(/"/g,"") + '" onclick="arkistoiProjekti(this.dataset.arkid, this.dataset.arknimi)" style="color:#f59e0b">&#128230; Arkistoi</button>';
-    }
-    html += '<button class="proj-btn del" onclick="poistaProjekti(\'' + id + '\', \'' + (p.tyomaa||"").replace(/'/g,"\\'") + '\')">&#128465; Poista</button>';
-    html += '</div>';
-    html += '<div id="dokumentit-' + id + '" style="display:none;padding:8px 14px;border-top:1px solid #f1f5f9;background:#fafafa;"></div>';
-    html += '<div class="mk-section"><div class="mk-label"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:-1px"><path d="M21 3L3 21"/><path d="M21 3h-6M21 3v6"/></svg> Mittakirja</div><div class="mk-row"><span class="mk-badge mk-badge-none" id="mk-badge-' + id + '">Ei tehty</span></div><div class="mk-btns" id="mk-btns-' + id + '"><button class="mk-btn mk-btn-primary" onclick="avaaLomake(\'' + id + '\')">' + '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg> Tee mittakirja</button></div></div>';
-    html += '</div>';
+    html += korttiHtml(id, p);
   });
 
   if (!html) {
     html = '<div class="empty">' + (arkistossa ? 'Arkisto on tyhjä.' : 'Ei aktiivisia projekteja.<br>Arkistoidut projektit löytyvät Arkisto-napista.') + '</div>';
   }
   lista.innerHTML = html;
-  // Lataa mittakirjojen tilat (vain näkyville projekteille)
+
+  // Piirrä välimuistissa jo olevat tiedot heti, lataa puuttuvat
+  naytettavat.forEach(function(id) {
+    if (tarkCache[id] === undefined) lataaProjektinTarkastukset(id); else paivitaKortti(id);
+    if (dokCache[id] === undefined) lataaProjektinDokumentit(id);
+  });
   lataaKaikkiMittakirjat(naytettavat);
+  sovellaSuodatus();
   kohdistaProjektiin();
 }
+
+// ── Päivitä yhden kortin merkit ja listat välimuistin tiedoista ──
+function paivitaKortti(id) {
+  var kortti = document.getElementById('proj-' + id);
+  if (!kortti) return;
+  function chip(nimi) { return kortti.querySelector('[data-chip="' + nimi + '"]'); }
+
+  var mk = mkCache[id];
+  var tark = tarkCache[id];
+  var dok = dokCache[id];
+
+  // Mittakirjat
+  var mkEl = document.getElementById('mk-lista-' + id);
+  if (mk) {
+    chip('mk').textContent = 'Mittakirjat ' + mk.length;
+    var odottaa = mk.some(function(m) { return m.tila === 'lahetetty'; });
+    var luonnos = mk.some(function(m) { return m.tila !== 'lahetetty' && m.tila !== 'allekirjoitettu'; });
+    chip('wait').hidden = !odottaa;
+    chip('draft').hidden = !luonnos;
+    kortti.dataset.odottaa = odottaa ? '1' : '0';
+    if (mkEl) mkEl.innerHTML = mk.length ? mk.map(function(m) { return mkRiviHtml(id, m); }).join('') : '<div class="pk-tyhja">Ei mittakirjoja vielä.</div>';
+  }
+
+  // Tarkastukset
+  var tEl = document.getElementById('tarkastukset-' + id);
+  if (Array.isArray(tark)) {
+    chip('tark').textContent = 'Tarkastukset ' + tark.length;
+    if (tEl) tEl.innerHTML = tark.length ? tark.map(function(d) { return tarkastusRiviHtml(d, id); }).join('') : '<div class="pk-tyhja">Ei tarkastuksia vielä.</div>';
+  } else if (tark && tark.virhe) {
+    chip('tark').textContent = 'Tarkastukset ?';
+    if (tEl) tEl.innerHTML = '<div class="pk-tyhja" style="color:#dc2626">Virhe: ' + esc(tark.virhe) + '</div>';
+  }
+
+  // Dokumentit
+  var dEl = document.getElementById('dokumentit-' + id);
+  if (Array.isArray(dok)) {
+    chip('dok').textContent = 'Dokumentit ' + dok.length;
+    if (dEl) {
+      dEl.innerHTML = dok.length ? dok.map(function(x) {
+        return '<div class="pk-rivi"><span class="pk-pvm">' + fiPvm(x.luotu) + '</span>' +
+          '<span class="pk-rivi-nimi">' + esc(x.nimi || 'dokumentti') + '</span><span class="pk-grow"></span>' +
+          '<div class="pk-rivi-napit"><button type="button" class="mk-btn mk-btn-outline" data-polku="' + esc(x.polku || '') + '" data-nimi="' + esc(x.nimi || 'tiedosto') + '" onclick="lataaStorageTiedosto(this.dataset.polku, this.dataset.nimi)">Lataa</button></div></div>';
+      }).join('') : '<div class="pk-tyhja">Ei dokumentteja vielä.</div>';
+    }
+  } else if (dok && dok.virhe) {
+    chip('dok').textContent = 'Dokumentit ?';
+    if (dEl) dEl.innerHTML = '<div class="pk-tyhja" style="color:#dc2626">Virhe: ' + esc(dok.virhe) + '</div>';
+  }
+  sovellaSuodatus();
+}
+
+// ── Avaa / sulje kortti ──
+function toggleKortti(id, pakota) {
+  var body = document.getElementById('pk-body-' + id);
+  var kortti = document.getElementById('proj-' + id);
+  if (!body || !kortti) return;
+  var auki = (typeof pakota === 'boolean') ? pakota : body.hidden;
+  body.hidden = !auki;
+  avoimetKortit[id] = auki;
+  var btn = kortti.querySelector('.pk-toggle');
+  if (btn) btn.setAttribute('aria-expanded', auki ? 'true' : 'false');
+}
+
+// ── Haku ja suodatin ──
+function asetaSuodatin(f) {
+  window._pkSuodatin = f;
+  document.querySelectorAll('.pk-filter').forEach(function(b) {
+    var on = b.dataset.filter === f;
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+  sovellaSuodatus();
+}
+function sovellaSuodatus() {
+  var haku = document.getElementById('pkHaku');
+  var q = ((haku && haku.value) || '').toLowerCase().trim();
+  var f = window._pkSuodatin || 'kaikki';
+  var kortit = document.querySelectorAll('#projektilista .proj-card');
+  var nakyvia = 0;
+  kortit.forEach(function(c) {
+    var okHaku = !q || (c.dataset.haku || '').indexOf(q) >= 0;
+    var okSuodatin = f === 'kaikki' || c.dataset.odottaa === '1';
+    var nayta = okHaku && okSuodatin;
+    c.style.display = nayta ? '' : 'none';
+    if (nayta) nakyvia++;
+  });
+  var tyhja = document.getElementById('pkTyhja');
+  if (tyhja) tyhja.hidden = !(kortit.length > 0 && nakyvia === 0);
+}
+
+// ── Kortin toiminnot (event delegation: ei lainausmerkkiongelmia nimissä) ──
+function suljeValikot() {
+  document.querySelectorAll('.pk-menu-wrap.open').forEach(function(w) {
+    w.classList.remove('open');
+    var b = w.querySelector('[data-act="menu"]');
+    if (b) b.setAttribute('aria-expanded', 'false');
+  });
+}
+document.addEventListener('click', function(e) {
+  var el = e.target.closest('[data-act]');
+  if (!e.target.closest('.pk-menu-wrap')) suljeValikot();
+  if (!el) return;
+  var act = el.dataset.act, id = el.dataset.id, nimi = el.dataset.nimi || '';
+  if (act === 'menu') {
+    var wrap = el.closest('.pk-menu-wrap');
+    var avautuu = !wrap.classList.contains('open');
+    suljeValikot();
+    if (avautuu) { wrap.classList.add('open'); el.setAttribute('aria-expanded', 'true'); }
+    return;
+  }
+  suljeValikot();
+  if (act === 'toggle') toggleKortti(id);
+  else if (act === 'avaaPdf') avaaPdf(id);
+  else if (act === 'lataaPdf') avaaLataaPdf(id, nimi);
+  else if (act === 'uusiMk') avaaLomake(id);
+  else if (act === 'uusiTark') avaaValunaloitus(id);
+  else if (act === 'tiedot') avaaDetalji(id);
+  else if (act === 'arkistoi') arkistoiProjekti(id, nimi);
+  else if (act === 'palauta') palautaArkistosta(id, nimi);
+  else if (act === 'poista') poistaProjekti(id, nimi);
+});
+document.addEventListener('keydown', function(e) { if (e.key === 'Escape') suljeValikot(); });
 
 db.collection('projects').orderBy('tyomaa').onSnapshot(function(snap) {
   viimeisinProjektiSnap = snap;
@@ -1071,6 +1299,7 @@ function kohdistaProjektiin() {
   var kortti = document.getElementById('proj-' + avaaId);
   if (!kortti) return; // projekti ei vielä renderöity — yritetään seuraavalla onSnapshot-päivityksellä
   avaaKohdistusTehty = true;
+  toggleKortti(avaaId, true);
   kortti.scrollIntoView({ behavior: 'smooth', block: 'center' });
   kortti.style.transition = 'box-shadow 0.4s, border-color 0.4s';
   kortti.style.boxShadow = '0 0 0 3px #006CB1';
@@ -1081,33 +1310,19 @@ function kohdistaProjektiin() {
   }, 2500);
 }
 
-// ── Näytä projektin dokumentit ──
-async function naytaDokumentit(projektinId) {
-  var div = document.getElementById('dokumentit-' + projektinId);
-  if (!div) return;
-  if (div.style.display !== 'none') { div.style.display = 'none'; return; }
-  div.style.display = 'block';
-  div.innerHTML = '<div style="font-size:11px;color:#6b7280">⏳ Ladataan dokumentteja...</div>';
-  try {
-    var snap = await fbDb.collection('projects').doc(projektinId).collection('dokumentit').orderBy('luotu', 'desc').get();
-    if (snap.empty) {
-      div.innerHTML = '<div style="font-size:11px;color:#6b7280">Ei dokumentteja.</div>';
-      return;
-    }
-    var html = '<div style="font-size:11px;font-weight:600;color:#374151;margin-bottom:6px;">📦 Betonointidokumentit</div>';
-    snap.forEach(function(d) {
-      var dok = d.data();
-      html += '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid #f1f5f9;">';
-      html += '<span style="font-size:11px;color:#374151;flex:1;">📦 ' + (dok.nimi || 'dokumentti') + '</span>';
-      html += '<span style="font-size:10px;color:#94a3b8;">' + (dok.luotu ? dok.luotu.substring(0,10) : '') + '</span>';
-      var btnId = 'dlbtn-' + d.id;
-      html += '<button id="' + btnId + '" data-polku="' + dok.polku + '" data-nimi="' + (dok.nimi||'tiedosto') + '" onclick="lataaStorageTiedosto(this.dataset.polku, this.dataset.nimi)" style="background:#2e6da4;color:white;border:none;border-radius:4px;padding:2px 8px;font-size:11px;cursor:pointer;">⬇ Lataa</button>';
-      html += '</div>';
+// ── Projektin dokumentit (esim. betonointipöytäkirjat) ──
+function lataaProjektinDokumentit(projektinId) {
+  return fbDb.collection('projects').doc(projektinId).collection('dokumentit').orderBy('luotu', 'desc').get()
+    .then(function(snap) {
+      var lista = [];
+      snap.forEach(function(d) { lista.push(d.data()); });
+      dokCache[projektinId] = lista;
+      paivitaKortti(projektinId);
+    })
+    .catch(function(e) {
+      dokCache[projektinId] = { virhe: e.message };
+      paivitaKortti(projektinId);
     });
-    div.innerHTML = html;
-  } catch(e) {
-    div.innerHTML = '<div style="font-size:11px;color:red;">Virhe: ' + e.message + '</div>';
-  }
 }
 
 async function lataaStorageTiedosto(polku, nimi) {
@@ -1151,66 +1366,46 @@ function lataaKaikkiMittakirjat(projektit) {
 
 function mkRiviHtml(projektinId, mk) {
   var mkId = mk._id;
+  var pid = projektinId || '';
   var aika = mk.lahetetty ? new Date(mk.lahetetty).toLocaleDateString('fi-FI') : '';
   var badgeHtml = '';
   var napit = '';
+  var trash = '<button type="button" class="mk-btn mk-btn-danger mk-btn-icon" aria-label="Poista mittakirja" title="Poista" onclick="poistaMittakirja(\'' + mkId + '\',\'' + pid + '\')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button>';
 
   if (mk.tila === 'allekirjoitettu') {
-    badgeHtml = '<span class="mk-badge mk-badge-signed">✅ Allekirjoitettu</span>';
     var allekirjAika = mk.allekirjoitettuAika ? new Date(mk.allekirjoitettuAika).toLocaleDateString('fi-FI') : '';
+    badgeHtml = '<span class="mk-badge mk-badge-signed">Allekirjoitettu</span>' + (allekirjAika ? '<span class="pk-lisa">allekirjoitettu ' + allekirjAika + '</span>' : '');
     napit =
-      '<button class="mk-btn mk-btn-outline" onclick="window.open(\'' + baseUrl + '/mitta-view.html?id=' + mkId + '\')">👁 Näytä</button>' +
-      '<button class="mk-btn mk-btn-green" onclick="window.open(\'' + baseUrl + '/mitta-view.html?id=' + mkId + '\')">🖨 PDF</button>' +
-      '<button class="mk-btn mk-btn-outline" onclick="avaaLomake(\'' + (projektinId||'') + '\',\'' + mkId + '\')">📄 Käytä pohjana</button>' +
-      '<button class="mk-btn mk-btn-danger" onclick="poistaMittakirja(\'' + mkId + '\',\'' + (projektinId||'') + '\')">🗑</button>' +
-      (allekirjAika ? '<span style="font-size:10px;color:#94a3b8;align-self:center">' + allekirjAika + '</span>' : '');
+      '<button type="button" class="mk-btn mk-btn-outline" onclick="window.open(\'' + baseUrl + '/mitta-view.html?id=' + mkId + '\')">Näytä</button>' +
+      '<button type="button" class="mk-btn mk-btn-green" onclick="window.open(\'' + baseUrl + '/mitta-view.html?id=' + mkId + '\')">PDF</button>' +
+      '<button type="button" class="mk-btn mk-btn-outline" onclick="avaaLomake(\'' + pid + '\',\'' + mkId + '\')">Käytä pohjana</button>' +
+      trash;
   } else if (mk.tila === 'lahetetty') {
-    badgeHtml = '<span class="mk-badge mk-badge-sent">📤 Lähetetty</span>';
     var linkki = baseUrl + '/mitta-view.html?id=' + mkId;
+    badgeHtml = '<span class="mk-badge mk-badge-sent">Lähetetty</span>';
     napit =
-      '<button class="mk-btn mk-btn-outline" onclick="avaaLomake(\'' + (projektinId||'') + '\',\'' + mkId + '\')">✏️ Muokkaa</button>' +
-      '<button class="mk-btn mk-btn-copy" onclick="kopioiMkLinkki(\'' + linkki + '\')">🔗 Linkki</button>' +
-      (mk.asiakasEmail ? '<button class="mk-btn mk-btn-copy" onclick="lahetaMuistutus(\'' + mkId + '\',\'' + linkki + '\')">🔔 Muistutus</button>' : '') +
-      '<button class="mk-btn mk-btn-danger" onclick="poistaMittakirja(\'' + mkId + '\',\'' + (projektinId||'') + '\')">🗑</button>';
+      '<button type="button" class="mk-btn mk-btn-outline" onclick="avaaLomake(\'' + pid + '\',\'' + mkId + '\')">Muokkaa</button>' +
+      '<button type="button" class="mk-btn mk-btn-copy" onclick="kopioiMkLinkki(\'' + linkki + '\')">Kopioi linkki</button>' +
+      (mk.asiakasEmail ? '<button type="button" class="mk-btn mk-btn-copy" onclick="lahetaMuistutus(\'' + mkId + '\',\'' + linkki + '\')">Muistutus</button>' : '') +
+      trash;
   } else {
-    badgeHtml = '<span class="mk-badge mk-badge-none">📝 Luonnos</span>';
+    badgeHtml = '<span class="mk-badge mk-badge-draft">Luonnos</span>';
     napit =
-      '<button class="mk-btn mk-btn-primary" onclick="avaaLomake(\'' + (projektinId||'') + '\',\'' + mkId + '\')">✏️ Jatka</button>' +
-      '<button class="mk-btn mk-btn-danger" onclick="poistaMittakirja(\'' + mkId + '\',\'' + (projektinId||'') + '\')">🗑</button>';
+      '<button type="button" class="mk-btn mk-btn-primary" onclick="avaaLomake(\'' + pid + '\',\'' + mkId + '\')">Jatka</button>' +
+      trash;
   }
 
-  return '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;padding:6px 0;border-bottom:1px solid #f1f5f9;">' +
-    '<div style="display:flex;align-items:center;gap:8px;">' + badgeHtml + (aika ? '<span style="font-size:10px;color:#94a3b8">' + aika + '</span>' : '') + '</div>' +
-    '<div class="mk-btns">' + napit + '</div>' +
+  return '<div class="pk-rivi">' +
+    '<span class="pk-pvm">' + aika + '</span>' + badgeHtml +
+    '<span class="pk-grow"></span>' +
+    '<div class="pk-rivi-napit">' + napit + '</div>' +
     '</div>';
 }
 
+// Tallentaa projektin mittakirjat välimuistiin ja päivittää kortin
 function paivitaMkOsio(projektinId, mklist) {
-  var badge = document.getElementById('mk-badge-' + projektinId);
-  var btns  = document.getElementById('mk-btns-' + projektinId);
-  if (!badge || !btns) return;
-
-  if (!mklist || mklist.length === 0) {
-    badge.className = 'mk-badge mk-badge-none';
-    badge.textContent = 'Ei tehty';
-    btns.innerHTML = '<button class="mk-btn mk-btn-primary" onclick="avaaLomake(\'' + projektinId + '\')">' + '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg> Tee mittakirja</button>';
-    return;
-  }
-
-  // Badge näyttää viimeisimmän tilan
-  var viimeisin = mklist[0];
-  if (viimeisin.tila === 'allekirjoitettu') {
-    badge.className = 'mk-badge mk-badge-signed'; badge.textContent = '✅ Allekirjoitettu';
-  } else if (viimeisin.tila === 'lahetetty') {
-    badge.className = 'mk-badge mk-badge-sent'; badge.textContent = '📤 Lähetetty';
-  } else {
-    badge.className = 'mk-badge mk-badge-none'; badge.textContent = '📝 Luonnos';
-  }
-
-  // Lista kaikista mittakirjoista
-  var html = mklist.map(function(mk) { return mkRiviHtml(projektinId, mk); }).join('');
-  html += '<div style="margin-top:8px;"><button class="mk-btn mk-btn-primary" onclick="avaaLomake(\'' + projektinId + '\')">' + '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Uusi mittakirja</button></div>';
-  btns.innerHTML = html;
+  mkCache[projektinId] = mklist || [];
+  paivitaKortti(projektinId);
 }
 
 function lahetaMuistutus(mkId, linkki) {
@@ -1294,16 +1489,6 @@ function lataaIrralliset() {
     })
     .catch(function() {});
 }
-
-// ── Event delegation dokumentit-napeille ──
-document.addEventListener('click', function(e) {
-  var btn = e.target.closest('.dok-btn');
-  if (btn) {
-    var projId = btn.dataset.projid;
-    console.log('Dokumentit klikattu, projId:', projId);
-    if (projId) naytaDokumentit(projId);
-  }
-});
 
 // ── Avaa projektin detalji ──
 function avaaDetalji(projektinId) {
