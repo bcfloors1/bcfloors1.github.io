@@ -246,6 +246,48 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
 <script src="auth.js"></script>
 <link rel="stylesheet" href="styles.css">
+<style>
+/* ── Sanelu ── */
+.sanelu-btn {
+  margin-top: 8px; margin-left: 6px; padding: 6px 14px;
+  background: #006CB1; border: 1px solid #006CB1; color: white;
+  font-size: 11px; font-weight: 700; cursor: pointer; border-radius: 4px;
+  font-family: 'Spartan', 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+.sanelu-tausta { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:flex-start; justify-content:center; padding:16px; overflow-y:auto; }
+.sanelu-ikkuna { background:white; border-radius:14px; padding:22px; width:100%; max-width:560px; margin:auto 0; box-shadow:0 20px 60px rgba(0,0,0,0.25); font-family:'Spartan','Segoe UI',system-ui,-apple-system,sans-serif; color:#1a2530; }
+.sanelu-ikkuna h3 { font-size:1.05rem; margin-bottom:6px; }
+.sanelu-ohje { font-size:0.8rem; color:#555; line-height:1.5; margin-bottom:12px; }
+.sanelu-ikkuna textarea { width:100%; min-height:130px; padding:10px 12px; border:1.5px solid #e0e3e8; border-radius:8px; font-size:16px; font-family:inherit; background:#fafbfc; outline:none; resize:vertical; }
+.sanelu-ikkuna textarea:focus { border-color:#006CB1; }
+.sanelu-napit { display:flex; gap:10px; justify-content:flex-end; margin-top:14px; flex-wrap:wrap; }
+.sanelu-napit button { padding:9px 16px; border-radius:8px; cursor:pointer; font-size:0.9rem; font-family:inherit; font-weight:700; }
+.sanelu-toissijainen { border:1.5px solid #d0d5dd; background:white; color:#1a2530; }
+.sanelu-ensisijainen { border:none; background:#006CB1; color:white; }
+.sanelu-ensisijainen:disabled { opacity:0.6; cursor:default; }
+.sanelu-virhe { color:#dc2626; font-size:0.82rem; margin-top:10px; min-height:1em; }
+.sanelu-tila { font-size:0.82rem; color:#555; margin-top:10px; }
+.sanelu-rivi { border:1.5px solid #e0e3e8; border-radius:10px; padding:10px 12px; margin-bottom:10px; background:#fff; }
+.sanelu-rivi.epavarma { border-color:#e8a020; background:#fffaf0; }
+.sanelu-rivi.ei-kohdistettu { border-color:#94a3b8; background:#f8fafc; }
+.sanelu-rivi.pois { opacity:0.45; }
+.sanelu-rivi-ylä { display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:0.78rem; font-weight:700; }
+.sanelu-merkki { padding:2px 8px; border-radius:10px; font-size:0.7rem; font-weight:700; }
+.sanelu-merkki.varma { background:#dcfce7; color:#166534; }
+.sanelu-merkki.epavarma { background:#fde7c2; color:#92400e; }
+.sanelu-merkki.ei-kohdistettu { background:#e2e8f0; color:#334155; }
+.sanelu-kentat { display:grid; grid-template-columns: 1fr 1fr; gap:8px; }
+.sanelu-kentat label { display:block; font-size:0.68rem; font-weight:700; color:#555; margin-bottom:3px; }
+.sanelu-kentat input, .sanelu-kentat select { width:100%; padding:7px 8px; border:1.5px solid #e0e3e8; border-radius:6px; font-size:15px; font-family:inherit; background:white; color:#1a2530; }
+.sanelu-leveä { grid-column: 1 / -1; }
+.sanelu-huomio { font-size:0.75rem; color:#92400e; margin-top:6px; }
+.sanelu-alkup { font-size:0.72rem; color:#64748b; margin-top:6px; font-style:italic; }
+@media (max-width: 640px) {
+  .bcf-topbar { flex-wrap: wrap; gap: 6px; padding: 8px 10px; }
+  .bcf-topbar-right { flex-wrap: wrap; justify-content: flex-end; gap: 6px; width: 100%; }
+}
+@media print { .sanelu-btn, .sanelu-tausta { display:none !important; } }
+</style>
 </head>
 <body>
 
@@ -364,7 +406,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
         </tr>
       </tfoot>
     </table>
-    <button class="add-row-btn" onclick="addRow()">+ Lisää rivi</button>
+    <button class="add-row-btn" onclick="addRow()">+ Lisää rivi</button><button class="sanelu-btn" onclick="avaaSanelu()">🎤 Sanelu</button>
   </div>
 
   <!-- ALLEKIRJOITUKSET -->
@@ -1371,9 +1413,363 @@ function tallennaTiedosto() {
   }
 }
 </script>
+<script>
+// ── SANELU: vapaa teksti → mittakirjan rivit (Claude API) ─────────
+// Avain haetaan Firestoresta (asetukset/api) kirjautumisen jälkeen ja pidetään
+// vain tässä muuttujassa – ei DOM-kentässä, jotta se ei päädy tallennettuun tiedostoon.
+var saneluApiAvain = '';
+var saneluEhdotukset = [];
+var SANELU_YKSIKOT = ['m²', 'm', 'kpl', 'h', 'erä', 'm³', 'tn', 'kg'];
+
+bcKirjaudu(function() {
+  fbDb2.collection('asetukset').doc('api').get().then(function(doc) {
+    if (doc.exists && doc.data().avain) saneluApiAvain = doc.data().avain;
+  }).catch(function(e) { console.warn('API-avaimen haku:', e.message); });
+});
+
+function saneluEsc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function(c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+
+function saneluTanaan() {
+  var d = new Date();
+  return ('0' + d.getDate()).slice(-2) + '.' + ('0' + (d.getMonth() + 1)).slice(-2) + '.' + d.getFullYear();
+}
+
+function saneluFiIsoksi(fi) {
+  var m = String(fi || '').trim().match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if (!m) return '';
+  return m[3] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[1]).slice(-2);
+}
+
+function saneluHintaTeksti(h) {
+  return h.nimi + ' (' + h.hinta.toFixed(2) + ' €/' + (h.yksikko || 'm²') + ')';
+}
+
+function avaaSanelu() {
+  document.getElementById('saneluVaihe1').style.display = '';
+  document.getElementById('saneluVaihe2').style.display = 'none';
+  document.getElementById('saneluVirhe1').textContent = '';
+  document.getElementById('saneluModal').style.display = 'flex';
+  setTimeout(function() { document.getElementById('saneluTeksti').focus(); }, 50);
+}
+
+function suljeSanelu() {
+  document.getElementById('saneluModal').style.display = 'none';
+}
+
+function saneluTakaisin() {
+  document.getElementById('saneluVaihe2').style.display = 'none';
+  document.getElementById('saneluVaihe1').style.display = '';
+}
+
+function saneluKehote(teksti) {
+  var d = new Date();
+  var viikonpaivat = ['sunnuntai', 'maanantai', 'tiistai', 'keskiviikko', 'torstai', 'perjantai', 'lauantai'];
+  var hinnat = (tarjousHinnat || []).map(function(h, i) {
+    return i + ': ' + h.nimi + ' | ' + h.hinta.toFixed(2) + ' €/' + (h.yksikko || 'm²');
+  }).join('\n');
+  return 'Muunna betonilattiaurakoitsijan saneluteksti mittapöytäkirjan riveiksi.\n\n' +
+    'Tänään on ' + viikonpaivat[d.getDay()] + ' ' + saneluTanaan() + '.\n\n' +
+    'Projektin tarjoushinnat (indeksi: nimi | hinta):\n' + (hinnat || '(ei tarjoushintoja)') + '\n\n' +
+    'Säännöt:\n' +
+    '- Yksi rivi jokaista sanottua työtä tai määrää kohden.\n' +
+    '- tarjousIndeksi: sen tarjoushinnan indeksi, jota sanottu tarkoittaa. Päättele nimestä, mallinumeroista ja mitoista (esim. "korkeampi liikuntasauma" = suurin korkeus nimessä). Jos yhtään ei sovi, null.\n' +
+    '- varmuus: "varma", jos vain yksi tarjoushinta sopii selvästi. "epävarma", jos useampi voisi sopia tai päättely on epävarma; listaa silloin kaikki sopivat indeksit kenttään vaihtoehdot ja kerro syy kentässä huomio. Älä arvaa varmaksi.\n' +
+    '- kuvaus: lyhyt kuvaus sanellusta työstä suomeksi (käytetään, jos tarjoushintaa ei löydy).\n' +
+    '- maara: luku (desimaalierottimena piste). Muunna puhutut luvut numeroiksi.\n' +
+    '- yksikko: yksi näistä: ' + SANELU_YKSIKOT.join(', ') + ' (neliö = m², metri tai juoksumetri = m, kilo = kg, tonni = tn, kuutio = m³, tunti = h, kappale = kpl). Jos tarjoushinta löytyi, käytä sen yksikköä.\n' +
+    '- pvm: muodossa pp.kk.vvvv. Tulkitse "eilen", "maanantaina" jne. tämän päivän perusteella (menneisyyteen). Jos päivää ei mainita, käytä edellistä samassa sanelussa mainittua päivää, ja jos sellaista ei ole, tämä päivä.\n' +
+    '- alkuperainen: lyhyt ote sanelusta, josta rivi tuli.\n' +
+    '- Älä keksi rivejä, joita sanelussa ei ole.\n\n' +
+    'Vastaa VAIN JSON-muodossa ilman muuta tekstiä tai markdownia:\n' +
+    '{"rivit":[{"pvm":"pp.kk.vvvv","tarjousIndeksi":0,"varmuus":"varma","vaihtoehdot":[0],"kuvaus":"","maara":0,"yksikko":"m²","huomio":"","alkuperainen":""}]}\n\n' +
+    'Sanelu:\n' + teksti;
+}
+
+function saneluYksikko(y) {
+  y = String(y || '').trim();
+  if (SANELU_YKSIKOT.indexOf(y) >= 0) return y;
+  var k = y.toLowerCase().replace(/\.$/, '');
+  var kartta = {
+    'm2': 'm²', 'neliö': 'm²', 'neliötä': 'm²', 'neliömetri': 'm²', 'neliömetriä': 'm²',
+    'metri': 'm', 'metriä': 'm', 'jm': 'm', 'juoksumetri': 'm', 'juoksumetriä': 'm',
+    'kappale': 'kpl', 'kappaletta': 'kpl', 'kpl': 'kpl',
+    'tunti': 'h', 'tuntia': 'h', 'h': 'h',
+    'erä': 'erä', 'erää': 'erä',
+    'm3': 'm³', 'kuutio': 'm³', 'kuutiota': 'm³', 'kuutiometri': 'm³', 'kuutiometriä': 'm³',
+    'tonni': 'tn', 'tonnia': 'tn',
+    'kilo': 'kg', 'kiloa': 'kg', 'kilogramma': 'kg', 'kilogrammaa': 'kg'
+  };
+  return kartta[k] || '';
+}
+
+function saneluSiistiRivit(raaka) {
+  var n = (tarjousHinnat || []).length;
+  var kelpoIndeksi = function(x) { return typeof x === 'number' && x % 1 === 0 && x >= 0 && x < n; };
+  var rivit = (raaka && Array.isArray(raaka.rivit)) ? raaka.rivit : [];
+  return rivit.map(function(r) {
+    var idx = kelpoIndeksi(r.tarjousIndeksi) ? r.tarjousIndeksi : null;
+    var vaihtoehdot = Array.isArray(r.vaihtoehdot) ? r.vaihtoehdot.filter(kelpoIndeksi) : [];
+    if (idx !== null && vaihtoehdot.indexOf(idx) === -1) vaihtoehdot.unshift(idx);
+    var tila = idx === null ? 'ei-kohdistettu' : (r.varmuus === 'varma' && vaihtoehdot.length <= 1 ? 'varma' : 'epavarma');
+    var maara = typeof r.maara === 'number' ? r.maara : parseFloat(String(r.maara || '').replace(',', '.'));
+    var yksikko = saneluYksikko(r.yksikko);
+    if (idx !== null) yksikko = tarjousHinnat[idx].yksikko || 'm²';
+    return {
+      mukana: true,
+      pvm: saneluFiIsoksi(r.pvm) ? String(r.pvm).trim() : saneluTanaan(),
+      tarjousIndeksi: idx,
+      vaihtoehdot: vaihtoehdot,
+      tila: tila,
+      kuvaus: String(r.kuvaus || '').trim(),
+      maara: isFinite(maara) ? maara : '',
+      yksikko: yksikko,
+      hinta: '',
+      huomio: String(r.huomio || '').trim(),
+      alkuperainen: String(r.alkuperainen || '').trim()
+    };
+  });
+}
+
+async function muodostaSaneluRivit() {
+  var teksti = document.getElementById('saneluTeksti').value.trim();
+  var virhe = document.getElementById('saneluVirhe1');
+  var btn = document.getElementById('saneluMuodostaBtn');
+  virhe.textContent = '';
+  if (!teksti) { virhe.textContent = 'Sanele tai kirjoita ensin rivit.'; return; }
+  if (!saneluApiAvain) { virhe.textContent = 'API-avainta ei löytynyt. Aseta se projektit-sivun API-napista ja lataa tämä sivu uudelleen.'; return; }
+  btn.disabled = true;
+  btn.textContent = '⏳ Muodostetaan…';
+  try {
+    var vastaus = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': saneluApiAvain,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-5-5',
+        max_tokens: 8000,
+        messages: [{ role: 'user', content: saneluKehote(teksti) }]
+      })
+    });
+    var data = await vastaus.json();
+    if (!vastaus.ok || !data.content) {
+      throw new Error((data.error && data.error.message) ? data.error.message : ('HTTP ' + vastaus.status));
+    }
+    if (data.stop_reason === 'max_tokens') throw new Error('Vastaus katkesi kesken. Kokeile lyhyempää sanelua.');
+    var tekstiOsa = data.content.filter(function(b) { return b.type === 'text' && b.text; })[0];
+    if (!tekstiOsa) throw new Error('Vastauksessa ei ollut tekstiä.');
+    var t = tekstiOsa.text.replace(/```json|```/g, '').trim();
+    var a = t.indexOf('{'), b = t.lastIndexOf('}');
+    if (a >= 0 && b > a) t = t.substring(a, b + 1);
+    saneluEhdotukset = saneluSiistiRivit(JSON.parse(t));
+    if (!saneluEhdotukset.length) throw new Error('Sanelusta ei löytynyt rivejä.');
+    piirraSaneluRivit();
+    document.getElementById('saneluVaihe1').style.display = 'none';
+    document.getElementById('saneluVaihe2').style.display = '';
+    document.getElementById('saneluVirhe2').textContent = '';
+  } catch (e) {
+    console.error('Sanelu:', e);
+    virhe.textContent = 'Rivien muodostus epäonnistui: ' + e.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Muodosta rivit';
+  }
+}
+
+function piirraSaneluRivit() {
+  var html = '';
+  saneluEhdotukset.forEach(function(r, i) {
+    var merkki = r.tila === 'varma' ? 'Varma' : (r.tila === 'epavarma' ? 'Tarkista' : 'Ei tarjouksessa');
+    // Kohdistusvalikko: epävarmoilla ensin vaihtoehdot, sitten muut tarjoushinnat
+    var jarjestys = r.vaihtoehdot.slice();
+    (tarjousHinnat || []).forEach(function(h, hi) { if (jarjestys.indexOf(hi) === -1) jarjestys.push(hi); });
+    var optiot = '<option value="">✏️ Oma kuvaus (hinta käsin)</option>';
+    jarjestys.forEach(function(hi, n) {
+      if (n === r.vaihtoehdot.length && r.vaihtoehdot.length > 0) optiot += '<option disabled>──────────</option>';
+      optiot += '<option value="' + hi + '"' + (r.tarjousIndeksi === hi ? ' selected' : '') + '>' + saneluEsc(saneluHintaTeksti(tarjousHinnat[hi])) + '</option>';
+    });
+    var yksOptiot = (r.yksikko ? '' : '<option value="" selected>— valitse —</option>') + SANELU_YKSIKOT.map(function(y) {
+      return '<option' + (r.yksikko === y ? ' selected' : '') + '>' + y + '</option>';
+    }).join('');
+    var oma = r.tarjousIndeksi === null;
+    html += '<div class="sanelu-rivi ' + (r.mukana ? '' : 'pois ') + r.tila + '" data-i="' + i + '">' +
+      '<div class="sanelu-rivi-ylä">' +
+        '<input type="checkbox" data-kentta="mukana"' + (r.mukana ? ' checked' : '') + ' aria-label="Mukaan">' +
+        '<span>Rivi ' + (i + 1) + '</span>' +
+        '<span class="sanelu-merkki ' + r.tila + '">' + merkki + '</span>' +
+      '</div>' +
+      '<div class="sanelu-kentat">' +
+        ((tarjousHinnat || []).length ? '<div class="sanelu-leveä"><label>Tarjoushinta</label><select data-kentta="tarjousIndeksi">' + optiot + '</select></div>' : '') +
+        (oma ? '<div class="sanelu-leveä"><label>Kuvaus</label><input type="text" data-kentta="kuvaus" value="' + saneluEsc(r.kuvaus) + '"></div>' : '') +
+        '<div><label>Pvm</label><input type="text" inputmode="numeric" data-kentta="pvm" value="' + saneluEsc(r.pvm) + '" placeholder="pp.kk.vvvv"></div>' +
+        '<div><label>Määrä</label><input type="number" step="0.1" inputmode="decimal" data-kentta="maara" value="' + saneluEsc(r.maara) + '"></div>' +
+        (oma ? '<div><label>Yksikkö</label><select data-kentta="yksikko">' + yksOptiot + '</select></div>' +
+               '<div><label>€/yks</label><input type="number" step="0.01" inputmode="decimal" data-kentta="hinta" value="' + saneluEsc(r.hinta) + '" placeholder="0,00"></div>' : '') +
+      '</div>' +
+      (r.huomio ? '<div class="sanelu-huomio">⚠️ ' + saneluEsc(r.huomio) + '</div>' : '') +
+      (r.alkuperainen ? '<div class="sanelu-alkup">”' + saneluEsc(r.alkuperainen) + '”</div>' : '') +
+    '</div>';
+  });
+  var kontti = document.getElementById('saneluRivit');
+  kontti.innerHTML = html;
+  paivitaSaneluLisaaNappi();
+}
+
+// Kenttien muutokset (tapahtumadelegointi)
+document.addEventListener('change', function(e) {
+  var el = e.target;
+  var kortti = el.closest && el.closest('#saneluRivit .sanelu-rivi');
+  if (!kortti || !el.dataset.kentta) return;
+  var r = saneluEhdotukset[parseInt(kortti.dataset.i, 10)];
+  if (!r) return;
+  var k = el.dataset.kentta;
+  if (k === 'mukana') {
+    r.mukana = el.checked;
+    kortti.classList.toggle('pois', !r.mukana);
+    paivitaSaneluLisaaNappi();
+  } else if (k === 'tarjousIndeksi') {
+    r.tarjousIndeksi = el.value === '' ? null : parseInt(el.value, 10);
+    if (r.tarjousIndeksi !== null) { r.tila = 'varma'; r.yksikko = tarjousHinnat[r.tarjousIndeksi].yksikko || 'm²'; r.huomio = ''; }
+    else { r.tila = 'ei-kohdistettu'; if (!r.kuvaus) r.kuvaus = r.alkuperainen; }
+    piirraSaneluRivit();
+  } else if (k === 'yksikko') {
+    r.yksikko = el.value;
+  }
+}, true);
+document.addEventListener('input', function(e) {
+  var el = e.target;
+  var kortti = el.closest && el.closest('#saneluRivit .sanelu-rivi');
+  if (!kortti || !el.dataset.kentta) return;
+  var r = saneluEhdotukset[parseInt(kortti.dataset.i, 10)];
+  if (!r) return;
+  var k = el.dataset.kentta;
+  if (k === 'kuvaus' || k === 'pvm' || k === 'maara' || k === 'yksikko' || k === 'hinta') r[k] = el.value;
+}, true);
+
+function paivitaSaneluLisaaNappi() {
+  var n = saneluEhdotukset.filter(function(r) { return r.mukana; }).length;
+  var btn = document.getElementById('saneluLisaaBtn');
+  btn.textContent = n === 1 ? 'Lisää 1 rivi' : 'Lisää ' + n + ' riviä';
+  btn.disabled = n === 0;
+}
+
+// Palauttaa olemassa olevan tyhjän rivin id:n tai luo uuden rivin
+function saneluVapaaRivi() {
+  var rivit = document.querySelectorAll('#tableBody tr');
+  for (var i = 0; i < rivit.length; i++) {
+    var id = rivit[i].id.replace('row_', '');
+    var desc = document.getElementById('desc_' + id);
+    var qty = document.getElementById('qty_' + id);
+    var price = document.getElementById('price_' + id);
+    var tyhjaKuvaus = !desc || !desc.value || desc.value === '__muu__';
+    if (tyhjaKuvaus && qty && !qty.value && price && !price.value) return id;
+  }
+  addRow();
+  return String(rowCount);
+}
+
+// Tekstikenttäkuvaus tulostuu viereisestä .print-val-elementistä (input piilotetaan tulostuksessa)
+function saneluTulostusTeksti(id) {
+  var el = document.getElementById('desc_' + id);
+  if (!el || el.tagName !== 'INPUT') return;
+  var sp = el.nextElementSibling;
+  if (!sp || !sp.classList.contains('print-val')) {
+    sp = document.createElement('span');
+    sp.className = 'print-val';
+    sp.style.display = 'none';
+    el.parentNode.insertBefore(sp, el.nextSibling);
+  }
+  sp.textContent = el.value;
+  if (!el.getAttribute('oninput')) el.setAttribute('oninput', 'this.nextElementSibling.textContent=this.value');
+}
+
+function saneluTaytaRivi(id, r) {
+  var dateEl = document.getElementById('date_' + id);
+  var iso = saneluFiIsoksi(r.pvm);
+  if (dateEl && iso) { dateEl.value = iso; dateEl.setAttribute('data-fi', r.pvm.trim()); }
+
+  var desc = document.getElementById('desc_' + id);
+  var unitEl = document.getElementById('unit_' + id);
+  var priceEl = document.getElementById('price_' + id);
+  var h = r.tarjousIndeksi !== null ? tarjousHinnat[r.tarjousIndeksi] : null;
+  if (h) {
+    var teksti = saneluHintaTeksti(h);
+    if (desc && desc.tagName === 'SELECT') {
+      for (var i = 0; i < desc.options.length; i++) {
+        if (desc.options[i].text === teksti) { desc.selectedIndex = i; break; }
+      }
+      valitseHinta(id, desc);
+    } else {
+      asetaKuvaus(id, teksti);
+      if (priceEl) priceEl.value = h.hinta.toFixed(2);
+      if (unitEl) unitEl.value = h.yksikko || 'm²';
+    }
+  } else {
+    asetaKuvaus(id, r.kuvaus || r.alkuperainen || '');
+    if (unitEl && r.yksikko) unitEl.value = r.yksikko;
+    var hinta = parseFloat(String(r.hinta || '').replace(',', '.'));
+    if (priceEl) priceEl.value = isFinite(hinta) ? hinta.toFixed(2) : '';
+  }
+  saneluTulostusTeksti(id);
+  var qtyEl = document.getElementById('qty_' + id);
+  var maara = parseFloat(String(r.maara).replace(',', '.'));
+  if (qtyEl) qtyEl.value = isFinite(maara) ? String(maara) : '';
+  calcRow(id);
+}
+
+function lisaaSaneluRivit() {
+  var valitut = saneluEhdotukset.filter(function(r) { return r.mukana; });
+  var virhe = document.getElementById('saneluVirhe2');
+  virhe.textContent = '';
+  for (var i = 0; i < valitut.length; i++) {
+    if (!saneluFiIsoksi(valitut[i].pvm)) { virhe.textContent = 'Tarkista päivämäärä (muoto pp.kk.vvvv).'; return; }
+    if (valitut[i].tarjousIndeksi === null && !String(valitut[i].kuvaus || '').trim()) { virhe.textContent = 'Anna kuvaus riville, jota ei kohdistettu tarjoushintaan.'; return; }
+    if (valitut[i].tarjousIndeksi === null && !valitut[i].yksikko) { virhe.textContent = 'Valitse yksikkö kaikille riveille, joita ei kohdistettu tarjoushintaan.'; return; }
+  }
+  valitut.forEach(function(r) { saneluTaytaRivi(saneluVapaaRivi(), r); });
+  markEmptyRows();
+  updateTotal();
+  if (typeof autotallennaLuonnos === 'function') autotallennaLuonnos();
+  document.getElementById('saneluTeksti').value = '';
+  suljeSanelu();
+  naytaIlmoitus('🎤 ' + (valitut.length === 1 ? '1 rivi lisätty' : valitut.length + ' riviä lisätty'), 'ok');
+}
+</script>
 
 </body>
 </html>
+<!-- SANELU-MODAL -->
+<div id="saneluModal" class="sanelu-tausta">
+  <div class="sanelu-ikkuna">
+    <div id="saneluVaihe1">
+      <h3>🎤 Sanele rivit</h3>
+      <p class="sanelu-ohje">Napauta kenttää ja paina puhelimen näppäimistön mikrofonia, tai kirjoita. Kerro määrät ja mitä tehtiin, esim. <i>”Eilen AP 1.1 615 neliötä, raudoitusta 3700 kiloa, korkeaa liikuntasaumaa 55 metriä.”</i> Rivit kohdistetaan projektin tarjoushintoihin.</p>
+      <textarea id="saneluTeksti" placeholder="Sanele tai kirjoita tähän…"></textarea>
+      <div id="saneluVirhe1" class="sanelu-virhe"></div>
+      <div class="sanelu-napit">
+        <button type="button" class="sanelu-toissijainen" onclick="suljeSanelu()">Peruuta</button>
+        <button type="button" id="saneluMuodostaBtn" class="sanelu-ensisijainen" onclick="muodostaSaneluRivit()">Muodosta rivit</button>
+      </div>
+    </div>
+    <div id="saneluVaihe2" style="display:none;">
+      <h3>Tarkista rivit</h3>
+      <p class="sanelu-ohje">Vihreä = varma kohdistus, keltainen = tarkista valinta, harmaa = ei löytynyt tarjouksesta (hinta täytetään käsin). Voit muuttaa kenttiä ennen lisäystä.</p>
+      <div id="saneluRivit"></div>
+      <div id="saneluVirhe2" class="sanelu-virhe"></div>
+      <div class="sanelu-napit">
+        <button type="button" class="sanelu-toissijainen" onclick="saneluTakaisin()">← Muokkaa sanelua</button>
+        <button type="button" id="saneluLisaaBtn" class="sanelu-ensisijainen" onclick="lisaaSaneluRivit()">Lisää rivit</button>
+      </div>
+    </div>
+  </div>
+</div>
 <!-- LÄHETYS-MODAL -->
 <div id="lahetysModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center;padding:16px;">
   <div style="background:white;border-radius:14px;padding:28px;width:100%;max-width:440px;box-shadow:0 20px 60px rgba(0,0,0,0.25);">
