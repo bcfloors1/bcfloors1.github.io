@@ -270,6 +270,8 @@ button:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+<script src="auth.js"></script>
 <script>
 
 
@@ -706,16 +708,25 @@ function pdfValittu2(input) {
   reader.readAsDataURL(file);
 }
 
-// ── API-avaimen hallinta (tallennetaan selaimen muistiin) ──
+// ── API-avaimen hallinta ──
+// Ensisijaisesti Firestoresta (asetukset/api, luetaan kirjautumisen jälkeen),
+// varalla selaimen muisti.
+var firestoreApiAvain = '';
 function haeApiAvain() {
-  return localStorage.getItem('anthropic_api_key') || '';
+  return firestoreApiAvain || localStorage.getItem('anthropic_api_key') || '';
 }
 
 function asetaApiAvain() {
-  var avain = prompt('Anna Anthropic API-avain (sk-ant-...):\n\nAvain tallennetaan vain tähän selaimeen, ei GitHubiin.');
+  var avain = prompt('Anna Anthropic API-avain (sk-ant-...):\n\nAvain tallennetaan Firestoreen (asetukset/api), ja se on käytössä kaikilla kirjautuneilla käyttäjillä ja sivuilla.');
+  if (avain) avain = avain.trim();
   if (avain && avain.startsWith('sk-ant-')) {
-    localStorage.setItem('anthropic_api_key', avain);
-    alert('✅ API-avain tallennettu!');
+    db.collection('asetukset').doc('api').set({ avain: avain }).then(function() {
+      firestoreApiAvain = avain;
+      try { localStorage.removeItem('anthropic_api_key'); } catch(e) {}
+      alert('✅ API-avain tallennettu!');
+    }).catch(function(e) {
+      alert('❌ Avaimen tallennus epäonnistui: ' + e.message);
+    });
   } else if (avain) {
     alert('❌ Virheellinen avain — pitää alkaa sk-ant-');
   }
@@ -770,7 +781,7 @@ var viimeisinAiVirhe = '';
 async function lueKaikkiTiedotAIlla(pdfBase64) {
   viimeisinAiVirhe = '';
   if (!haeApiAvain()) {
-    viimeisinAiVirhe = 'API-avainta ei ole asetettu tässä selaimessa/osoitteessa (' + location.host + ').';
+    viimeisinAiVirhe = 'API-avainta ei ole asetettu (asetukset/api).';
     return null;
   }
   try {
@@ -926,7 +937,7 @@ async function tallennaUusiPdf() {
     pdfLadattu: new Date().toISOString()
   };
 
-  if (!haeApiAvain()) tarkistaApiAvain(); // pyytää avaimen jos puuttuu tästä selaimesta
+  if (!haeApiAvain()) tarkistaApiAvain(); // pyytää avaimen jos sitä ei ole asetettu
   var hinnat = await lueHinnatAIlla(valittuPdfBase642);
   var hintojaLuettu = !!(hinnat && hinnat.hinnat && hinnat.hinnat.length > 0);
   if (hintojaLuettu) {
@@ -1295,9 +1306,14 @@ document.addEventListener('click', function(e) {
 });
 document.addEventListener('keydown', function(e) { if (e.key === 'Escape') suljeValikot(); });
 
-db.collection('projects').orderBy('tyomaa').onSnapshot(function(snap) {
-  viimeisinProjektiSnap = snap;
-  renderProjektit(snap);
+bcKirjaudu(function() {
+  db.collection('projects').orderBy('tyomaa').onSnapshot(function(snap) {
+    viimeisinProjektiSnap = snap;
+    renderProjektit(snap);
+  });
+  db.collection('asetukset').doc('api').get().then(function(doc) {
+    if (doc.exists && doc.data().avain) firestoreApiAvain = doc.data().avain;
+  }).catch(function(e) { console.warn('API-avaimen haku:', e.message); });
 });
 
 // ── Vieritä ja korosta tietty projekti, kun tultu tänne mittakirjasta ("← Projektipankki") ──

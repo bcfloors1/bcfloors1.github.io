@@ -243,6 +243,8 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 </style>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+<script src="auth.js"></script>
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -471,6 +473,8 @@ document.addEventListener('DOMContentLoaded', function() {
   if (projektiId) aktiivinenProjektiId = projektiId;
   var muokkaaId = urlParams.get('muokkaa') || urlParams.get('id');
 
+  // Firestore-haut vasta kirjautumisen jälkeen
+  bcKirjaudu(function() {
   if (muokkaaId) {
     // Ladataan aiemmin lähetetty (esim. asiakkaan hylkäämä) mittakirja muokattavaksi.
     // Huom: lähetys luo tästä aina UUDEN linkin — vanha dokumentti ei muutu.
@@ -588,6 +592,7 @@ document.addEventListener('DOMContentLoaded', function() {
     addRow(); addRow(); addRow(); addRow();
     updateTotal();
   }
+  }); // bcKirjaudu
 });
 
 // ── TILAAJA ──────────────────────────────────────────────────
@@ -1058,6 +1063,7 @@ var fbConfig2 = {
 if (!firebase.apps.length) firebase.initializeApp(fbConfig2);
 var fbDb2 = firebase.firestore();
 
+bcKirjaudu(function() {
 fbDb2.collection('projects').orderBy('tyomaa').onSnapshot(function(snap) {
   var sel = document.getElementById('projektiValinta');
   var edellinenValinta = sel.value || aktiivinenProjektiId || '';
@@ -1079,6 +1085,7 @@ fbDb2.collection('projects').orderBy('tyomaa').onSnapshot(function(snap) {
     }
   }
 });
+}); // bcKirjaudu
 
 function tallennaProjektiksi() {
   var tilaaja = document.getElementById('tilaaja');
