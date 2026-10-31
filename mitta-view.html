@@ -378,6 +378,8 @@
 <div class="toast" id="toast"></div>
 
 <script>
+function fiPvm(v){v=(v||'').toString().trim();var m=v.match(/^(\d{4})-(\d{2})-(\d{2})/);return m?(m[3]+'.'+m[2]+'.'+m[1]):v;}
+
 // ── Firebase init ────────────────────────────────────────────
 var fbConfig = {
   apiKey: "AIzaSyB_SEcmhmzBBldkbh8CQYL7ncQGVyZIDM4",
@@ -467,7 +469,7 @@ function naytaData(data) {
   document.getElementById('vTilaaja').textContent = data.tilaaja || data.tilaaja_txt || '—';
   document.getElementById('vTyomaa').textContent  = data.tyomaa  || '—';
   document.getElementById('vTyonro').textContent  = data.tyonro  || '—';
-  document.getElementById('vPvm').textContent     = data.pvm     || '—';
+  document.getElementById('vPvm').textContent     = fiPvm(data.pvm) || '—';
 
   // Viesti
   if (data.lahetysViesti) {
@@ -487,7 +489,7 @@ function naytaData(data) {
     total += summa;
     var tr = document.createElement('tr');
     tr.innerHTML =
-      '<td>' + (r.pvm||'') + '</td>' +
+      '<td>' + fiPvm(r.pvm) + '</td>' +
       '<td>' + (r.kuvaus||'') + '</td>' +
       '<td class="r">' + (r.maara||'') + '</td>' +
       '<td>' + (r.yksikko||'') + '</td>' +

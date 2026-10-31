@@ -17,6 +17,7 @@
 body { padding-bottom: 0 !important; font-family: 'Spartan', 'Segoe UI', system-ui, -apple-system, sans-serif; background: #f0f4f8; color: #1a2530; }
 
 /* no-print styles replaced by bcf-topbar from styles.css */
+.print-date, .print-desc { display: none; }
 .btn-print { background: #e8a020; color: white; }
 .btn-share { background: #2e6da4; color: white; }
 
@@ -192,8 +193,10 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   .sigs { margin-top: 0 !important; }
   /* Piilota kalenterikuvake tulostuksessa */
   input[type=date]::-webkit-calendar-picker-indicator { display: none !important; }
-  td input[type=date] { color: transparent !important; }
-  td input[type=date]::after { content: attr(data-fi); color: #1a2530; }
+  td input[type=date] { display: none !important; }
+  td select[id^=desc_] { display: none !important; }
+  .print-date, .print-desc { display: block !important; font-size: 10px; color: #1a2530; line-height: 1.4; white-space: pre-wrap; word-break: break-word; }
+  .print-desc { font-size: 11px; }
   #pvm { color: transparent; }
   #pvm::after { content: attr(data-fi); color: #1a2530; }
   td, td input, td select { background: white !important; background-color: white !important; }
@@ -415,7 +418,30 @@ function avaaProjektipankki() {
 }
 
 // ── INIT ─────────────────────────────────────────────────────
+// Tulostus/PDF: kirjoitetaan päivämäärät ja kuvaukset tavallisina tekstikenttinä,
+// koska input[type=date]::after ja select-valikot eivät tulostu luotettavasti (mm. Edge).
+function valmistaTulostusTekstit() {
+  document.querySelectorAll('#tableBody tr').forEach(function(tr) {
+    var dateEl = tr.querySelector('input[type=date]');
+    if (dateEl) {
+      var sp = dateEl.parentNode.querySelector('.print-date');
+      if (!sp) { sp = document.createElement('span'); sp.className = 'print-date'; dateEl.parentNode.appendChild(sp); }
+      var fi = dateEl.getAttribute('data-fi');
+      if (!fi && dateEl.value) { var q = dateEl.value.split('-'); if (q.length === 3) fi = q[2] + '.' + q[1] + '.' + q[0]; }
+      sp.textContent = (fi && fi.trim()) ? fi : '';
+    }
+    var td = tr.cells[1];
+    var sel = td && td.querySelector('select');
+    if (sel) {
+      var sp2 = td.querySelector('.print-desc');
+      if (!sp2) { sp2 = document.createElement('span'); sp2.className = 'print-desc'; td.appendChild(sp2); }
+      var o = sel.options[sel.selectedIndex];
+      sp2.textContent = (o && sel.value) ? o.text.replace(/\s*\([\d.,]+\s*€\/[^)]*\)\s*$/, '') : '';
+    }
+  });
+}
 window.addEventListener('beforeprint', function() {
+  valmistaTulostusTekstit();
   markEmptyRows();
 });
 
@@ -825,7 +851,7 @@ function keraaRivitData() {
     var hinta   = priceEl ? priceEl.value : '';
     if (!kuvaus && !maara) return; // tyhjä rivi
     rivit.push({
-      pvm:     dateEl ? (dateEl.getAttribute('data-fi') || dateEl.value) : '',
+      pvm:     dateEl ? (dateEl.getAttribute('data-fi') || dateEl.value.split('-').reverse().join('.')) : '',
       kuvaus:  kuvaus,
       maara:   maara,
       yksikko: yksikko,
@@ -841,7 +867,7 @@ function keraaPerustiedot() {
     tilaaja:    keraaTilaajaNimi(),
     tyomaa:     (document.getElementById('tyomaa')  || {}).value || '',
     tyonro:     (document.getElementById('tyonro')  || {}).value || '',
-    pvm:        document.getElementById('pvm').getAttribute('data-fi') || document.getElementById('pvm').value || '',
+    pvm:        document.getElementById('pvm').getAttribute('data-fi') || document.getElementById('pvm').value.split('-').reverse().join('.') || '',
     rivit:      keraaRivitData(),
     projektiId: aktiivinenProjektiId || urlParams.get('projekti') || document.getElementById('projektiValinta').value || ''
   };
@@ -1233,7 +1259,7 @@ function palautaLuonnos(l) {
     img2.src = l.sig2;
   }
   for (var i = 1; i <= rowCount; i++) { if (document.getElementById('qty_'+i)) calcRow(i); }
-  markEmptyRows();
+  valmistaTulostusTekstit(); markEmptyRows();
   updateTotal();
   naytaIlmoitus('↺ Luonnos palautettu', 'ok');
 }
