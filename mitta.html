@@ -287,6 +287,53 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   .bcf-topbar-right { flex-wrap: wrap; justify-content: flex-end; gap: 6px; width: 100%; }
 }
 @media print { .sanelu-btn, .sanelu-tausta { display:none !important; } }
+
+/* ── Puhelinnäkymä (vain näytöllä; tulostus pysyy A4-muodossa) ── */
+@media screen and (max-width: 820px) {
+  .page { width: auto; margin: 0; box-shadow: none; }
+  #projektiPalkki { flex-wrap: wrap; }
+  #projektiValinta { min-width: 0; flex: 1 1 200px; font-size: 16px !important; }
+  .info-section { grid-template-columns: 1fr; gap: 10px; padding: 12px; }
+  .info-field label { font-size: 10px; }
+  .info-field input, .info-field select { font-size: 16px; padding: 4px 0; }
+  #pvm { font-size: 16px; }
+  .table-wrap { padding: 10px; }
+  .table-wrap table, .table-wrap tbody, .table-wrap tfoot { display: block; width: 100%; }
+  .table-wrap colgroup, .table-wrap thead { display: none; }
+  #tableBody tr {
+    display: grid;
+    grid-template-columns: minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) auto;
+    grid-template-areas: "desc desc desc desc del" "date date qty unit unit" "price price tot tot tot";
+    gap: 8px 10px; border: 1px solid #c8d0d8; border-radius: 10px;
+    padding: 10px; margin-bottom: 10px; background: white;
+  }
+  #tableBody td { display: block; border: none; padding: 0; overflow: visible; width: auto !important; min-width: 0 !important; max-width: none !important; }
+  #tableBody td:nth-child(1) { grid-area: date; }
+  #tableBody td:nth-child(2) { grid-area: desc; }
+  #tableBody td:nth-child(3) { grid-area: qty; }
+  #tableBody td:nth-child(4) { grid-area: unit; }
+  #tableBody td:nth-child(5) { grid-area: price; }
+  #tableBody td:nth-child(6) { grid-area: tot; text-align: right; font-size: 15px; align-self: end; padding-bottom: 5px; }
+  #tableBody td:nth-child(7) { grid-area: del; align-self: start; }
+  #tableBody td:nth-child(1)::before { content: 'Pvm'; }
+  #tableBody td:nth-child(2)::before { content: 'Kuvaus'; }
+  #tableBody td:nth-child(3)::before { content: 'Määrä'; }
+  #tableBody td:nth-child(4)::before { content: 'Yks'; }
+  #tableBody td:nth-child(5)::before { content: '€/yks'; }
+  #tableBody td:nth-child(6)::before { content: 'Yhteensä'; }
+  #tableBody td::before { display: block; font-size: 10px; font-weight: 700; color: #006CB1; text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 2px; }
+  #tableBody td input, #tableBody td select, #tableBody td input[type=date] {
+    font-size: 16px !important; padding: 4px 0; border-bottom: 1px solid #c8d0d8; white-space: normal;
+  }
+  #tableBody td:nth-child(2) select, #tableBody td:nth-child(2) input { white-space: nowrap; }
+  .del-btn { font-size: 20px; padding: 4px 6px; color: #94a3b8; }
+  .table-wrap tfoot tr.total-row:not(.hidden) { display: flex; justify-content: space-between; align-items: center; border-top: 2px solid #006CB1; padding: 10px 4px; }
+  .table-wrap tfoot td { display: block; border: none !important; padding: 0; }
+  .table-wrap tfoot td:empty { display: none; }
+  .add-row-btn, .sanelu-btn { padding: 10px 16px; font-size: 13px; }
+  .sigs { flex-direction: column; gap: 16px; }
+  .sig-name { font-size: 16px; }
+}
 </style>
 </head>
 <body>
@@ -320,7 +367,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   </div>
 </div>
 <!-- PROJEKTIN VALINTA -->
-<div class="no-print" style="background:#e8f4fc;border-bottom:2px solid #006CB1;padding:8px 14px;display:flex;align-items:center;gap:10px;">
+<div class="no-print" id="projektiPalkki" style="background:#e8f4fc;border-bottom:2px solid #006CB1;padding:8px 14px;display:flex;align-items:center;gap:10px;">
   <span style="font-size:11px;font-weight:700;color:#006CB1;white-space:nowrap;">📁 PROJEKTI:</span>
   <select id="projektiValinta" onchange="valitseProjekti(this.value)" style="flex:1;border:none;background:transparent;font-family:inherit;font-size:12px;color:#1a2530;outline:none;cursor:pointer;">
     <option value="">— Valitse projekti tai täytä käsin —</option>
@@ -565,11 +612,7 @@ document.addEventListener('DOMContentLoaded', function() {
           var qtyEl = document.getElementById('qty_' + rid);
           if (qtyEl) qtyEl.value = r.maara || '';
           var unitEl = document.getElementById('unit_' + rid);
-          if (unitEl) {
-            for (var u = 0; u < unitEl.options.length; u++) {
-              if (unitEl.options[u].text === r.yksikko) { unitEl.selectedIndex = u; break; }
-            }
-          }
+          if (unitEl) asetaYksikko(unitEl, r.yksikko);
           var priceEl = document.getElementById('price_' + rid);
           if (priceEl) priceEl.value = r.hinta || '';
           calcRow(rid);
@@ -703,6 +746,23 @@ function asetaKuvaus(id, teksti) {
   el.parentNode.replaceChild(input, el);
 }
 
+// Tarjoushinnan yksikkö yksikkövalikkoon: "jm" → "m", "m2" → "m²", "m3" → "m³".
+// Jos yksikköä ei ole valikossa, se lisätään valikkoon sellaisenaan.
+function asetaYksikko(unitEl, yksikko) {
+  if (!unitEl) return;
+  var y = String(yksikko || '').trim();
+  var kartta = { 'jm': 'm', 'm2': 'm²', 'm3': 'm³', 'kpl.': 'kpl', 'h.': 'h' };
+  y = kartta[y.toLowerCase()] || y;
+  if (!y) return;
+  for (var i = 0; i < unitEl.options.length; i++) {
+    if (unitEl.options[i].text === y) { unitEl.selectedIndex = i; return; }
+  }
+  var o = document.createElement('option');
+  o.textContent = y;
+  unitEl.appendChild(o);
+  unitEl.value = y;
+}
+
 function valitseHinta(id, sel) {
   if (sel.value === '__muu__') {
     var input = document.createElement('input');
@@ -724,12 +784,7 @@ function valitseHinta(id, sel) {
   var yksikko = sel.options[sel.selectedIndex].getAttribute('data-yksikko') || 'm²';
   var priceEl = document.getElementById('price_' + id);
   if (priceEl) priceEl.value = hinta.toFixed(2);
-  var unitEl = document.getElementById('unit_' + id);
-  if (unitEl) {
-    for (var i = 0; i < unitEl.options.length; i++) {
-      if (unitEl.options[i].text === yksikko) { unitEl.selectedIndex = i; break; }
-    }
-  }
+  asetaYksikko(document.getElementById('unit_' + id), yksikko);
   calcRow(id);
 }
 
@@ -1709,11 +1764,11 @@ function saneluTaytaRivi(id, r) {
     } else {
       asetaKuvaus(id, teksti);
       if (priceEl) priceEl.value = h.hinta.toFixed(2);
-      if (unitEl) unitEl.value = h.yksikko || 'm²';
+      asetaYksikko(unitEl, h.yksikko || 'm²');
     }
   } else {
     asetaKuvaus(id, r.kuvaus || r.alkuperainen || '');
-    if (unitEl && r.yksikko) unitEl.value = r.yksikko;
+    if (r.yksikko) asetaYksikko(unitEl, r.yksikko);
     var hinta = parseFloat(String(r.hinta || '').replace(',', '.'));
     if (priceEl) priceEl.value = isFinite(hinta) ? hinta.toFixed(2) : '';
   }
