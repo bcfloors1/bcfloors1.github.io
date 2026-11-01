@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="et">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BC Floors – Valukuittaus</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Spartan:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #F3F6F9; font-family: 'Spartan', 'Segoe UI', system-ui, -apple-system, sans-serif; color: #1A2530; min-height: 100vh; }
+button, input, textarea { font: inherit; color: inherit; }
+.yla { background: #006CB1; border-bottom: 4px solid #E8A020; padding: 12px 14px 12px 18px; display: flex; align-items: center; justify-content: space-between; gap: 12px; position: sticky; top: 0; z-index: 10; }
+.yla-merkki { color: #fff; font-size: 12px; font-weight: 700; letter-spacing: 1.5px; }
+.yla-otsikko { color: #fff; font-size: 19px; font-weight: 700; }
+.kielet { display: flex; border: 1.5px solid rgba(255,255,255,0.7); border-radius: 8px; overflow: hidden; flex-shrink: 0; }
+.kielet button { min-width: 48px; min-height: 44px; border: none; background: transparent; color: #fff; font-size: 14px; font-weight: 600; cursor: pointer; }
+.kielet button[aria-pressed="true"] { background: #fff; color: #006CB1; font-weight: 700; }
+.sisalto { max-width: 520px; margin: 0 auto; padding: 14px; display: flex; flex-direction: column; gap: 12px; padding-bottom: 40px; }
+.kortti { background: #fff; border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 1px 3px rgba(16,24,40,0.08); }
+.osio { font-size: 13px; font-weight: 700; color: #006CB1; letter-spacing: 0.8px; text-transform: uppercase; }
+.kohde { font-size: 20px; font-weight: 700; }
+.kohde-ali { font-size: 15px; color: #3D4A57; }
+.kohde-ali2 { font-size: 14px; color: #4B5563; }
+.ohje { font-size: 13px; color: #4B5563; line-height: 1.45; }
+.aika-rivi { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: #EEF6EE; border-radius: 10px; padding: 10px 12px; }
+.aika-vasen { display: flex; align-items: center; gap: 10px; }
+.aika-otsake { font-size: 13px; color: #3D4A57; }
+.aika-arvo { font-size: 22px; font-weight: 700; }
+.linkkinappi { background: none; border: none; color: #006CB1; font-size: 15px; font-weight: 600; min-height: 44px; padding: 0 6px; cursor: pointer; }
+.iso-nappi { border: none; border-radius: 12px; min-height: 60px; font-size: 18px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 10px; cursor: pointer; width: 100%; }
+.iso-nappi:disabled { opacity: 0.6; cursor: default; }
+.sininen { background: #006CB1; color: #fff; }
+.oranssi { background: #E8A020; color: #1A2530; }
+.reunus { background: #fff; color: #006CB1; border: 1.5px solid #006CB1; min-height: 52px; font-size: 16px; }
+.aika-muokkaus { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.aika-muokkaus input { font-size: 18px; padding: 8px 10px; border: 1.5px solid #CBD5E1; border-radius: 10px; min-height: 44px; }
+.pieni-nappi { min-height: 44px; padding: 0 14px; border-radius: 10px; border: 1.5px solid #CBD5E1; background: #fff; font-weight: 600; cursor: pointer; }
+.pieni-nappi.ensisij { background: #006CB1; border-color: #006CB1; color: #fff; }
+.rivi { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.rivi-teksti { font-size: 17px; }
+.erotin { border-top: 1px solid #E5EAF0; padding-top: 12px; }
+.askel { display: flex; align-items: center; gap: 4px; }
+.askel button { width: 44px; height: 44px; border-radius: 10px; border: 1.5px solid #CBD5E1; background: #fff; font-size: 24px; cursor: pointer; }
+.askel span { font-size: 22px; font-weight: 700; min-width: 36px; text-align: center; }
+.kyllaei { display: flex; border: 1.5px solid #CBD5E1; border-radius: 10px; overflow: hidden; flex-shrink: 0; }
+.kyllaei button { min-width: 64px; min-height: 44px; border: none; background: #fff; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; }
+.kyllaei button + button { border-left: 1.5px solid #CBD5E1; }
+.kyllaei button[aria-pressed="true"] { background: #006CB1; color: #fff; font-weight: 700; }
+.sirut { display: flex; flex-wrap: wrap; gap: 8px; }
+.siru { min-height: 44px; padding: 0 14px; border-radius: 22px; border: 1.5px solid #CBD5E1; background: #fff; font-size: 15px; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+.siru[aria-pressed="true"] { background: #006CB1; border-color: #006CB1; color: #fff; font-weight: 600; }
+label.kentta-otsake { font-size: 14px; font-weight: 600; }
+textarea, input.teksti { font-size: 16px; border: 1.5px solid #CBD5E1; border-radius: 10px; padding: 10px 12px; background: #FAFBFC; width: 100%; }
+textarea { resize: vertical; min-height: 84px; }
+.kuvat { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.kuva { aspect-ratio: 1; border-radius: 10px; background: #DDE3EA; overflow: hidden; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #3D4A57; text-align: center; padding: 4px; }
+.kuva img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.kuva.virhe { background: #FEE2E2; color: #991B1B; }
+.lisaa-kuva { aspect-ratio: 1; border-radius: 10px; border: 2px dashed #94A3B8; background: #fff; color: #006CB1; font-size: 14px; font-weight: 600; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; cursor: pointer; }
+.virheteksti { color: #B91C1C; font-size: 14px; text-align: center; }
+.keskella { text-align: center; }
+.yhteenveto-rivi { display: flex; justify-content: space-between; gap: 12px; font-size: 16px; }
+.yhteenveto-rivi span:first-child { color: #3D4A57; }
+.yhteenveto-rivi span:last-child { font-weight: 600; text-align: right; }
+.ok-ympyra { width: 64px; height: 64px; border-radius: 32px; background: #EEF6EE; display: flex; align-items: center; justify-content: center; margin: 0 auto; }
+.ilmoitus { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: #1A2530; color: #fff; padding: 10px 16px; border-radius: 10px; font-size: 14px; z-index: 50; display: none; max-width: 90vw; }
+</style>
+</head>
+<body>
+<div class="yla">
+  <div>
+    <div class="yla-merkki">BC FLOORS</div>
+    <div class="yla-otsikko" id="ylaOtsikko">&nbsp;</div>
+  </div>
+  <div class="kielet" role="group" aria-label="Kieli / Keel">
+    <button type="button" data-act="kieli" data-kieli="et" aria-pressed="false">EST</button>
+    <button type="button" data-act="kieli" data-kieli="fi" aria-pressed="false">FI</button>
+  </div>
+</div>
+<main class="sisalto" id="sisalto"><div class="kortti keskella ohje">…</div></main>
+<input type="file" id="kuvaInput" accept="image/*" multiple hidden>
+<div class="ilmoitus" id="ilmoitus" role="status"></div>
+
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
+<script>
+// ── BC Floors – valukuittaus alihankkijalle (ei kirjautumista) ──
+// Linkki: valukuittaus.html?id=<valun id>. Firestore-säännöt sallivat linkin haltijalle
+// vain tämän valun lukemisen ja kuittaus-kentän päivittämisen, kunnes valu on lukittu.
+firebase.initializeApp({
+  apiKey: "AIzaSyB_SEcmhmzBBldkbh8CQYL7ncQGVyZIDM4",
+  authDomain: "bcfloors-a25ea.firebaseapp.com",
+  projectId: "bcfloors-a25ea",
+  storageBucket: "bcfloors-a25ea.firebasestorage.app",
+  messagingSenderId: "160878550016",
+  appId: "1:160878550016:web:9d42f64d0d02375a178ce5"
+});
+var db = firebase.firestore();
+var storage = firebase.storage();
+
+var HAVAINNOT = [
+  { k: 'ei',        fi: 'Ei havaintoja',              et: 'Tähelepanekuid pole' },
+  { k: 'vesi',      fi: 'Vettä tulee ruudulle',       et: 'Vett tuleb valualale' },
+  { k: 'kylma',     fi: 'Kylmä',                      et: 'Külm' },
+  { k: 'veto',      fi: 'Veto',                       et: 'Tuuletõmbus' },
+  { k: 'odotus',    fi: 'Kuormissa odotusta',         et: 'Koormate ootamine' },
+  { k: 'betoni',    fi: 'Betoni jäykkää / notkeaa',   et: 'Betoon liiga jäik / vedel' },
+  { k: 'kalusto',   fi: 'Kalusto- tai pumppuongelma', et: 'Seadme- või pumbaprobleem' },
+  { k: 'valaistus', fi: 'Valaistus puutteellinen',    et: 'Puudulik valgustus' },
+  { k: 'ilma',      fi: 'Huono ilmanlaatu',           et: 'Halb õhukvaliteet' }
+];
+
+var T = {
+  fi: {
+    otsikko: 'Valukuittaus', pintatyo: 'Pintatyö', alkoi: 'Alkoi', paattyi: 'Päättyi',
+    alkoiNyt: 'Pintatyö alkoi nyt', paattyiNyt: 'Pintatyö päättyi nyt', muuta: 'Muuta',
+    tallennaAika: 'Tallenna', peruuta: 'Peruuta',
+    aikaOhje: 'Aika tallentuu napin painalluksella. Voit korjata sen jälkikäteen.',
+    jalki: 'Jälkihoitoaine levitetty', kylla: 'Kyllä', ei: 'Ei',
+    porukka: 'Porukka', valumiehet: 'Valumiehet', pintamiehet: 'Pintamiehet',
+    vahenna: 'Vähennä', lisaa: 'Lisää',
+    havainnot: 'Havainnot', tarkennus: 'Tarkennus', saneluvinkki: 'Voit myös sanella näppäimistön mikrofonilla.',
+    kuvat: 'Kuvat', lisaaKuva: 'Lisää kuva', ladataan: 'Ladataan…', kuvaVirhe: 'Lataus epäonnistui',
+    kirjaaja: 'Kirjaaja', nimiPh: 'Nimi', muistaa: 'Puhelin muistaa nimen seuraavalla kerralla.',
+    tallenna: 'Tallenna', tallennetaan: 'Tallennetaan…', viimeksi: 'Tallennettu viimeksi klo ',
+    kiitos: 'Kiitos, kuittaus tallennettu', yhteenveto: 'Yhteenveto', muokkaa: 'Muokkaa kuittausta',
+    muokkausOhje: 'Voit muokata kuittausta, kunnes BC Floors lukitsee betonointipöytäkirjan.',
+    lukittu: 'Tämä valu on lukittu. Kuittausta ei voi enää muuttaa.',
+    eiLoydy: 'Valua ei löytynyt. Tarkista linkki.',
+    virhe: 'Tallennus epäonnistui. Tarkista yhteys ja yritä uudelleen.',
+    kirjaajaPuuttuu: 'Kirjoita nimesi ennen tallennusta.',
+    aikaTallennettu: 'Aika tallennettu', valu: 'Valu', tilaaja: 'Tilaaja',
+    vp: ['su', 'ma', 'ti', 'ke', 'to', 'pe', 'la']
+  },
+  et: {
+    otsikko: 'Betoneerimise kinnitus', pintatyo: 'Pinnatöö', alkoi: 'Algas', paattyi: 'Lõppes',
+    alkoiNyt: 'Pinnatöö algas nüüd', paattyiNyt: 'Pinnatöö lõppes nüüd', muuta: 'Muuda',
+    tallennaAika: 'Salvesta', peruuta: 'Tühista',
+    aikaOhje: 'Kellaaeg salvestub nupuvajutusel. Saad seda hiljem parandada.',
+    jalki: 'Järelhooldusaine peale kantud', kylla: 'Jah', ei: 'Ei',
+    porukka: 'Meeskond', valumiehet: 'Betoneerijad', pintamiehet: 'Pinnatöölised',
+    vahenna: 'Vähenda', lisaa: 'Lisa',
+    havainnot: 'Tähelepanekud', tarkennus: 'Täpsustus', saneluvinkki: 'Võid ka dikteerida klaviatuuri mikrofoniga.',
+    kuvat: 'Fotod', lisaaKuva: 'Lisa foto', ladataan: 'Laadin…', kuvaVirhe: 'Üleslaadimine ebaõnnestus',
+    kirjaaja: 'Täitja', nimiPh: 'Nimi', muistaa: 'Telefon jätab nime järgmiseks korraks meelde.',
+    tallenna: 'Salvesta', tallennetaan: 'Salvestan…', viimeksi: 'Viimati salvestatud kell ',
+    kiitos: 'Aitäh, kinnitus salvestatud', yhteenveto: 'Kokkuvõte', muokkaa: 'Muuda kinnitust',
+    muokkausOhje: 'Kinnitust saab muuta seni, kuni BC Floors lukustab betoneerimisprotokolli.',
+    lukittu: 'See valu on lukustatud. Kinnitust ei saa enam muuta.',
+    eiLoydy: 'Valu ei leitud. Kontrolli linki.',
+    virhe: 'Salvestamine ebaõnnestus. Kontrolli ühendust ja proovi uuesti.',
+    kirjaajaPuuttuu: 'Kirjuta enne salvestamist oma nimi.',
+    aikaTallennettu: 'Aeg salvestatud', valu: 'Valu', tilaaja: 'Tellija',
+    vp: ['P', 'E', 'T', 'K', 'N', 'R', 'L']
+  }
+};
+
+var ICON_OK = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1F7A3A" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>';
+var ICON_OK_VALK = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>';
+var ICON_KELLO = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
+var ICON_KAMERA = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#006CB1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>';
+
+var valuId = new URLSearchParams(location.search).get('id') || '';
+var valu = null;          // Firestore-dokumentin tiedot
+var L = null;             // paikallisesti muokattavat kentät
+var nakyma = 'lataus';    // lataus | lomake | tallennettu | lukittu | virhe
+var muokattavaAika = null; // 'pintaAlkoi' | 'pintaPaattyi' | null
+var latauksessa = [];     // [{id, tila: 'lataa'|'virhe'}]
+var tallentaa = false;
+
+var kieli = (function() {
+  try { var k = localStorage.getItem('bc_kieli'); if (k === 'fi' || k === 'et') return k; } catch (e) {}
+  return /^fi\b/i.test(navigator.language || '') ? 'fi' : 'et';
+})();
+function t(k) { return T[kieli][k]; }
+
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function(c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+function nayttoAika(hhmm) { return hhmm ? (kieli === 'fi' ? hhmm.replace(':', '.') : hhmm) : '–'; }
+function nytHHMM() { var d = new Date(); return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2); }
+function valuPvmTeksti(iso) {
+  var m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return '';
+  var d = new Date(+m[1], +m[2] - 1, +m[3]);
+  return t('vp')[d.getDay()] + ' ' + m[3] + '.' + m[2] + '.' + m[1];
+}
+function ilmoita(teksti) {
+  var el = document.getElementById('ilmoitus');
+  el.textContent = teksti; el.style.display = 'block';
+  clearTimeout(ilmoita._t); ilmoita._t = setTimeout(function() { el.style.display = 'none'; }, 2600);
+}
+
+// ── Tietojen lataus ──
+function lataa() {
+  if (!valuId) { nakyma = 'virhe'; render(); return; }
+  db.collection('valut').doc(valuId).get().then(function(doc) {
+    if (!doc.exists) { nakyma = 'virhe'; render(); return; }
+    valu = doc.data();
+    var k = valu.kuittaus || {};
+    var nimi = '';
+    try { nimi = localStorage.getItem('bc_kirjaaja') || ''; } catch (e) {}
+    L = {
+      valumiehet: typeof k.valumiehet === 'number' ? k.valumiehet : null,
+      pintamiehet: typeof k.pintamiehet === 'number' ? k.pintamiehet : null,
+      jalkihoitoaine: typeof k.jalkihoitoaine === 'boolean' ? k.jalkihoitoaine : null,
+      havainnot: Array.isArray(k.havainnot) ? k.havainnot.slice() : [],
+      tarkennus: k.tarkennus || '',
+      kirjaaja: k.kirjaaja || nimi
+    };
+    nakyma = valu.lukittu ? 'lukittu' : 'lomake';
+    render();
+  }).catch(function(e) {
+    console.error(e);
+    nakyma = 'virhe'; render();
+  });
+}
+
+function kuittaus() { return (valu && valu.kuittaus) || {}; }
+
+// ── Näkymät ──
+function kohdeKortti() {
+  var osat = [t('valu') + ' ' + valuPvmTeksti(valu.pvm)];
+  if (valu.valualue) osat.push(valu.valualue);
+  if (valu.m2) osat.push(valu.m2 + ' m²');
+  return '<div class="kortti" style="gap:4px">' +
+    '<div class="kohde">' + esc(valu.tyomaa || '') + '</div>' +
+    '<div class="kohde-ali">' + esc(osat.join(' · ')) + '</div>' +
+    (valu.tilaaja ? '<div class="kohde-ali2">' + esc(t('tilaaja')) + ': ' + esc(valu.tilaaja) + '</div>' : '') +
+  '</div>';
+}
+
+function aikaRivi(kentta, otsake) {
+  var arvo = kuittaus()[kentta];
+  if (muokattavaAika === kentta) {
+    return '<div class="aika-muokkaus">' +
+      '<label for="aikaInput" class="aika-otsake">' + esc(otsake) + '</label>' +
+      '<input type="time" id="aikaInput" value="' + esc(arvo || nytHHMM()) + '">' +
+      '<button type="button" class="pieni-nappi ensisij" data-act="tallennaAika" data-kentta="' + kentta + '">' + esc(t('tallennaAika')) + '</button>' +
+      '<button type="button" class="pieni-nappi" data-act="peruAika">' + esc(t('peruuta')) + '</button>' +
+    '</div>';
+  }
+  return '<div class="aika-rivi"><div class="aika-vasen">' + ICON_OK +
+    '<div style="display:flex;flex-direction:column"><span class="aika-otsake">' + esc(otsake) + '</span>' +
+    '<span class="aika-arvo">' + esc(nayttoAika(arvo)) + '</span></div></div>' +
+    '<button type="button" class="linkkinappi" data-act="muutaAika" data-kentta="' + kentta + '">' + esc(t('muuta')) + '</button></div>';
+}
+
+function askel(kentta, otsake) {
+  var v = L[kentta];
+  return '<div class="rivi"><span class="rivi-teksti">' + esc(otsake) + '</span><div class="askel">' +
+    '<button type="button" data-act="askel" data-kentta="' + kentta + '" data-muutos="-1" aria-label="' + esc(t('vahenna') + ': ' + otsake) + '">−</button>' +
+    '<span aria-live="polite">' + (v === null ? '–' : v) + '</span>' +
+    '<button type="button" data-act="askel" data-kentta="' + kentta + '" data-muutos="1" aria-label="' + esc(t('lisaa') + ': ' + otsake) + '">+</button>' +
+  '</div></div>';
+}
+
+function lomake() {
+  var k = kuittaus();
+  var h = kohdeKortti();
+
+  // Pintatyö
+  h += '<div class="kortti"><div class="osio">' + esc(t('pintatyo')) + '</div>';
+  if (k.pintaAlkoi) h += aikaRivi('pintaAlkoi', t('alkoi'));
+  if (k.pintaPaattyi) h += aikaRivi('pintaPaattyi', t('paattyi'));
+  if (!k.pintaAlkoi) {
+    h += '<button type="button" class="iso-nappi sininen" data-act="leimaa" data-kentta="pintaAlkoi">' + ICON_KELLO + esc(t('alkoiNyt')) + '</button>';
+  } else if (!k.pintaPaattyi) {
+    h += '<button type="button" class="iso-nappi sininen" data-act="leimaa" data-kentta="pintaPaattyi">' + ICON_KELLO + esc(t('paattyiNyt')) + '</button>';
+  }
+  h += '<div class="ohje">' + esc(t('aikaOhje')) + '</div>';
+  h += '<div class="rivi erotin"><span class="rivi-teksti">' + esc(t('jalki')) + '</span>' +
+    '<div class="kyllaei" role="group" aria-label="' + esc(t('jalki')) + '">' +
+      '<button type="button" data-act="jalki" data-arvo="1" aria-pressed="' + (L.jalkihoitoaine === true) + '">' + (L.jalkihoitoaine === true ? ICON_OK_VALK : '') + esc(t('kylla')) + '</button>' +
+      '<button type="button" data-act="jalki" data-arvo="0" aria-pressed="' + (L.jalkihoitoaine === false) + '">' + (L.jalkihoitoaine === false ? ICON_OK_VALK : '') + esc(t('ei')) + '</button>' +
+    '</div></div>';
+  h += '</div>';
+
+  // Porukka
+  h += '<div class="kortti"><div class="osio">' + esc(t('porukka')) + '</div>' +
+    askel('valumiehet', t('valumiehet')) + askel('pintamiehet', t('pintamiehet')) + '</div>';
+
+  // Havainnot
+  h += '<div class="kortti"><div class="osio">' + esc(t('havainnot')) + '</div><div class="sirut">';
+  HAVAINNOT.forEach(function(x) {
+    var on = L.havainnot.indexOf(x.k) >= 0;
+    h += '<button type="button" class="siru" data-act="havainto" data-k="' + x.k + '" aria-pressed="' + on + '">' + (on ? ICON_OK_VALK : '') + esc(x[kieli]) + '</button>';
+  });
+  h += '</div>';
+  h += '<label class="kentta-otsake" for="tarkennus">' + esc(t('tarkennus')) + '</label>';
+  h += '<textarea id="tarkennus" rows="3">' + esc(L.tarkennus) + '</textarea>';
+  h += '<div class="ohje">' + esc(t('saneluvinkki')) + '</div></div>';
+
+  // Kuvat
+  h += '<div class="kortti"><div class="osio">' + esc(t('kuvat')) + '</div><div class="kuvat">';
+  (k.kuvat || []).forEach(function(kv, i) {
+    h += '<div class="kuva"><img src="' + esc(kv.url) + '" alt="' + esc(t('kuvat') + ' ' + (i + 1)) + '" loading="lazy"></div>';
+  });
+  latauksessa.forEach(function(x) {
+    h += x.tila === 'virhe' ? '<div class="kuva virhe">' + esc(t('kuvaVirhe')) + '</div>' : '<div class="kuva">' + esc(t('ladataan')) + '</div>';
+  });
+  h += '<button type="button" class="lisaa-kuva" data-act="lisaaKuva">' + ICON_KAMERA + esc(t('lisaaKuva')) + '</button>';
+  h += '</div></div>';
+
+  // Kirjaaja
+  h += '<div class="kortti" style="gap:8px"><label class="osio" for="kirjaaja">' + esc(t('kirjaaja')) + '</label>' +
+    '<input class="teksti" id="kirjaaja" type="text" autocomplete="name" placeholder="' + esc(t('nimiPh')) + '" value="' + esc(L.kirjaaja) + '">' +
+    '<div class="ohje">' + esc(t('muistaa')) + '</div></div>';
+
+  h += '<div class="virheteksti" id="virhe" role="alert"></div>';
+  h += '<button type="button" class="iso-nappi oranssi" data-act="tallenna"' + (tallentaa ? ' disabled' : '') + '>' + esc(tallentaa ? t('tallennetaan') : t('tallenna')) + '</button>';
+  if (k.paivitetty) {
+    var d = new Date(k.paivitetty);
+    if (!isNaN(d)) h += '<div class="ohje keskella">' + esc(t('viimeksi') + nayttoAika(('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2))) + '</div>';
+  }
+  return h;
+}
+
+function yhteenveto() {
+  var k = kuittaus();
+  var hav = (k.havainnot || []).map(function(code) {
+    var x = HAVAINNOT.filter(function(y) { return y.k === code; })[0];
+    return x ? x[kieli] : code;
+  }).join(', ');
+  function r(a, b) { return '<div class="yhteenveto-rivi"><span>' + esc(a) + '</span><span>' + esc(b) + '</span></div>'; }
+  var jalki = k.jalkihoitoaine === true ? t('kylla') : (k.jalkihoitoaine === false ? t('ei') : '–');
+  return '<div class="kortti" style="gap:10px"><div class="osio">' + esc(t('yhteenveto')) + '</div>' +
+    r(t('pintatyo'), k.pintaAlkoi ? nayttoAika(k.pintaAlkoi) + '–' + (k.pintaPaattyi ? nayttoAika(k.pintaPaattyi) : '') : '–') +
+    r(t('jalki'), jalki) +
+    r(t('valumiehet'), k.valumiehet != null ? k.valumiehet : '–') +
+    r(t('pintamiehet'), k.pintamiehet != null ? k.pintamiehet : '–') +
+    r(t('havainnot'), hav || '–') +
+    r(t('kuvat'), (k.kuvat || []).length) +
+    r(t('kirjaaja'), k.kirjaaja || '–') +
+  '</div>';
+}
+
+function render() {
+  document.documentElement.lang = kieli;
+  document.getElementById('ylaOtsikko').textContent = t('otsikko');
+  document.title = 'BC Floors – ' + t('otsikko');
+  document.querySelectorAll('[data-act="kieli"]').forEach(function(b) {
+    b.setAttribute('aria-pressed', String(b.dataset.kieli === kieli));
+  });
+  var s = document.getElementById('sisalto');
+  if (nakyma === 'lataus') { s.innerHTML = '<div class="kortti keskella ohje">…</div>'; return; }
+  if (nakyma === 'virhe') { s.innerHTML = '<div class="kortti keskella">' + esc(t('eiLoydy')) + '</div>'; return; }
+  if (nakyma === 'lukittu') {
+    s.innerHTML = kohdeKortti() + '<div class="kortti keskella">' + esc(t('lukittu')) + '</div>' + yhteenveto();
+    return;
+  }
+  if (nakyma === 'tallennettu') {
+    s.innerHTML = '<div class="kortti keskella" style="padding:24px 16px">' +
+      '<div class="ok-ympyra"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#1F7A3A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg></div>' +
+      '<div style="font-size:21px;font-weight:700">' + esc(t('kiitos')) + '</div>' +
+      '<div class="kohde-ali">' + esc((valu.tyomaa || '') + ' · ' + valuPvmTeksti(valu.pvm) + (valu.valualue ? ' · ' + valu.valualue : '')) + '</div></div>' +
+      yhteenveto() +
+      '<button type="button" class="iso-nappi reunus" data-act="muokkaa">' + esc(t('muokkaa')) + '</button>' +
+      '<div class="ohje keskella">' + esc(t('muokkausOhje')) + '</div>';
+    return;
+  }
+  s.innerHTML = lomake();
+}
+
+// Lomakkeen tekstikentät talteen ennen uudelleenpiirtoa
+function lueTekstit() {
+  var ta = document.getElementById('tarkennus'); if (ta) L.tarkennus = ta.value;
+  var ki = document.getElementById('kirjaaja'); if (ki) L.kirjaaja = ki.value;
+}
+
+// ── Tallennukset (vain kuittaus-kenttä, pistepolulla, jotta samanaikaiset muutokset eivät katoa) ──
+function paivita(muutokset) {
+  var data = { 'kuittaus.paivitetty': new Date().toISOString() };
+  Object.keys(muutokset).forEach(function(k) { data['kuittaus.' + k] = muutokset[k]; });
+  return db.collection('valut').doc(valuId).update(data).then(function() {
+    valu.kuittaus = valu.kuittaus || {};
+    Object.keys(muutokset).forEach(function(k) { valu.kuittaus[k] = muutokset[k]; });
+    valu.kuittaus.paivitetty = data['kuittaus.paivitetty'];
+  });
+}
+
+function tallennaAika(kentta, hhmm) {
+  lueTekstit();
+  var m = {}; m[kentta] = hhmm;
+  return paivita(m).then(function() {
+    muokattavaAika = null; render(); ilmoita(t('aikaTallennettu') + ': ' + nayttoAika(hhmm));
+  }).catch(function(e) { console.error(e); alert(t('virhe')); });
+}
+
+function tallennaKaikki() {
+  lueTekstit();
+  var virhe = document.getElementById('virhe');
+  if (!L.kirjaaja.trim()) { virhe.textContent = t('kirjaajaPuuttuu'); document.getElementById('kirjaaja').focus(); return; }
+  try { localStorage.setItem('bc_kirjaaja', L.kirjaaja.trim()); } catch (e) {}
+  tallentaa = true; render();
+  paivita({
+    valumiehet: L.valumiehet, pintamiehet: L.pintamiehet, jalkihoitoaine: L.jalkihoitoaine,
+    havainnot: L.havainnot, tarkennus: L.tarkennus.trim(), kirjaaja: L.kirjaaja.trim(),
+    kieli: kieli, tallennettu: true
+  }).then(function() {
+    tallentaa = false; nakyma = 'tallennettu'; render(); window.scrollTo(0, 0);
+  }).catch(function(e) {
+    console.error(e);
+    tallentaa = false; render();
+    var v = document.getElementById('virhe'); if (v) v.textContent = t('virhe');
+  });
+}
+
+// ── Kuvat: pienennys ja lataus ──
+function pienennaKuva(tiedosto) {
+  return new Promise(function(resolve, reject) {
+    var url = URL.createObjectURL(tiedosto);
+    var img = new Image();
+    img.onload = function() {
+      var max = 1600, w = img.naturalWidth, h = img.naturalHeight;
+      var s = Math.min(1, max / Math.max(w, h));
+      var c = document.createElement('canvas');
+      c.width = Math.round(w * s); c.height = Math.round(h * s);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      c.toBlob(function(b) { b ? resolve(b) : reject(new Error('toBlob')); }, 'image/jpeg', 0.8);
+    };
+    img.onerror = function() { URL.revokeObjectURL(url); reject(new Error('kuva')); };
+    img.src = url;
+  });
+}
+
+function lataaKuvat(tiedostot) {
+  lueTekstit();
+  Array.prototype.forEach.call(tiedostot, function(tiedosto) {
+    var merkki = { id: Math.random().toString(36).slice(2), tila: 'lataa' };
+    latauksessa.push(merkki);
+    render();
+    var polku = 'valukuittaus/' + valuId + '/' + Date.now() + '_' + merkki.id + '.jpg';
+    pienennaKuva(tiedosto).then(function(blob) {
+      return storage.ref(polku).put(blob, { contentType: 'image/jpeg' });
+    }).then(function(snap) {
+      return snap.ref.getDownloadURL();
+    }).then(function(url) {
+      var kuva = { url: url, polku: polku, aika: new Date().toISOString() };
+      return db.collection('valut').doc(valuId).update({
+        'kuittaus.kuvat': firebase.firestore.FieldValue.arrayUnion(kuva),
+        'kuittaus.paivitetty': new Date().toISOString()
+      }).then(function() {
+        valu.kuittaus = valu.kuittaus || {};
+        valu.kuittaus.kuvat = (valu.kuittaus.kuvat || []).concat([kuva]);
+      });
+    }).then(function() {
+      latauksessa = latauksessa.filter(function(x) { return x !== merkki; });
+      lueTekstit(); render();
+    }).catch(function(e) {
+      console.error('Kuvan lataus:', e);
+      merkki.tila = 'virhe';
+      lueTekstit(); render();
+      ilmoita(t('kuvaVirhe'));
+    });
+  });
+}
+
+// ── Tapahtumat ──
+document.addEventListener('click', function(e) {
+  var el = e.target.closest('[data-act]');
+  if (!el) return;
+  var act = el.dataset.act;
+  if (act === 'kieli') {
+    if (L) lueTekstit();
+    kieli = el.dataset.kieli;
+    try { localStorage.setItem('bc_kieli', kieli); } catch (er) {}
+    render(); return;
+  }
+  if (!valu || valu.lukittu) return;
+  if (act === 'leimaa') { tallennaAika(el.dataset.kentta, nytHHMM()); }
+  else if (act === 'muutaAika') { lueTekstit(); muokattavaAika = el.dataset.kentta; render(); var i = document.getElementById('aikaInput'); if (i) i.focus(); }
+  else if (act === 'peruAika') { lueTekstit(); muokattavaAika = null; render(); }
+  else if (act === 'tallennaAika') {
+    var v = (document.getElementById('aikaInput') || {}).value || '';
+    if (/^\d{2}:\d{2}$/.test(v)) tallennaAika(el.dataset.kentta, v);
+  }
+  else if (act === 'askel') {
+    lueTekstit();
+    var k = el.dataset.kentta, m = parseInt(el.dataset.muutos, 10);
+    var uusi = (L[k] === null ? 0 : L[k]) + m;
+    L[k] = uusi < 0 ? 0 : (uusi > 50 ? 50 : uusi);
+    render();
+  }
+  else if (act === 'jalki') { lueTekstit(); L.jalkihoitoaine = el.dataset.arvo === '1'; render(); }
+  else if (act === 'havainto') {
+    lueTekstit();
+    var koodi = el.dataset.k, i2 = L.havainnot.indexOf(koodi);
+    if (i2 >= 0) L.havainnot.splice(i2, 1);
+    else if (koodi === 'ei') L.havainnot = ['ei'];
+    else { L.havainnot = L.havainnot.filter(function(x) { return x !== 'ei'; }); L.havainnot.push(koodi); }
+    render();
+  }
+  else if (act === 'lisaaKuva') { document.getElementById('kuvaInput').click(); }
+  else if (act === 'tallenna') { if (!tallentaa) tallennaKaikki(); }
+  else if (act === 'muokkaa') { nakyma = 'lomake'; render(); window.scrollTo(0, 0); }
+});
+
+document.getElementById('kuvaInput').addEventListener('change', function() {
+  if (this.files && this.files.length) lataaKuvat(this.files);
+  this.value = '';
+});
+
+render();
+lataa();
+</script>
+</body>
+</html>

@@ -119,6 +119,18 @@ button:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid
 .pk-chip-none{background:#f1f5f9;color:#64748b;}
 .pk-chip-wait{background:#fff4d6;color:#7a4b00;}
 .pk-chip-draft{background:#f1f5f9;color:#475569;}
+/* Valut ja alihankkijan kuittaukset */
+.valu-badge{display:inline-flex;align-items:center;font-size:11px;font-weight:600;padding:3px 9px;border-radius:12px;}
+.valu-odottaa{background:#f1f5f9;color:#475569;}
+.valu-kaynnissa{background:#dbeafe;color:#0b4a8f;}
+.valu-kuitattu{background:#dcfce7;color:#14602d;}
+.valu-lukittu{background:#1e293b;color:#fff;}
+.valu-kuvat{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;padding:10px 14px;}
+.valu-kuvat a{display:block;aspect-ratio:1;border-radius:8px;overflow:hidden;background:#e2e8f0;}
+.valu-kuvat img{width:100%;height:100%;object-fit:cover;display:block;}
+.valu-napit{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;}
+.valu-napit button{flex:1 1 140px;padding:12px;border-radius:10px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;}
+.valu-alkup{color:#64748b;font-size:12px;font-style:italic;margin-top:4px;}
 .pk-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
 .pk-btn{display:inline-flex;align-items:center;gap:7px;height:38px;padding:0 14px;border-radius:9px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;border:1px solid transparent;}
 .pk-btn-primary{background:#006CB1;color:white;}
@@ -252,6 +264,29 @@ button:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid
       <input type="file" id="pdfInput2" accept=".pdf" onchange="pdfValittu2(this)">
     </div>
     <button class="btn-save" id="pdfSaveBtn" onclick="tallennaUusiPdf()" style="display:none">🤖 Tallenna + Lue hinnat AI:lla</button>
+  </div>
+</div>
+
+<!-- Uusi valu -sheet -->
+<div class="overlay" id="valuOverlay">
+  <div class="sheet">
+    <button class="sheet-close" onclick="suljeSheet('valuOverlay')">✕</button>
+    <div class="sheet-title" id="valuSheetTitle">Uusi valu</div>
+    <div class="ff">
+      <label for="valuPvm">Valupäivä</label>
+      <input type="date" id="valuPvm">
+    </div>
+    <div class="ff">
+      <label for="valuAlue">Valualue / sijainti</label>
+      <input type="text" id="valuAlue" placeholder="esim. AP 1.1, lohko B">
+    </div>
+    <div class="ff">
+      <label for="valuM2">Neliöt (m², valinnainen)</label>
+      <input type="number" id="valuM2" inputmode="decimal" min="0" step="1">
+    </div>
+    <div id="valuVirhe" style="color:#dc2626;font-size:13px;min-height:18px;margin-bottom:6px"></div>
+    <button class="btn-save" id="valuLuoBtn" onclick="luoValu(true)">Luo ja jaa WhatsAppiin</button>
+    <button class="btn-save" onclick="luoValu(false)" style="background:white;color:#006CB1;border:1.5px solid #006CB1;margin-top:8px">Luo valu (jaa myöhemmin)</button>
   </div>
 </div>
 
@@ -1057,6 +1092,7 @@ var ICON_CHEV = '<svg class="pk-chev" width="18" height="18" viewBox="0 0 24 24"
 // Välimuistit: kortin sisältö piirretään uudelleen näistä (esim. kun projektilista päivittyy)
 var mkCache = {};      // projektiId -> [mittakirjat]
 var tarkCache = {};    // projektiId -> [tarkastus-dokumentit] tai {virhe}
+var valuCache = {};    // projektiId -> [valut] tai {virhe}
 var dokCache = {};     // projektiId -> [dokumentit] tai {virhe}
 var avoimetKortit = {}; // projektiId -> true kun kortti on auki
 window._pkSuodatin = 'kaikki';
@@ -1087,6 +1123,7 @@ function korttiHtml(id, p) {
   h += '<span class="pk-chip" data-chip="mk">Mittakirjat …</span>';
   h += '<span class="pk-chip" data-chip="tark">Tarkastukset …</span>';
   h += '<span class="pk-chip" data-chip="dok">Dokumentit …</span>';
+  h += '<span class="pk-chip" data-chip="valu">Valut …</span>';
   h += '<span class="pk-chip pk-chip-wait" data-chip="wait" hidden>Odottaa allekirjoitusta</span>';
   h += '<span class="pk-chip pk-chip-draft" data-chip="draft" hidden>Luonnos</span>';
   h += '</div>';
@@ -1100,6 +1137,7 @@ function korttiHtml(id, p) {
   }
   h += '<button type="button" class="pk-btn pk-btn-primary" data-act="uusiMk" data-id="' + id + '">' + ICON_PLUS + ' Mittakirja</button>';
   h += '<button type="button" class="pk-btn pk-btn-primary" data-act="uusiTark" data-id="' + id + '">' + ICON_PLUS + ' Tarkastus</button>';
+  h += '<button type="button" class="pk-btn pk-btn-primary" data-act="uusiValu" data-id="' + id + '">' + ICON_PLUS + ' Valu</button>';
   h += '<div class="pk-menu-wrap">';
   h += '<button type="button" class="pk-btn pk-btn-icon" data-act="menu" data-id="' + id + '" aria-label="Lisää toimintoja" aria-haspopup="true" aria-expanded="false">' + ICON_DOTS + '</button>';
   h += '<div class="pk-menu" role="menu">';
@@ -1130,6 +1168,8 @@ function korttiHtml(id, p) {
   h += '<div class="pk-list" id="mk-lista-' + id + '"><div class="pk-tyhja">Ladataan…</div></div></div>';
   h += '<div class="pk-sec"><div class="pk-sec-head"><h3>Tarkastukset</h3><button type="button" class="pk-mini" data-act="uusiTark" data-id="' + id + '">' + ICON_PLUS + ' Uusi tarkastus</button></div>';
   h += '<div class="pk-list" id="tarkastukset-' + id + '"><div class="pk-tyhja">Ladataan…</div></div></div>';
+  h += '<div class="pk-sec"><div class="pk-sec-head"><h3>Valut ja kuittaukset</h3><button type="button" class="pk-mini" data-act="uusiValu" data-id="' + id + '">' + ICON_PLUS + ' Uusi valu</button></div>';
+  h += '<div class="pk-list" id="valut-' + id + '"><div class="pk-tyhja">Ladataan…</div></div></div>';
   h += '<div class="pk-sec"><div class="pk-sec-head"><h3>Dokumentit</h3></div>';
   h += '<div class="pk-list" id="dokumentit-' + id + '"><div class="pk-tyhja">Ladataan…</div></div></div>';
   h += '</div>'; // pk-body
@@ -1168,6 +1208,7 @@ function renderProjektit(snap) {
   naytettavat.forEach(function(id) {
     if (tarkCache[id] === undefined) lataaProjektinTarkastukset(id); else paivitaKortti(id);
     if (dokCache[id] === undefined) lataaProjektinDokumentit(id);
+    if (valuCache[id] === undefined) lataaProjektinValut(id);
   });
   lataaKaikkiMittakirjat(naytettavat);
   sovellaSuodatus();
@@ -1228,6 +1269,16 @@ function paivitaKortti(id) {
   } else if (dok && dok.virhe) {
     chip('dok').textContent = 'Dokumentit ?';
     if (dEl) dEl.innerHTML = '<div class="pk-tyhja" style="color:#dc2626">Virhe: ' + esc(dok.virhe) + '</div>';
+  }
+  // Valut
+  var valut = valuCache[id];
+  var vEl = document.getElementById('valut-' + id);
+  if (Array.isArray(valut)) {
+    chip('valu').textContent = 'Valut ' + valut.length;
+    if (vEl) vEl.innerHTML = valut.length ? valut.map(function(v) { return valuRiviHtml(id, v); }).join('') : '<div class="pk-tyhja">Ei valuja vielä. Luo valu ja jaa kuittauslinkki alihankkijalle.</div>';
+  } else if (valut && valut.virhe) {
+    chip('valu').textContent = 'Valut ?';
+    if (vEl) vEl.innerHTML = '<div class="pk-tyhja" style="color:#dc2626">Virhe: ' + esc(valut.virhe) + '</div>';
   }
   sovellaSuodatus();
 }
@@ -1303,6 +1354,12 @@ document.addEventListener('click', function(e) {
   else if (act === 'poista') poistaProjekti(id, nimi);
   else if (act === 'avaaDok') avaaDokumentti(id, el.dataset.dok);
   else if (act === 'poistaDok') poistaDokumentti(id, el.dataset.dok);
+  else if (act === 'uusiValu') avaaUusiValu(id);
+  else if (act === 'jaaValu') jaaValu(el.dataset.valu);
+  else if (act === 'kopioiValu') kopioiValuLinkki(el.dataset.valu);
+  else if (act === 'avaaValu') avaaValu(el.dataset.valu);
+  else if (act === 'lukitseValu') lukitseValu(el.dataset.valu, el.dataset.lukitse === '1');
+  else if (act === 'poistaValu') poistaValu(el.dataset.valu);
 });
 document.addEventListener('keydown', function(e) { if (e.key === 'Escape') suljeValikot(); });
 
@@ -1543,6 +1600,264 @@ function lataaIrralliset() {
 }
 
 // ── Avaa projektin detalji ──
+// ── Valut ja alihankkijan kuittaukset ─────────────────────────
+// Valu luodaan projektille, ja sen kuittauslinkki (valukuittaus.html?id=…) jaetaan alihankkijalle.
+// Alihankkija kirjaa linkin kautta pintatyön ajat, miesmäärät, jälkihoitoaineen, havainnot ja kuvat.
+var VALU_HAVAINNOT = {
+  ei: 'Ei havaintoja', vesi: 'Vettä tulee ruudulle', kylma: 'Kylmä', veto: 'Veto',
+  odotus: 'Kuormissa odotusta', betoni: 'Betoni jäykkää / notkeaa', kalusto: 'Kalusto- tai pumppuongelma',
+  valaistus: 'Valaistus puutteellinen', ilma: 'Huono ilmanlaatu'
+};
+var valuUusiProjekti = null;
+var valutById = {};
+
+function valuLinkki(valuId) { return baseUrl + '/valukuittaus.html?id=' + valuId; }
+function valuPvmFi(iso) { var m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? m[3] + '.' + m[2] + '.' + m[1] : ''; }
+function valuAika(hhmm) { return hhmm ? String(hhmm).replace(':', '.') : '–'; }
+function valuKestoMin(a, b) {
+  var ma = String(a || '').match(/^(\d{2}):(\d{2})$/), mb = String(b || '').match(/^(\d{2}):(\d{2})$/);
+  if (!ma || !mb) return null;
+  var d = (+mb[1] * 60 + +mb[2]) - (+ma[1] * 60 + +ma[2]);
+  if (d < 0) d += 24 * 60; // pintatyö jatkui yli puolenyön
+  return d;
+}
+function valuKestoTeksti(min) { return min == null ? '' : Math.floor(min / 60) + ' h ' + (min % 60) + ' min'; }
+
+function valuTila(v) {
+  var k = v.kuittaus || {};
+  if (v.lukittu) return { luokka: 'valu-lukittu', teksti: 'Lukittu' };
+  if (k.tallennettu && k.pintaPaattyi) return { luokka: 'valu-kuitattu', teksti: 'Kuitattu' };
+  if (k.pintaAlkoi && !k.pintaPaattyi) return { luokka: 'valu-kaynnissa', teksti: 'Pintatyö käynnissä' };
+  if (k.tallennettu) return { luokka: 'valu-kaynnissa', teksti: 'Osittain kuitattu' };
+  return { luokka: 'valu-odottaa', teksti: 'Odottaa kuittausta' };
+}
+
+function lataaProjektinValut(projektinId) {
+  return fbDb.collection('valut').where('projektiId', '==', projektinId).get()
+    .then(function(snap) {
+      var lista = [];
+      snap.forEach(function(d) { var x = d.data(); x._id = d.id; lista.push(x); valutById[d.id] = x; });
+      lista.sort(function(a, b) { return (b.pvm || '').localeCompare(a.pvm || '') || (b.luotu || '').localeCompare(a.luotu || ''); });
+      valuCache[projektinId] = lista;
+      paivitaKortti(projektinId);
+    })
+    .catch(function(e) {
+      valuCache[projektinId] = { virhe: e.message };
+      paivitaKortti(projektinId);
+    });
+}
+
+function valuRiviHtml(projektinId, v) {
+  var tila = valuTila(v);
+  var k = v.kuittaus || {};
+  var lisa = [];
+  if (v.valualue) lisa.push(esc(v.valualue));
+  if (k.pintaAlkoi) lisa.push('pinta ' + valuAika(k.pintaAlkoi) + '–' + valuAika(k.pintaPaattyi));
+  if (k.kuvat && k.kuvat.length) lisa.push(k.kuvat.length + ' kuvaa');
+  return '<div class="pk-rivi"><span class="pk-pvm">' + valuPvmFi(v.pvm) + '</span>' +
+    '<span class="valu-badge ' + tila.luokka + '">' + tila.teksti + '</span>' +
+    (lisa.length ? '<span class="pk-lisa">' + lisa.join(' · ') + '</span>' : '') +
+    '<span class="pk-grow"></span><div class="pk-rivi-napit">' +
+    '<button type="button" class="mk-btn mk-btn-primary" data-act="avaaValu" data-valu="' + esc(v._id) + '">Avaa</button>' +
+    (v.lukittu ? '' : '<button type="button" class="mk-btn mk-btn-green" data-act="jaaValu" data-valu="' + esc(v._id) + '">WhatsApp</button>' +
+    '<button type="button" class="mk-btn mk-btn-copy" data-act="kopioiValu" data-valu="' + esc(v._id) + '">Kopioi linkki</button>') +
+    '</div></div>';
+}
+
+function avaaUusiValu(projektinId) {
+  valuUusiProjekti = projektinId;
+  var nimi = (projektiNimet && projektiNimet[projektinId]) || '';
+  document.getElementById('valuSheetTitle').textContent = 'Uusi valu' + (nimi ? ' – ' + nimi : '');
+  var d = new Date();
+  document.getElementById('valuPvm').value = d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+  document.getElementById('valuAlue').value = '';
+  document.getElementById('valuM2').value = '';
+  document.getElementById('valuVirhe').textContent = '';
+  document.getElementById('valuOverlay').classList.add('open');
+}
+
+function luoValu(jaa) {
+  var pid = valuUusiProjekti;
+  var pvm = document.getElementById('valuPvm').value;
+  var alue = document.getElementById('valuAlue').value.trim();
+  var m2 = parseFloat(String(document.getElementById('valuM2').value).replace(',', '.'));
+  var virhe = document.getElementById('valuVirhe');
+  if (!pid) return;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(pvm)) { virhe.textContent = 'Valitse valupäivä.'; return; }
+  if (!alue) { virhe.textContent = 'Kirjoita valualue tai sijainti.'; return; }
+  // WhatsApp-ikkuna avataan heti napin painalluksella (ponnahdusikkunan esto), linkki asetetaan tallennuksen jälkeen
+  var ikkuna = jaa ? window.open('', '_blank') : null;
+  fbDb.collection('projects').doc(pid).get().then(function(pdoc) {
+    var p = pdoc.exists ? pdoc.data() : {};
+    var data = {
+      projektiId: pid, tyomaa: p.tyomaa || '', tilaaja: p.tilaaja || '', tyonro: p.tyonro || '',
+      pvm: pvm, valualue: alue, m2: isFinite(m2) ? m2 : null,
+      luotu: new Date().toISOString(), luoja: (window.bcKayttaja && window.bcKayttaja.email) || '',
+      lukittu: false, kuittaus: {}
+    };
+    return fbDb.collection('valut').add(data).then(function(ref) {
+      data._id = ref.id; valutById[ref.id] = data;
+      suljeSheet('valuOverlay');
+      naytaToast('✅ Valu luotu');
+      if (jaa) {
+        var url = 'https://wa.me/?text=' + encodeURIComponent(valuViesti(data));
+        if (ikkuna) ikkuna.location.href = url; else window.open(url, '_blank');
+      }
+      return lataaProjektinValut(pid);
+    });
+  }).catch(function(e) {
+    if (ikkuna) ikkuna.close();
+    virhe.textContent = 'Valun luonti epäonnistui: ' + e.message;
+  });
+}
+
+function valuViesti(v) {
+  return (v.tyomaa || '') + ' – valu ' + valuPvmFi(v.pvm) + (v.valualue ? ', ' + v.valualue : '') + '\n' +
+    'Märkige pinnatöö ajad, tähelepanekud ja fotod / Kirjaa pintatyön ajat, havainnot ja kuvat:\n' +
+    valuLinkki(v._id);
+}
+
+function haeValu(valuId) {
+  return fbDb.collection('valut').doc(valuId).get().then(function(d) {
+    if (!d.exists) throw new Error('Valua ei löytynyt');
+    var v = d.data(); v._id = d.id; valutById[d.id] = v; return v;
+  });
+}
+
+function jaaValu(valuId) {
+  var v = valutById[valuId];
+  if (!v) return;
+  window.open('https://wa.me/?text=' + encodeURIComponent(valuViesti(v)), '_blank');
+}
+
+function kopioiValuLinkki(valuId) {
+  var linkki = valuLinkki(valuId);
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(linkki).then(function() { naytaToast('📋 Linkki kopioitu'); })
+      .catch(function() { prompt('Kopioi linkki:', linkki); });
+  } else {
+    prompt('Kopioi linkki:', linkki);
+  }
+}
+
+function avaaValu(valuId) {
+  haeValu(valuId).then(function(v) {
+    piirraValu(v);
+    document.getElementById('detaljitOverlay').classList.add('open');
+    kaannaValunTarkennus(v);
+  }).catch(function(e) { alert('Valun avaus epäonnistui: ' + e.message); });
+}
+
+function piirraValu(v) {
+  var k = v.kuittaus || {};
+  var tila = valuTila(v);
+  document.getElementById('detaljitTitle').textContent = (v.tyomaa || 'Valu') + ' – valu ' + valuPvmFi(v.pvm);
+  function rivi(a, b) { return '<div class="detalji-row"><span class="detalji-label">' + a + '</span><span class="detalji-val">' + b + '</span></div>'; }
+  var h = '';
+  h += '<div class="detalji-section"><div class="detalji-section-title">Valu</div>';
+  h += rivi('Tila', '<span class="valu-badge ' + tila.luokka + '">' + tila.teksti + '</span>');
+  h += rivi('Valupäivä', valuPvmFi(v.pvm));
+  if (v.valualue) h += rivi('Valualue', esc(v.valualue));
+  if (v.m2) h += rivi('Neliöt', esc(v.m2) + ' m²');
+  h += '</div>';
+
+  var kesto = valuKestoMin(k.pintaAlkoi, k.pintaPaattyi);
+  h += '<div class="detalji-section"><div class="detalji-section-title">Alihankkijan kuittaus</div>';
+  h += rivi('Pintatyö', valuAika(k.pintaAlkoi) + '–' + valuAika(k.pintaPaattyi) + (kesto != null ? ' (' + valuKestoTeksti(kesto) + ')' : ''));
+  h += rivi('Jälkihoitoaine', k.jalkihoitoaine === true ? 'Levitetty' : (k.jalkihoitoaine === false ? '<b style="color:#b91c1c">Ei levitetty</b>' : '–'));
+  h += rivi('Valumiehet', k.valumiehet != null ? esc(k.valumiehet) : '–');
+  h += rivi('Pintamiehet', k.pintamiehet != null ? esc(k.pintamiehet) : '–');
+  if (kesto != null && typeof k.pintamiehet === 'number' && k.pintamiehet > 0) {
+    h += rivi('Pintatyötunnit', (Math.round(kesto / 60 * k.pintamiehet * 10) / 10).toString().replace('.', ',') + ' h' + (v.m2 ? ' (' + (Math.round(kesto / 60 * k.pintamiehet / v.m2 * 1000) / 1000).toString().replace('.', ',') + ' h/m²)' : ''));
+  }
+  var hav = (k.havainnot || []).map(function(c) { return VALU_HAVAINNOT[c] || c; }).join(', ');
+  h += rivi('Havainnot', hav ? esc(hav) : '–');
+  if (k.tarkennus) {
+    var teksti;
+    if (k.kieli === 'fi') teksti = esc(k.tarkennus);
+    else if (v.tarkennusFi && v.tarkennusFiLahde === k.tarkennus) teksti = esc(v.tarkennusFi) + '<div class="valu-alkup">Alkuperäinen (viro): ' + esc(k.tarkennus) + '</div>';
+    else teksti = esc(k.tarkennus) + '<div class="valu-alkup" id="valuKaannos">Käännetään suomeksi…</div>';
+    h += rivi('Tarkennus', teksti);
+  }
+  h += rivi('Kirjaaja', k.kirjaaja ? esc(k.kirjaaja) : '–');
+  if (k.paivitetty) h += rivi('Päivitetty', new Date(k.paivitetty).toLocaleString('fi-FI'));
+  h += '</div>';
+
+  h += '<div class="detalji-section"><div class="detalji-section-title">Kuvat (' + ((k.kuvat || []).length) + ')</div>';
+  if (k.kuvat && k.kuvat.length) {
+    h += '<div class="valu-kuvat">' + k.kuvat.map(function(kv, i) {
+      return '<a href="' + esc(kv.url) + '" target="_blank" rel="noopener"><img src="' + esc(kv.url) + '" alt="Kuva ' + (i + 1) + '" loading="lazy"></a>';
+    }).join('') + '</div>';
+  } else {
+    h += '<div class="detalji-row"><span style="color:#94a3b8;font-size:13px">Ei kuvia</span></div>';
+  }
+  h += '</div>';
+
+  h += '<div class="valu-napit">';
+  if (!v.lukittu) {
+    h += '<button type="button" data-act="jaaValu" data-valu="' + esc(v._id) + '" style="border:none;background:#16a34a;color:white">WhatsApp</button>';
+    h += '<button type="button" data-act="kopioiValu" data-valu="' + esc(v._id) + '" style="border:1.5px solid #e2e8f0;background:#f8fafc;color:#334155">Kopioi linkki</button>';
+    h += '<button type="button" data-act="lukitseValu" data-lukitse="1" data-valu="' + esc(v._id) + '" style="border:1.5px solid #1e293b;background:white;color:#1e293b">Lukitse kuittaus</button>';
+  } else {
+    h += '<button type="button" data-act="lukitseValu" data-lukitse="0" data-valu="' + esc(v._id) + '" style="border:1.5px solid #1e293b;background:white;color:#1e293b">Avaa lukitus</button>';
+  }
+  h += '<button type="button" data-act="poistaValu" data-valu="' + esc(v._id) + '" style="border:1.5px solid #fca5a5;background:white;color:#ef4444">Poista valu</button>';
+  h += '</div>';
+  document.getElementById('detaljitSisalto').innerHTML = h;
+}
+
+async function kaannaValunTarkennus(v) {
+  var k = v.kuittaus || {};
+  if (!k.tarkennus || k.kieli === 'fi' || (v.tarkennusFi && v.tarkennusFiLahde === k.tarkennus)) return;
+  var el = document.getElementById('valuKaannos');
+  var avain = haeApiAvain();
+  if (!avain) { if (el) el.textContent = 'Käännös ei onnistunut: API-avainta ei ole asetettu.'; return; }
+  try {
+    var vastaus = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': avain, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-5-5', max_tokens: 8000,
+        messages: [{ role: 'user', content: 'Käännä seuraava betonilattiatyömaan valuhavainto suomeksi. Säilytä merkitys ja luvut tarkasti, käytä rakennusalan termejä. Vastaa pelkällä käännöksellä ilman lisätekstiä.\n\n' + k.tarkennus }]
+      })
+    });
+    var data = await vastaus.json();
+    if (!vastaus.ok) throw new Error((data.error && data.error.message) || ('HTTP ' + vastaus.status));
+    if (data.stop_reason === 'max_tokens') throw new Error('vastaus katkesi');
+    var osa = (data.content || []).filter(function(b) { return b.type === 'text' && b.text; })[0];
+    if (!osa) throw new Error('tyhjä vastaus');
+    var kaannos = osa.text.trim();
+    await fbDb.collection('valut').doc(v._id).update({ tarkennusFi: kaannos, tarkennusFiLahde: k.tarkennus });
+    v.tarkennusFi = kaannos; v.tarkennusFiLahde = k.tarkennus;
+    if (document.getElementById('detaljitOverlay').classList.contains('open')) piirraValu(v);
+  } catch (e) {
+    console.warn('Käännös:', e);
+    el = document.getElementById('valuKaannos');
+    if (el) el.textContent = 'Käännös ei onnistunut (' + e.message + '). Alkuperäinen teksti näkyy yllä.';
+  }
+}
+
+function lukitseValu(valuId, lukitse) {
+  if (lukitse && !confirm('Lukitaanko kuittaus? Alihankkija ei voi sen jälkeen muuttaa tietoja.')) return;
+  fbDb.collection('valut').doc(valuId).update({ lukittu: lukitse }).then(function() {
+    naytaToast(lukitse ? '🔒 Kuittaus lukittu' : '🔓 Lukitus avattu');
+    return haeValu(valuId).then(function(v) {
+      piirraValu(v);
+      if (v.projektiId) lataaProjektinValut(v.projektiId);
+    });
+  }).catch(function(e) { alert('Virhe: ' + e.message); });
+}
+
+function poistaValu(valuId) {
+  var v = valutById[valuId];
+  if (!confirm('Poistetaanko valu ja sen kuittaus? Kuittauslinkki lakkaa toimimasta. Tätä ei voi peruuttaa.')) return;
+  fbDb.collection('valut').doc(valuId).delete().then(function() {
+    naytaToast('🗑 Valu poistettu');
+    suljeDetalji();
+    if (v && v.projektiId) lataaProjektinValut(v.projektiId);
+  }).catch(function(e) { alert('Virhe: ' + e.message); });
+}
+
 function avaaDetalji(projektinId) {
   db.collection('projects').doc(projektinId).get().then(function(doc) {
     if (!doc.exists) return;
