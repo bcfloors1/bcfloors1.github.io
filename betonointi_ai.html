@@ -308,6 +308,9 @@ body {
   <select id="projektiValinta" onchange="valitseProjekti(this.value)" style="flex:2;min-width:160px;border:1px solid #c8d0d8;border-radius:4px;background:white;font-family:Arial,sans-serif;font-size:12px;color:#1a2530;outline:none;cursor:pointer;padding:4px 6px;">
     <option value="">— Valitse projekti tai täytä käsin —</option>
   </select>
+  <select id="valuValinta" onchange="valitseValu(this.value)" style="display:none;flex:2;min-width:160px;border:1px solid #c8d0d8;border-radius:4px;background:white;font-family:Arial,sans-serif;font-size:12px;color:#1a2530;outline:none;cursor:pointer;padding:4px 6px;">
+    <option value="">— Valitse valu (alihankkijan kuittaus) —</option>
+  </select>
   <input type="text" id="projektiKasin" placeholder="tai kirjoita projektin nimi..." style="flex:2;min-width:140px;border:1px solid #c8d0d8;border-radius:4px;font-family:Arial,sans-serif;font-size:12px;color:#1a2530;outline:none;padding:4px 6px;">
   <button onclick="tallennaProjektiksi()" style="flex-shrink:0;padding:5px 10px;background:#006CB1;color:white;border:none;border-radius:6px;font-family:Arial,sans-serif;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">&#128190; Tallenna projektiksi</button>
 </div>
@@ -351,8 +354,8 @@ body {
     </div>
     <div class="frow">
       <div class="f"><label>Valupäivä</label><input type="date" id="valupaivamaara" style="cursor:pointer;"></div>
-      <div class="f"><label>Valumiehet kpl</label><input type="number" min="0"></div>
-      <div class="f"><label>Pintamiehet kpl</label><input type="number" min="0"></div>
+      <div class="f"><label>Valumiehet kpl</label><input type="number" min="0" id="valumiehet"></div>
+      <div class="f"><label>Pintamiehet kpl</label><input type="number" min="0" id="pintamiehet"></div>
       <div class="f">
         <label>Valumenetelmä</label>
         <select id="valumetodi">
@@ -382,9 +385,9 @@ body {
   <div>
     <div class="sec-title">2. VALUALUE &amp; RAKENNE</div>
     <div class="frow">
-      <div class="f" style="flex:2"><label>Valualue / sijainti</label><input type="text"></div>
-      <div class="f" style="flex:1.5"><label>Rakennetyyppi</label><input type="text"></div>
-      <div class="f"><label>Kerros</label><input type="text"></div>
+      <div class="f" style="flex:2"><label>Valualue / sijainti</label><input type="text" id="valualue"></div>
+      <div class="f" style="flex:1.5"><label>Rakennetyyppi</label><input type="text" id="rakennetyyppi"></div>
+      <div class="f"><label>Kerros</label><input type="text" id="kerros"></div>
     </div>
     <div class="frow">
       <div class="f"><label>Neliömäärä (m²)</label><input type="number" step="0.1" id="neliomaara" oninput="laskeBetoni()"></div>
@@ -538,11 +541,11 @@ body {
           <option>23:00</option><option>23:30</option>
         </select>
       </div>
-      <div class="f"><label>Lämpötila alussa (°C)</label><input type="number"></div>
-      <div class="f"><label>Lämpötila lopussa (°C)</label><input type="number"></div>
+      <div class="f"><label>Lämpötila alussa (°C)</label><input type="number" id="lampoAlku"></div>
+      <div class="f"><label>Lämpötila lopussa (°C)</label><input type="number" id="lampoLoppu"></div>
     </div>
     <div class="frow">
-      <div class="f tall"><label>Huomiot valun aikana</label><textarea></textarea></div>
+      <div class="f tall"><label>Huomiot valun aikana</label><textarea id="huomiotValu"></textarea></div>
     </div>
   </div>
 
@@ -551,7 +554,7 @@ body {
     <div class="sec-title">5. PINTATYÖ</div>
     <div class="frow">
       <div class="f"><label>Hierto alkoi (klo)</label>
-        <select style="border:none;background:transparent;font-family:Arial,sans-serif;font-size:10px;color:#1a2530;width:100%;outline:none;">
+        <select id="hiertoAlkoi" style="border:none;background:transparent;font-family:Arial,sans-serif;font-size:10px;color:#1a2530;width:100%;outline:none;">
           <option value="">— Valitse —</option>
           <option>11:00</option><option>11:30</option><option>12:00</option><option>12:30</option>
           <option>13:00</option><option>13:30</option><option>14:00</option><option>14:30</option>
@@ -563,7 +566,7 @@ body {
         </select>
       </div>
       <div class="f"><label>Hierto päättyi (klo)</label>
-        <select style="border:none;background:transparent;font-family:Arial,sans-serif;font-size:10px;color:#1a2530;width:100%;outline:none;">
+        <select id="hiertoPaattyi" style="border:none;background:transparent;font-family:Arial,sans-serif;font-size:10px;color:#1a2530;width:100%;outline:none;">
           <option value="">— Valitse —</option>
           <option>16:00</option><option>16:30</option><option>17:00</option><option>17:30</option>
           <option>18:00</option><option>18:30</option><option>19:00</option><option>19:30</option>
@@ -575,7 +578,7 @@ body {
           <option>06:00</option><option>06:30</option><option>07:00</option>
         </select>
       </div>
-      <div class="f"><label>Lämpötila (°C)</label><input type="number"></div>
+      <div class="f"><label>Lämpötila (°C)</label><input type="number" id="lampoPinta"></div>
     </div>
     <div class="kyrow">
       <div class="kyitem">
@@ -614,7 +617,7 @@ body {
       </select>
     </div>
     <div class="frow">
-      <div class="f"><label>Huomiot pintatyön aikana</label><input type="text"></div>
+      <div class="f"><label>Huomiot pintatyön aikana</label><input type="text" id="huomiotPinta"></div>
     </div>
   </div>
 
@@ -662,7 +665,7 @@ body {
       </select>
     </div>
     <div class="frow">
-      <div class="f tall"><label>Jälkihoitohuomiot / poikkeamat</label><textarea></textarea></div>
+      <div class="f tall"><label>Jälkihoitohuomiot / poikkeamat</label><textarea id="jalkihoitoHuomiot"></textarea></div>
     </div>
   </div>
 
@@ -670,7 +673,7 @@ body {
   <div>
     <div class="sec-title">7. MUUT ASIAT &amp; POIKKEAMAT</div>
     <div class="frow">
-      <div class="f tall"><label>Muut huomiot ja poikkeamat</label><textarea></textarea></div>
+      <div class="f tall"><label>Muut huomiot ja poikkeamat</label><textarea id="muutHuomiot"></textarea></div>
     </div>
   </div>
 </div>
@@ -793,6 +796,7 @@ fbDb.collection('projects').orderBy('tyomaa').onSnapshot(function(snap) {
 }); // bcKirjaudu
 
 function valitseProjekti(id) {
+  paivitaValuValinta(id);
   if (!id) return;
   var sel = document.getElementById('projektiValinta');
   var opt = sel.options[sel.selectedIndex];
@@ -815,6 +819,195 @@ function valitseProjekti(id) {
   if (toimSel) { for (var i=0; i<toimSel.options.length; i++) { if (toimSel.options[i].text === toimittaja) { toimSel.selectedIndex = i; break; } } }
   var betoniYhteys = document.getElementById('bp_betoni_yhteys');
   if (betoniYhteys) betoniYhteys.value = opt.getAttribute('data-betoni-yhteys') || '';
+}
+
+// ── Valu ja alihankkijan kuittaus (valukuittaus.html) ─────────
+// Projektin valu valitaan valikosta; kuittauksen tiedot täyttävät tyhjät kentät.
+// ZIP:n luonnissa pöytäkirjan tiedot tallennetaan valulle (poytakirja) ja kuittaus lukitaan.
+var valittuValuId = '';
+var viimeisinTuonti = null;
+var VALU_HAVAINNOT = {
+  ei: 'Ei havaintoja', vesi: 'Vettä tulee ruudulle', kylma: 'Kylmä', veto: 'Veto',
+  odotus: 'Kuormissa odotusta', betoni: 'Betoni jäykkää / notkeaa', kalusto: 'Kalusto- tai pumppuongelma',
+  valaistus: 'Valaistus puutteellinen', ilma: 'Huono ilmanlaatu'
+};
+
+function valuPvmFi(iso) { var m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? m[3] + '.' + m[2] + '.' + m[1] : ''; }
+
+function paivitaValuValinta(projektiId) {
+  var sel = document.getElementById('valuValinta');
+  valittuValuId = '';
+  if (!sel) return;
+  sel.innerHTML = '<option value="">— Valitse valu (alihankkijan kuittaus) —</option>';
+  if (!projektiId) { sel.style.display = 'none'; return; }
+  sel.style.display = '';
+  fbDb.collection('valut').where('projektiId', '==', projektiId).get().then(function(snap) {
+    var lista = [];
+    snap.forEach(function(d) { var v = d.data(); v._id = d.id; lista.push(v); });
+    lista.sort(function(a, b) { return (b.pvm || '').localeCompare(a.pvm || ''); });
+    if (!lista.length) { sel.innerHTML = '<option value="">— Ei valuja tälle projektille —</option>'; return; }
+    lista.forEach(function(v) {
+      var k = v.kuittaus || {};
+      var tila = v.lukittu ? 'lukittu' : (k.tallennettu ? 'kuitattu' : (k.pintaAlkoi ? 'pintatyö käynnissä' : 'ei kuittausta'));
+      var o = document.createElement('option');
+      o.value = v._id;
+      o.textContent = valuPvmFi(v.pvm) + (v.valualue ? ' · ' + v.valualue : '') + ' · ' + tila;
+      sel.appendChild(o);
+    });
+  }).catch(function(e) {
+    sel.innerHTML = '<option value="">— Valujen haku epäonnistui —</option>';
+    console.error('Valujen haku:', e);
+  });
+}
+
+function valitseValu(valuId) {
+  valittuValuId = valuId || '';
+  if (!valuId) return;
+  naytaStatus('⏳ Haetaan alihankkijan kuittaus...', 'white');
+  fbDb.collection('valut').doc(valuId).get().then(async function(doc) {
+    if (!doc.exists) { naytaStatus('❌ Valua ei löytynyt.', 'red'); return; }
+    var v = doc.data(); v._id = doc.id;
+    if (v.lukittu && !confirm('Tämän valun kuittaus on jo lukittu (pöytäkirja on luotu aiemmin). Täytetäänkö kentät silti kuittauksen tiedoilla?')) { return; }
+    await taytaValusta(v);
+  }).catch(function(e) { naytaStatus('❌ Kuittauksen haku epäonnistui: ' + e.message, 'red'); });
+}
+
+// Pyöristää "HH:MM" lähimpään puoleen tuntiin (pöytäkirjan valikoiden tarkkuus)
+function pyoristaPuoliTuntia(hhmm) {
+  var m = String(hhmm || '').match(/^(\d{1,2})[:.](\d{2})$/);
+  if (!m) return '';
+  var min = Math.round((+m[1] * 60 + +m[2]) / 30) * 30 % (24 * 60);
+  return ('0' + Math.floor(min / 60)).slice(-2) + ':' + ('0' + (min % 60)).slice(-2);
+}
+
+// Valitsee kellonajan valikosta; jos aikaa ei ole listalla, se lisätään
+function asetaAikaValikkoon(id, hhmm) {
+  var sel = document.getElementById(id);
+  if (!sel || !hhmm) return;
+  if (!asetaDropdown(id, hhmm)) {
+    var o = document.createElement('option');
+    o.textContent = hhmm;
+    sel.appendChild(o);
+    sel.value = hhmm;
+  }
+}
+
+async function kaannaTarkennus(v) {
+  var k = v.kuittaus || {};
+  if (!k.tarkennus) return '';
+  if (k.kieli === 'fi') return k.tarkennus;
+  if (v.tarkennusFi && v.tarkennusFiLahde === k.tarkennus) return v.tarkennusFi;
+  if (!getApiKey()) return k.tarkennus + ' (alkuperäinen, viroksi)';
+  try {
+    var vastaus = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': getApiKey(), 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-5-5', max_tokens: 8000,
+        messages: [{ role: 'user', content: 'Käännä seuraava betonilattiatyömaan valuhavainto suomeksi. Säilytä merkitys ja luvut tarkasti, käytä rakennusalan termejä. Vastaa pelkällä käännöksellä ilman lisätekstiä.\n\n' + k.tarkennus }]
+      })
+    });
+    var data = await vastaus.json();
+    if (!vastaus.ok) throw new Error((data.error && data.error.message) || ('HTTP ' + vastaus.status));
+    if (data.stop_reason === 'max_tokens') throw new Error('vastaus katkesi');
+    var osa = (data.content || []).filter(function(b) { return b.type === 'text' && b.text; })[0];
+    if (!osa) throw new Error('tyhjä vastaus');
+    var kaannos = osa.text.trim();
+    fbDb.collection('valut').doc(v._id).update({ tarkennusFi: kaannos, tarkennusFiLahde: k.tarkennus }).catch(function() {});
+    return kaannos;
+  } catch (e) {
+    console.warn('Käännös epäonnistui:', e);
+    return k.tarkennus + ' (alkuperäinen, viroksi)';
+  }
+}
+
+async function taytaValusta(v) {
+  var k = v.kuittaus || {};
+  var tarkennus = await kaannaTarkennus(v);
+  var havainnot = (k.havainnot || []).filter(function(c) { return c !== 'ei'; }).map(function(c) { return VALU_HAVAINNOT[c] || c; });
+  var huomioteksti = '';
+  if (havainnot.length) huomioteksti = havainnot.join(', ') + '.';
+  else if ((k.havainnot || []).indexOf('ei') >= 0) huomioteksti = 'Ei havaintoja.';
+  if (tarkennus) huomioteksti = (huomioteksti ? huomioteksti + ' ' : '') + tarkennus;
+
+  // [kenttä-id, nimi, arvo, tyyppi]
+  var kentat = [
+    ['valupaivamaara', 'Valupäivä', v.pvm || '', 'arvo'],
+    ['valualue', 'Valualue / sijainti', v.valualue || '', 'arvo'],
+    ['neliomaara', 'Neliömäärä', (v.m2 != null && v.m2 !== '') ? String(v.m2) : '', 'arvo'],
+    ['valumiehet', 'Valumiehet', k.valumiehet != null ? String(k.valumiehet) : '', 'arvo'],
+    ['pintamiehet', 'Pintamiehet', k.pintamiehet != null ? String(k.pintamiehet) : '', 'arvo'],
+    ['hiertoAlkoi', 'Hierto alkoi', pyoristaPuoliTuntia(k.pintaAlkoi), 'aika'],
+    ['hiertoPaattyi', 'Hierto päättyi', pyoristaPuoliTuntia(k.pintaPaattyi), 'aika'],
+    ['huomiotValu', 'Huomiot valun aikana', huomioteksti, 'arvo'],
+    ['jalkihoitoHuomiot', 'Jälkihoitohuomiot', k.jalkihoitoaine === false ? 'Jälkihoitoainetta ei levitetty (alihankkijan kuittaus).' : '', 'arvo']
+  ];
+  var ristiriidat = [];
+  kentat.forEach(function(x) {
+    var el = document.getElementById(x[0]);
+    if (!el || !x[2]) return;
+    var nyky = String(el.value || '').trim();
+    if (nyky && nyky !== x[2]) ristiriidat.push(x[1]);
+  });
+  var korvaa = ristiriidat.length ? confirm('Näissä kentissä on jo eri arvo:\n\n' + ristiriidat.join('\n') + '\n\nKorvataanko ne kuittauksen tiedoilla? (Peruuta = täytä vain tyhjät kentät)') : false;
+
+  var taytetyt = [];
+  kentat.forEach(function(x) {
+    var el = document.getElementById(x[0]);
+    if (!el || !x[2]) return;
+    var nyky = String(el.value || '').trim();
+    if (nyky === x[2]) return;
+    if (nyky && !korvaa) return;
+    if (x[3] === 'aika') asetaAikaValikkoon(x[0], x[2]); else el.value = x[2];
+    taytetyt.push(x[1]);
+  });
+  // Jälkihoitoaine kyllä/ei
+  if (typeof k.jalkihoitoaine === 'boolean') {
+    var radiot = document.querySelectorAll('input[name="jalkihoito"]');
+    var valittu = Array.prototype.some.call(radiot, function(r) { return r.checked; });
+    if (radiot.length === 2 && (!valittu || korvaa)) {
+      radiot[k.jalkihoitoaine ? 0 : 1].checked = true;
+      taytetyt.push('Jälkihoitoaine');
+    }
+  }
+  laskeBetoni();
+  naytaStatus(taytetyt.length ? '✅ Kuittauksesta täytetty: ' + taytetyt.join(', ') + '. Tarkista kentät.' : 'ℹ️ Kuittauksesta ei ollut täytettävää.', 'green');
+}
+
+// Pöytäkirjan tiedot rakenteisena (tallennetaan valulle ZIP:n luonnissa)
+function keraaPoytakirjaData(zipNimi) {
+  function arvo(id) { var el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; }
+  function luku(id) { var x = parseFloat(String(arvo(id)).replace(',', '.')); return isFinite(x) ? x : null; }
+  function radio(nimi) {
+    var r = document.querySelectorAll('input[name="' + nimi + '"]');
+    if (r.length !== 2) return null;
+    return r[0].checked ? true : (r[1].checked ? false : null);
+  }
+  var rasitus = [], kayttoika = [];
+  document.querySelectorAll('.cbi').forEach(function(el) {
+    var cb = el.querySelector('input[type="checkbox"]'); var t = el.textContent.trim();
+    if (!cb || !cb.checked) return;
+    if (/^\d+\s*v$/.test(t)) kayttoika.push(t); else rasitus.push(t);
+  });
+  return {
+    tallennettu: new Date().toISOString(),
+    tallentaja: (window.bcKayttaja && window.bcKayttaja.email) || '',
+    tiedosto: zipNimi,
+    valupaiva: arvo('valupaivamaara'),
+    valualue: arvo('valualue'), rakennetyyppi: arvo('rakennetyyppi'), kerros: arvo('kerros'),
+    m2: luku('neliomaara'), paksuusMm: luku('paksuus'),
+    teorBetoniM3: luku('teorBetoni'), totBetoniM3: luku('totBetoni'),
+    valumenetelma: arvo('valumetodi'), toimittaja: arvo('bp_toimittaja'),
+    lujuusluokka: arvo('lujuus'), notkeus: arvo('notkeus'), rasitusluokat: rasitus, kayttoika: kayttoika,
+    raekoko: arvo('raekoko'), kuitumaara: arvo('kuitumaara'), kuitutyyppi: arvo('kuitutyyppi'), lisaaineet: arvo('lisaaineet'),
+    valuAlkoi: arvo('valuAlkoi'), valuPaattyi: arvo('valuPaattyi'),
+    valumiehet: luku('valumiehet'), pintamiehet: luku('pintamiehet'),
+    hiertoAlkoi: arvo('hiertoAlkoi'), hiertoPaattyi: arvo('hiertoPaattyi'),
+    lampoAlku: luku('lampoAlku'), lampoLoppu: luku('lampoLoppu'), lampoPinta: luku('lampoPinta'),
+    hierto: radio('hierto'), polynsidonta: radio('poly'), sirote: radio('sirote'),
+    kastelu: radio('kastelu'), muovi: radio('muovi'), valihoitoaine: radio('valihoito'), jalkihoitoaine: radio('jalkihoito'),
+    kuormakirjat: viimeisinTuonti
+  };
 }
 
 function tallennaProjektiksi() {
@@ -1324,6 +1517,7 @@ async function tuoKuormakirjat(input) {
     // Huom: pumppauksesta tuleva erillinen lappu (ei sisällä betonin toimitustunnisteita) ei saa kasvattaa totBetoni-summaa,
     // vaikka siinä esiintyisi m3-lukuja tai kellonaikoja.
     var kaikki_m3 = [], kaikki_purku = [], kaikki_paattyi = [];
+    var kuormaLista = [];
     var schwenkSumma = 0, schwenkKumMax = 0, schwenkMaara = 0;
     tekstit.forEach(function(teksti) {
       // ── Schwenk ──
@@ -1331,6 +1525,7 @@ async function tuoKuormakirjat(input) {
       if (sw) {
         schwenkMaara++;
         schwenkSumma += sw.m3;
+        kuormaLista.push({ m3: sw.m3, purkuAlkaa: sw.alkaa || '', purkuLoppuu: sw.loppuu || '' });
         if (sw.kum > schwenkKumMax) schwenkKumMax = sw.kum;
         if (sw.alkaa) kaikki_purku.push(sw.alkaa);
         if (sw.loppuu) kaikki_paattyi.push(sw.loppuu);
@@ -1396,6 +1591,12 @@ async function tuoKuormakirjat(input) {
       zipTiedostoNimi = (projNimi || 'betonointi') + '_' + pvmStr;
     }
 
+    viimeisinTuonti = {
+      kuormakirjoja: tekstit.length,
+      kuormat: kuormaLista.sort(function(a, b) { return (a.purkuAlkaa || '').localeCompare(b.purkuAlkaa || ''); }),
+      totBetoni: (tiedot.totBetoni !== null && tiedot.totBetoni !== undefined) ? tiedot.totBetoni : null,
+      valuAlkoi: tiedot.valuAlkoi || '', valuPaattyi: tiedot.valuPaattyi || ''
+    };
     taytaKentat(tiedot);
     if (tuontiHuomio) naytaStatus('✅ Kentät täytetty.' + tuontiHuomio, 'red');
 
@@ -1542,6 +1743,23 @@ async function luoZipJaLataa() {
       tallennusHuomio = ' ❌ Tallennus projektille epäonnistui: ' + e.message;
     }
 
+    // Rakenteinen data valulle (tarjouslaskentaa varten) ja kuittauksen lukitus
+    var valuHuomio = '';
+    if (valittuValuId) {
+      try {
+        naytaStatus('⏳ Tallennetaan valun tiedot...', 'white');
+        await fbDb.collection('valut').doc(valittuValuId).update({
+          poytakirja: keraaPoytakirjaData(zipNimi),
+          lukittu: true
+        });
+        valuHuomio = ' Valun tiedot tallennettu ja kuittaus lukittu.';
+      } catch (ve) {
+        console.error('Valun tietojen tallennus epäonnistui:', ve);
+        valuHuomio = ' ❌ Valun tietojen tallennus epäonnistui: ' + ve.message;
+      }
+    }
+    tallennusHuomio += valuHuomio;
+
     var url = URL.createObjectURL(blob);
     var a = document.createElement('a');
     a.href = url;
@@ -1549,8 +1767,9 @@ async function luoZipJaLataa() {
     document.body.appendChild(a);
     a.click();
     setTimeout(function() { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
-    if (tallennusOnnistui) naytaStatus('✅ Pöytäkirja tallennettu projektille. ZIP ladattu: ' + nimi, 'green');
-    else naytaStatus('ZIP ladattu: ' + nimi + '.' + tallennusHuomio, tallennusHuomio ? 'red' : 'green');
+    var virheita = /❌|⚠️/.test(tallennusHuomio);
+    if (tallennusOnnistui) naytaStatus('✅ Pöytäkirja tallennettu projektille. ZIP ladattu: ' + nimi + '.' + tallennusHuomio, virheita ? 'red' : 'green');
+    else naytaStatus('ZIP ladattu: ' + nimi + '.' + tallennusHuomio, (tallennusHuomio && !/^ Valun tiedot tallennettu/.test(tallennusHuomio)) || virheita ? 'red' : 'green');
 
   } catch(err) {
     naytaStatus('❌ ZIP-virhe: ' + err.message, 'red');
