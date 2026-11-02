@@ -881,7 +881,7 @@ function paivitaValuValinta(projektiId) {
     if (!lista.length) { sel.innerHTML = '<option value="">— Ei valuja tälle projektille —</option>'; return; }
     lista.forEach(function(v) {
       var k = v.kuittaus || {};
-      var tila = v.lukittu ? 'lukittu' : (k.tallennettu ? 'kuitattu' : (k.pintaAlkoi ? 'pintatyö käynnissä' : 'ei kuittausta'));
+      var tila = v.lukittu ? 'lukittu' : (k.tallennettu && k.valmis === false ? 'kesken, puuttuu ' + ((k.puuttuu || []).length || '?') : (k.tallennettu ? 'kuitattu' : (k.pintaAlkoi ? 'pintatyö käynnissä' : 'ei kuittausta')));
       var o = document.createElement('option');
       o.value = v._id;
       o.textContent = valuPvmFi(v.pvm) + (v.valualue ? ' · ' + v.valualue : '') + ' · ' + tila;
@@ -969,11 +969,16 @@ async function taytaValusta(v) {
     ['valualue', 'Valualue / sijainti', v.valualue || '', 'arvo'],
     ['neliomaara', 'Neliömäärä', (v.m2 != null && v.m2 !== '') ? String(v.m2) : '', 'arvo'],
     ['rakennetyyppi', 'Rakennetyyppi', (v.rakennetyyppi && v.rakennetyyppi.rakenne) || '', 'arvo'],
+    ['kerros', 'Kerros', v.kerros || '', 'arvo'],
+    ['valumetodi', 'Valumenetelmä', v.valumenetelma || '', 'arvo'],
     ['paksuus', 'Paksuus', (v.rakennetyyppi && v.rakennetyyppi.paksuus != null) ? String(v.rakennetyyppi.paksuus) : '', 'arvo'],
     ['valumiehet', 'Valumiehet', k.valumiehet != null ? String(k.valumiehet) : '', 'arvo'],
     ['pintamiehet', 'Pintamiehet', k.pintamiehet != null ? String(k.pintamiehet) : '', 'arvo'],
     ['hiertoAlkoi', 'Hierto alkoi', pyoristaPuoliTuntia(k.pintaAlkoi), 'aika'],
     ['hiertoPaattyi', 'Hierto päättyi', pyoristaPuoliTuntia(k.pintaPaattyi), 'aika'],
+    ['lampoAlku', 'Lämpötila alussa', k.lampoAlku != null ? String(k.lampoAlku) : '', 'arvo'],
+    ['lampoLoppu', 'Lämpötila lopussa', k.lampoLoppu != null ? String(k.lampoLoppu) : '', 'arvo'],
+    ['lampoPinta', 'Lämpötila (pintatyö)', k.lampoPinta != null ? String(k.lampoPinta) : '', 'arvo'],
     ['huomiotValu', 'Huomiot valun aikana', huomioteksti, 'arvo'],
     ['jalkihoitoHuomiot', 'Jälkihoitohuomiot', k.jalkihoitoaine === false ? 'Jälkihoitoainetta ei levitetty (alihankkijan kuittaus).' : '', 'arvo']
   ];
@@ -1005,8 +1010,30 @@ async function taytaValusta(v) {
       taytetyt.push('Jälkihoitoaine');
     }
   }
+  // Välihoitoaine kyllä/ei kuittauksesta
+  if (typeof k.valihoitoaine === 'boolean') {
+    var vh = document.querySelectorAll('input[name="valihoito"]');
+    var vhValittu = Array.prototype.some.call(vh, function(r) { return r.checked; });
+    if (vh.length === 2 && (!vhValittu || korvaa)) { vh[k.valihoitoaine ? 0 : 1].checked = true; taytetyt.push('Välihoitoaine'); }
+  }
+  // Sirote kyllä/ei valulta
+  if (typeof v.sirote === 'boolean') {
+    var sir = document.querySelectorAll('input[name="sirote"]');
+    var sirValittu = Array.prototype.some.call(sir, function(r) { return r.checked; });
+    if (sir.length === 2 && (!sirValittu || korvaa)) { sir[v.sirote ? 0 : 1].checked = true; taytetyt.push('Sirote'); }
+  }
+  // Hierto: pintatyön alkamisaika kuittauksessa = hierto tehty
+  if (k.pintaAlkoi) {
+    var hierto = document.querySelectorAll('input[name="hierto"]');
+    if (hierto.length === 2 && !hierto[0].checked && !hierto[1].checked) { hierto[0].checked = true; taytetyt.push('Hierto'); }
+  }
   laskeBetoni();
-  naytaStatus(taytetyt.length ? '✅ Valulta ja kuittauksesta täytetty: ' + taytetyt.join(', ') + '. Tarkista kentät.' : 'ℹ️ Valulta ja kuittauksesta ei ollut täytettävää.', 'green');
+  var PUUTTEET = { pintaAlkoi: 'pintatyö alkoi', pintaPaattyi: 'pintatyö päättyi', valihoitoaine: 'välihoitoaine', jalkihoitoaine: 'jälkihoitoaine', valumiehet: 'valumiehet',
+    pintamiehet: 'pintamiehet', lampoAlku: 'lämpötila valun alussa', lampoLoppu: 'lämpötila valun lopussa', lampoPinta: 'lämpötila pintatyön aikana', havainnot: 'havainnot' };
+  var kesken = '';
+  if (!k.tallennettu) kesken = ' ⚠️ Alihankkija ei ole tallentanut kuittausta.';
+  else if (k.valmis === false) kesken = ' ⚠️ Kuittaus on kesken, puuttuu: ' + (k.puuttuu || []).map(function(x) { return PUUTTEET[x] || x; }).join(', ') + '.';
+  naytaStatus((taytetyt.length ? '✅ Valulta ja kuittauksesta täytetty: ' + taytetyt.join(', ') + '. Tarkista kentät.' : 'ℹ️ Valulta ja kuittauksesta ei ollut täytettävää.') + kesken, kesken ? 'red' : 'green');
 }
 
 // Pöytäkirjan tiedot rakenteisena (tallennetaan valulle ZIP:n luonnissa)
