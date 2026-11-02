@@ -772,6 +772,7 @@ var fbConfig = {
 if (!firebase.apps.length) firebase.initializeApp(fbConfig);
 var fbDb = firebase.firestore();
 var fbStorage = firebase.storage();
+var projektitData = {}; // projektiId -> projektin tiedot (perustiedot, tuotteet, rakennetyypit)
 bcKirjaudu(function() {
 fbDb.collection('projects').orderBy('tyomaa').onSnapshot(function(snap) {
   var sel = document.getElementById('projektiValinta');
@@ -779,6 +780,7 @@ fbDb.collection('projects').orderBy('tyomaa').onSnapshot(function(snap) {
   sel.innerHTML = '<option value="">— Valitse projekti tai täytä käsin —</option>';
   snap.forEach(function(d) {
     var p = d.data();
+    projektitData[d.id] = p;
     var opt = document.createElement('option');
     opt.value = d.id;
     opt.textContent = (p.tyomaa||'') + (p.tilaaja ? ' – ' + p.tilaaja : '') + (p.tyonro ? ' ('+p.tyonro+')' : '');
@@ -819,6 +821,37 @@ function valitseProjekti(id) {
   if (toimSel) { for (var i=0; i<toimSel.options.length; i++) { if (toimSel.options[i].text === toimittaja) { toimSel.selectedIndex = i; break; } } }
   var betoniYhteys = document.getElementById('bp_betoni_yhteys');
   if (betoniYhteys) betoniYhteys.value = opt.getAttribute('data-betoni-yhteys') || '';
+  taytaProjektista(projektitData[id]);
+}
+
+// Tuotevalikko (sirote / välihoitoaine / jälkihoitoaine) radiopainikkeen nimen perusteella
+function tuoteValikko(radioNimi) {
+  var r = document.querySelector('input[name="' + radioNimi + '"]');
+  var rivi = r && r.closest('.sirote-row');
+  return rivi ? rivi.querySelector('select') : null;
+}
+function asetaTuote(radioNimi, tuote) {
+  var sel = tuoteValikko(radioNimi);
+  if (!sel || !tuote || sel.value) return false;
+  for (var i = 0; i < sel.options.length; i++) {
+    if (sel.options[i].text.toLowerCase().trim() === tuote.toLowerCase().trim()) { sel.selectedIndex = i; return true; }
+  }
+  var o = document.createElement('option'); o.textContent = tuote; sel.appendChild(o); sel.value = tuote;
+  return true;
+}
+
+// Projektin perustiedoista: tuotteet ja pölynsidonta (vain tyhjiin kenttiin; tarkistetaan ennen ZIP:iä)
+function taytaProjektista(p) {
+  if (!p) return;
+  var taytetyt = [];
+  if (asetaTuote('sirote', p.sirote)) taytetyt.push('Sirote');
+  if (asetaTuote('valihoito', p.valihoitoaine)) taytetyt.push('Välihoitoaine');
+  if (asetaTuote('jalkihoito', p.jalkihoitoaine)) taytetyt.push('Jälkihoitoaine');
+  if (p.polynsidonta) {
+    var poly = document.querySelectorAll('input[name="poly"]');
+    if (poly.length === 2 && !poly[0].checked && !poly[1].checked) { poly[0].checked = true; taytetyt.push('Pölynsidonta'); }
+  }
+  if (taytetyt.length) naytaStatus('✅ Projektista täytetty: ' + taytetyt.join(', ') + '. Tarkista ennen ZIP:iä.', 'green');
 }
 
 // ── Valu ja alihankkijan kuittaus (valukuittaus.html) ─────────
@@ -935,6 +968,8 @@ async function taytaValusta(v) {
     ['valupaivamaara', 'Valupäivä', v.pvm || '', 'arvo'],
     ['valualue', 'Valualue / sijainti', v.valualue || '', 'arvo'],
     ['neliomaara', 'Neliömäärä', (v.m2 != null && v.m2 !== '') ? String(v.m2) : '', 'arvo'],
+    ['rakennetyyppi', 'Rakennetyyppi', (v.rakennetyyppi && v.rakennetyyppi.rakenne) || '', 'arvo'],
+    ['paksuus', 'Paksuus', (v.rakennetyyppi && v.rakennetyyppi.paksuus != null) ? String(v.rakennetyyppi.paksuus) : '', 'arvo'],
     ['valumiehet', 'Valumiehet', k.valumiehet != null ? String(k.valumiehet) : '', 'arvo'],
     ['pintamiehet', 'Pintamiehet', k.pintamiehet != null ? String(k.pintamiehet) : '', 'arvo'],
     ['hiertoAlkoi', 'Hierto alkoi', pyoristaPuoliTuntia(k.pintaAlkoi), 'aika'],
@@ -971,7 +1006,7 @@ async function taytaValusta(v) {
     }
   }
   laskeBetoni();
-  naytaStatus(taytetyt.length ? '✅ Kuittauksesta täytetty: ' + taytetyt.join(', ') + '. Tarkista kentät.' : 'ℹ️ Kuittauksesta ei ollut täytettävää.', 'green');
+  naytaStatus(taytetyt.length ? '✅ Valulta ja kuittauksesta täytetty: ' + taytetyt.join(', ') + '. Tarkista kentät.' : 'ℹ️ Valulta ja kuittauksesta ei ollut täytettävää.', 'green');
 }
 
 // Pöytäkirjan tiedot rakenteisena (tallennetaan valulle ZIP:n luonnissa)
@@ -1006,6 +1041,9 @@ function keraaPoytakirjaData(zipNimi) {
     lampoAlku: luku('lampoAlku'), lampoLoppu: luku('lampoLoppu'), lampoPinta: luku('lampoPinta'),
     hierto: radio('hierto'), polynsidonta: radio('poly'), sirote: radio('sirote'),
     kastelu: radio('kastelu'), muovi: radio('muovi'), valihoitoaine: radio('valihoito'), jalkihoitoaine: radio('jalkihoito'),
+    siroteTuote: (tuoteValikko('sirote') || {}).value || '',
+    valihoitoTuote: (tuoteValikko('valihoito') || {}).value || '',
+    jalkihoitoTuote: (tuoteValikko('jalkihoito') || {}).value || '',
     kuormakirjat: viimeisinTuonti
   };
 }
