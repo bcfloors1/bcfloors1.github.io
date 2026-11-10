@@ -1198,6 +1198,7 @@ function korttiHtml(id, p) {
   h += '<button type="button" class="pk-btn pk-btn-icon" data-act="menu" data-id="' + id + '" aria-label="Lisää toimintoja" aria-haspopup="true" aria-expanded="false">' + ICON_DOTS + '</button>';
   h += '<div class="pk-menu" role="menu">';
   h += '<button type="button" role="menuitem" data-act="tiedot" data-id="' + id + '">Projektin tiedot</button>';
+  h += '<button type="button" role="menuitem" data-act="betonointi" data-id="' + id + '">Betonointipöytäkirja</button>';
   if (p.pdfBase64) h += '<button type="button" role="menuitem" data-act="lataaPdf" data-id="' + id + '" data-nimi="' + esc(p.tyomaa || '') + '">Vaihda tarjous-PDF</button>';
   if (p.arkistoitu) {
     h += '<button type="button" role="menuitem" data-act="palauta" data-id="' + id + '" data-nimi="' + esc(p.tyomaa || '') + '">Palauta arkistosta</button>';
@@ -1417,6 +1418,7 @@ document.addEventListener('click', function(e) {
   else if (act === 'lukitseValu') lukitseValu(el.dataset.valu, el.dataset.lukitse === '1');
   else if (act === 'poistaValu') poistaValu(el.dataset.valu);
   else if (act === 'muokkaaPt') avaaPerustiedot(id);
+  else if (act === 'betonointi') avaaBetonointi(id, el.dataset.valu);
   else if (act === 'muokkaaValu') avaaValuMuokkaus(el.dataset.valu);
   else if (act === 'vmTallenna') vmTallenna();
   else if (act === 'vmPeruuta') { var vid = vm && vm.v._id; vm = null; if (vid) avaaValu(vid); }
@@ -2007,6 +2009,7 @@ function valuRiviHtml(projektinId, v) {
     (lisa.length ? '<span class="pk-lisa">' + lisa.join(' · ') + '</span>' : '') +
     '<span class="pk-grow"></span><div class="pk-rivi-napit">' +
     '<button type="button" class="mk-btn mk-btn-primary" data-act="avaaValu" data-valu="' + esc(v._id) + '">Avaa</button>' +
+    '<button type="button" class="mk-btn mk-btn-outline" data-act="betonointi" data-id="' + esc(projektinId) + '" data-valu="' + esc(v._id) + '">Pöytäkirja</button>' +
     (v.lukittu ? '' : '<button type="button" class="mk-btn mk-btn-green" data-act="jaaValu" data-valu="' + esc(v._id) + '">WhatsApp</button>' +
     '<button type="button" class="mk-btn mk-btn-copy" data-act="kopioiValu" data-valu="' + esc(v._id) + '">Kopioi linkki</button>') +
     '</div></div>';
@@ -2267,6 +2270,14 @@ function vmTallenna() {
   }).catch(function(e) { alert('Tallennus epäonnistui: ' + e.message); });
 }
 
+// Betonointipöytäkirja uuteen välilehteen; projekti ja valu valitaan automaattisesti
+function avaaBetonointi(projektinId, valuId) {
+  var q = [];
+  if (projektinId) q.push('projekti=' + encodeURIComponent(projektinId));
+  if (valuId) q.push('valu=' + encodeURIComponent(valuId));
+  window.open('betonointi_ai.html' + (q.length ? '?' + q.join('&') : ''), '_blank');
+}
+
 function avaaValu(valuId) {
   haeValu(valuId).then(function(v) {
     piirraValu(v);
@@ -2339,6 +2350,7 @@ function piirraValu(v) {
   }
   h += '<div class="valu-napit">';
   h += '<button type="button" data-act="muokkaaValu" data-valu="' + esc(v._id) + '" style="border:none;background:#006CB1;color:white">✏️ Muokkaa</button>';
+  h += '<button type="button" data-act="betonointi" data-id="' + esc(v.projektiId || '') + '" data-valu="' + esc(v._id) + '" style="border:1.5px solid #006CB1;background:white;color:#006CB1">📄 Betonointipöytäkirja</button>';
   if (!v.lukittu) {
     h += '<button type="button" data-act="jaaValu" data-valu="' + esc(v._id) + '" style="border:none;background:#16a34a;color:white">WhatsApp</button>';
     h += '<button type="button" data-act="kopioiValu" data-valu="' + esc(v._id) + '" style="border:1.5px solid #e2e8f0;background:#f8fafc;color:#334155">Kopioi linkki</button>';

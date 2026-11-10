@@ -794,8 +794,25 @@ fbDb.collection('projects').orderBy('tyomaa').onSnapshot(function(snap) {
     sel.appendChild(opt);
   });
   if (cur) sel.value = cur;
+  kasitteleUrlValinta();
 });
 }); // bcKirjaudu
+
+// Projektipankista avattaessa: betonointi_ai.html?projekti=<id>&valu=<id>
+// valitsee projektin ja valun automaattisesti (vain kerran, ensimmäisen latauksen jälkeen).
+var urlValintaKasitelty = false;
+var odottavaValu = '';
+function kasitteleUrlValinta() {
+  if (urlValintaKasitelty) return;
+  urlValintaKasitelty = true;
+  var q = new URLSearchParams(location.search);
+  var pid = q.get('projekti'), vid = q.get('valu');
+  if (!pid || !projektitData[pid]) return;
+  odottavaValu = vid || '';
+  var sel = document.getElementById('projektiValinta');
+  sel.value = pid;
+  valitseProjekti(pid);
+}
 
 function valitseProjekti(id) {
   paivitaValuValinta(id);
@@ -887,6 +904,10 @@ function paivitaValuValinta(projektiId) {
       o.textContent = valuPvmFi(v.pvm) + (v.valualue ? ' · ' + v.valualue : '') + ' · ' + tila;
       sel.appendChild(o);
     });
+    if (odottavaValu) {
+      var odottava = odottavaValu; odottavaValu = '';
+      if (lista.some(function(v) { return v._id === odottava; })) { sel.value = odottava; valitseValu(odottava); }
+    }
   }).catch(function(e) {
     sel.innerHTML = '<option value="">— Valujen haku epäonnistui —</option>';
     console.error('Valujen haku:', e);
