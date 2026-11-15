@@ -249,6 +249,14 @@
       /* Ei marginaaleja */
       @page { margin: 10mm; }
     }
+    /* Kiitos heti allekirjoituksen jälkeen: piirtyvä ruksi */
+    .ok-anim { width: 64px; height: 64px; display: block; margin: 0 auto; }
+    .ok-anim circle { stroke-dasharray: 166; stroke-dashoffset: 166; animation: okPiirto 0.6s ease-out forwards; }
+    .ok-anim path { stroke-dasharray: 48; stroke-dashoffset: 48; animation: okPiirto 0.35s 0.5s ease-out forwards; }
+    @keyframes okPiirto { to { stroke-dashoffset: 0; } }
+    @media (prefers-reduced-motion: reduce) { .ok-anim circle, .ok-anim path { animation: none; stroke-dashoffset: 0; } }
+    @media print { .ok-anim { width: 28px; height: 28px; } .ok-anim circle, .ok-anim path { animation: none; stroke-dashoffset: 0; } }
+    .rivi-selite { font-size: 0.85em; font-style: italic; color: #4b5563; margin-top: 3px; white-space: normal; }
   </style>
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
 </head>
@@ -378,6 +386,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
+function mvEsc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 function fiPvm(v){v=(v||'').toString().trim();var m=v.match(/^(\d{4})-(\d{2})-(\d{2})/);return m?(m[3]+'.'+m[2]+'.'+m[1]):v;}
 
 // ── Firebase init ────────────────────────────────────────────
@@ -490,7 +499,7 @@ function naytaData(data) {
     var tr = document.createElement('tr');
     tr.innerHTML =
       '<td>' + fiPvm(r.pvm) + '</td>' +
-      '<td>' + (r.kuvaus||'') + '</td>' +
+      '<td>' + mvEsc(r.kuvaus||'') + (r.selite ? '<div class="rivi-selite">' + mvEsc(r.selite).replace(/\n/g, '<br>') + '</div>' : '') + '</td>' +
       '<td class="r">' + (r.maara||'') + '</td>' +
       '<td>' + (r.yksikko||'') + '</td>' +
       '<td class="r">' + (r.hinta ? parseFloat(r.hinta).toFixed(2)+' €' : '') + '</td>' +
@@ -567,7 +576,12 @@ function allekirjoita() {
     }
     document.getElementById('topStatus').className = 'status-pill pill-signed';
     document.getElementById('topStatus').textContent = '✅ Allekirjoitettu';
-    toast('✅ Mittakirja allekirjoitettu!', 'ok');
+    // Kiitos ja piirtyvä ruksi (vain heti allekirjoituksen jälkeen)
+    var ikoni = banner.querySelector('.icon');
+    if (ikoni) ikoni.innerHTML = '<svg class="ok-anim" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="26" fill="none" stroke="white" stroke-width="4"/><path d="M20 33l8 8 16-17" fill="none" stroke="white" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    var otsikko = banner.querySelector('h2'); if (otsikko) otsikko.textContent = 'Kiitos, mittakirja on allekirjoitettu!';
+    var teksti = banner.querySelector('p'); if (teksti) teksti.textContent = 'BC Floors on saanut ilmoituksen allekirjoituksesta. Voit tallentaa tai tulostaa mittakirjan alla olevasta napista.';
+    banner.scrollIntoView({ behavior: 'smooth', block: 'center' });
     var ilmData = Object.assign({}, window._mkData || {}, { allekirjoittajaNimi: nimi });
     lahetaIlmoitus(ilmData);
   }).catch(function(e) {

@@ -288,6 +288,22 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 }
 @media print { .sanelu-btn, .sanelu-tausta { display:none !important; } }
 
+/* ── Rivin selite (valinnainen lisäteksti kuvauksen alle) ── */
+.selite { display:none; width:100%; margin-top:3px; padding:3px 5px; border:1px dashed #c8d0d8; border-radius:3px; font-family:inherit; font-size:10.5px; color:#1a2530; background:#fbfcfd; resize:none; overflow:hidden; line-height:1.35; min-height:22px; }
+.selite.auki { display:block; }
+.selite:focus { outline:none; border-color:#006CB1; border-style:solid; background:white; }
+.selite-btn { display:inline-block; margin-top:2px; padding:0 4px; border:none; background:none; color:#006CB1; font-size:9.5px; font-weight:700; cursor:pointer; font-family:inherit; opacity:0.75; }
+.selite-btn:hover { opacity:1; text-decoration:underline; }
+.selite-print { display:none; }
+@media print {
+  .selite, .selite-btn { display:none !important; }
+  .selite-print:not(:empty) { display:block !important; font-size:9.5px; font-style:italic; color:#3d4a57; white-space:pre-wrap; word-break:break-word; line-height:1.35; margin-top:2px; }
+}
+@media screen and (max-width: 820px) {
+  .selite { font-size:15px !important; padding:6px 8px; }
+  .selite-btn { font-size:12px; padding:4px 0; }
+}
+
 /* ── Puhelinnäkymä (vain näytöllä; tulostus pysyy A4-muodossa) ── */
 @media screen and (max-width: 820px) {
   .page { width: auto; margin: 0; box-shadow: none; }
@@ -523,9 +539,19 @@ function valmistaTulostusTekstit() {
     }
     var td = tr.cells[1];
     var sel = td && td.querySelector('select');
+    var txt = td && td.querySelector('input[type=text]');
+    if (txt) {
+      // Käsin kirjoitettu kuvaus tulostuu viereisestä .print-val-elementistä
+      var pv = txt.nextElementSibling;
+      if (!pv || !pv.classList.contains('print-val')) {
+        pv = document.createElement('span'); pv.className = 'print-val'; pv.style.display = 'none';
+        txt.parentNode.insertBefore(pv, txt.nextSibling);
+      }
+      pv.textContent = txt.value;
+    }
     if (sel) {
       var sp2 = td.querySelector('.print-desc');
-      if (!sp2) { sp2 = document.createElement('span'); sp2.className = 'print-desc'; td.appendChild(sp2); }
+      if (!sp2) { sp2 = document.createElement('span'); sp2.className = 'print-desc'; sel.parentNode.insertBefore(sp2, sel.nextSibling); }
       var o = sel.options[sel.selectedIndex];
       sp2.textContent = (o && sel.value) ? o.text.replace(/\s*\([\d.,]+\s*€\/[^)]*\)\s*$/, '') : '';
     }
@@ -615,6 +641,7 @@ document.addEventListener('DOMContentLoaded', function() {
           if (unitEl) asetaYksikko(unitEl, r.yksikko);
           var priceEl = document.getElementById('price_' + rid);
           if (priceEl) priceEl.value = r.hinta || '';
+          asetaSelite(rid, r.selite || '');
           calcRow(rid);
         });
         if (rivitData.length === 0) { addRow(); addRow(); addRow(); addRow(); }
@@ -710,9 +737,9 @@ function addRow() {
       kuvaustd += '<option value="' + h.hinta + '" data-yksikko="' + (h.yksikko||'m²') + '">' + h.nimi + ' (' + h.hinta.toFixed(2) + ' €/' + (h.yksikko||'m²') + ')</option>';
     }
     kuvaustd += '<option value="__muu__">✏️ Kirjoita käsin...</option>';
-    kuvaustd += '</select></td>';
+    kuvaustd += '</select>' + seliteHtml(id) + '</td>';
   } else {
-    kuvaustd = '<td><input type="text" id="desc_' + id + '" placeholder="Kuvaus..." style="width:100%" oninput="this.nextElementSibling.textContent=this.value"><span class="print-val" style="display:none"></span></td>';
+    kuvaustd = '<td><input type="text" id="desc_' + id + '" placeholder="Kuvaus..." style="width:100%" oninput="this.nextElementSibling.textContent=this.value"><span class="print-val" style="display:none"></span>' + seliteHtml(id) + '</td>';
   }
 
   var dateCell = '<td style="width:10%;min-width:90px;"><input type="date" style="width:100%;font-size:10px;" id="date_' + id + '"' + ' onfocus="try{this.showPicker()}catch(e){}"' + ' onchange="var p=this.value.split(String.fromCharCode(45));this.setAttribute(String.fromCharCode(100,97,116,97,45,102,105),p.length===3?p[2]+String.fromCharCode(46)+p[1]+String.fromCharCode(46)+p[0]:String.fromCharCode(32));"></td>';
@@ -730,6 +757,37 @@ function addRow() {
 
 // Asettaa rivin kuvauksen: jos rivillä on hintavalikko ja teksti löytyy sieltä, valitaan se;
 // muuten valikko vaihdetaan tekstikentäksi, jotta tallennettu kuvaus ei katoa.
+// ── Rivin selite: valinnainen monirivinen lisäteksti kuvauksen alle ──
+function seliteHtml(id) {
+  return '<button type="button" class="selite-btn no-print" id="seliteBtn_' + id + '" onclick="avaaSelite(' + id + ')">+ Selite</button>' +
+    '<textarea class="selite" id="selite_' + id + '" rows="1" placeholder="Selite, esim. mitä tuntityö sisälsi" oninput="seliteMuuttui(' + id + ')"></textarea>' +
+    '<div class="selite-print" id="selitePrint_' + id + '"></div>';
+}
+function avaaSelite(id) {
+  var ta = document.getElementById('selite_' + id);
+  if (!ta) return;
+  ta.classList.add('auki');
+  var b = document.getElementById('seliteBtn_' + id); if (b) b.style.display = 'none';
+  ta.focus();
+  seliteMuuttui(id);
+}
+function seliteMuuttui(id) {
+  var ta = document.getElementById('selite_' + id);
+  if (!ta) return;
+  ta.style.height = 'auto';
+  ta.style.height = Math.max(22, ta.scrollHeight + 2) + 'px';
+  var pr = document.getElementById('selitePrint_' + id);
+  if (pr) pr.textContent = ta.value.trim();
+}
+function asetaSelite(id, teksti) {
+  var ta = document.getElementById('selite_' + id);
+  if (!ta) return;
+  ta.value = teksti || '';
+  var b = document.getElementById('seliteBtn_' + id);
+  if (ta.value.trim()) { ta.classList.add('auki'); if (b) b.style.display = 'none'; }
+  seliteMuuttui(id);
+}
+
 function asetaKuvaus(id, teksti) {
   var el = document.getElementById('desc_' + id);
   if (!el) return;
@@ -952,7 +1010,10 @@ function keraaRivitData() {
     var yksikko = unitEl  ? unitEl.value  : '';
     var hinta   = priceEl ? priceEl.value : '';
     if (!kuvaus && !maara) return; // tyhjä rivi
+    var seliteEl = tr.querySelector('textarea.selite');
+    var selite = seliteEl ? seliteEl.value.trim() : '';
     rivit.push({
+      selite:  selite,
       pvm:     dateEl ? (dateEl.getAttribute('data-fi') || dateEl.value.split('-').reverse().join('.')) : '',
       kuvaus:  kuvaus,
       maara:   maara,
@@ -1069,6 +1130,13 @@ document.addEventListener('keydown', function(e) {
   var tag = document.activeElement.tagName;
   if (tag !== 'INPUT' && tag !== 'SELECT') return;
 
+  var el = document.activeElement;
+  var tekstikentta = tag === 'INPUT' && (el.type === 'text' || el.type === 'search');
+  if (tekstikentta && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+    var alku = el.selectionStart, loppu = el.selectionEnd, pituus = el.value.length;
+    if (e.key === 'ArrowLeft' && !(alku === 0 && loppu === 0)) return;
+    if (e.key === 'ArrowRight' && !(alku === pituus && loppu === pituus)) return;
+  }
   if (e.key === 'Enter' || e.key === 'ArrowRight' || e.key === 'Tab') {
     // Tab on jo oletuksena, mutta Enter ja nuoli navigoivat myös
     if (e.key === 'Tab') return; // Anna Tab toimia normaalisti
@@ -1289,8 +1357,10 @@ function valitseProjekti(id) {
       var muu = document.createElement('option');
       muu.value = '__muu__'; muu.textContent = '✏️ Kirjoita käsin...';
       newSel.appendChild(muu);
+      var seliteOsat = Array.prototype.slice.call(td.querySelectorAll('.selite-btn, .selite, .selite-print'));
       td.innerHTML = '';
       td.appendChild(newSel);
+      seliteOsat.forEach(function(el) { td.appendChild(el); });
     });
   });
 }
@@ -1310,7 +1380,7 @@ function keraaLuonnos() {
   });
   document.querySelectorAll('#tableBody tr').forEach(function(tr){
     var rid = tr.id.replace('row_', '');
-    ['date_','desc_','qty_','unit_','price_'].forEach(function(p){
+    ['date_','desc_','qty_','unit_','price_','selite_'].forEach(function(p){
       var el = document.getElementById(p+rid);
       if (el) kentat[p+rid] = el.value;
     });
@@ -1362,7 +1432,10 @@ function palautaLuonnos(l) {
     img2.onload = function(){ c2.getContext('2d').drawImage(img2,0,0,c2.width,c2.height); c2.classList.add('has-sig'); };
     img2.src = l.sig2;
   }
-  for (var i = 1; i <= rowCount; i++) { if (document.getElementById('qty_'+i)) calcRow(i); }
+  for (var i = 1; i <= rowCount; i++) {
+    if (document.getElementById('qty_'+i)) calcRow(i);
+    var sel_i = document.getElementById('selite_'+i); if (sel_i) asetaSelite(i, sel_i.value);
+  }
   valmistaTulostusTekstit(); markEmptyRows();
   updateTotal();
   naytaIlmoitus('↺ Luonnos palautettu', 'ok');
@@ -1537,10 +1610,11 @@ function saneluKehote(teksti) {
     '- maara: luku (desimaalierottimena piste). Muunna puhutut luvut numeroiksi.\n' +
     '- yksikko: yksi näistä: ' + SANELU_YKSIKOT.join(', ') + ' (neliö = m², metri tai juoksumetri = m, kilo = kg, tonni = tn, kuutio = m³, tunti = h, kappale = kpl). Jos tarjoushinta löytyi, käytä sen yksikköä.\n' +
     '- pvm: muodossa pp.kk.vvvv. Tulkitse "eilen", "maanantaina" jne. tämän päivän perusteella (menneisyyteen). Jos päivää ei mainita, käytä edellistä samassa sanelussa mainittua päivää, ja jos sellaista ei ole, tämä päivä.\n' +
+    '- selite: lisätiedot, jotka eivät mahdu kuvaukseen (esim. mitä tuntityö sisälsi, missä tai kenen pyynnöstä). Tyhjä, jos sellaisia ei sanottu.\n' +
     '- alkuperainen: lyhyt ote sanelusta, josta rivi tuli.\n' +
     '- Älä keksi rivejä, joita sanelussa ei ole.\n\n' +
     'Vastaa VAIN JSON-muodossa ilman muuta tekstiä tai markdownia:\n' +
-    '{"rivit":[{"pvm":"pp.kk.vvvv","tarjousIndeksi":0,"varmuus":"varma","vaihtoehdot":[0],"kuvaus":"","maara":0,"yksikko":"m²","huomio":"","alkuperainen":""}]}\n\n' +
+    '{"rivit":[{"pvm":"pp.kk.vvvv","tarjousIndeksi":0,"varmuus":"varma","vaihtoehdot":[0],"kuvaus":"","maara":0,"yksikko":"m²","huomio":"","selite":"","alkuperainen":""}]}\n\n' +
     'Sanelu:\n' + teksti;
 }
 
@@ -1584,6 +1658,7 @@ function saneluSiistiRivit(raaka) {
       yksikko: yksikko,
       hinta: '',
       huomio: String(r.huomio || '').trim(),
+      selite: String(r.selite || '').trim(),
       alkuperainen: String(r.alkuperainen || '').trim()
     };
   });
@@ -1668,6 +1743,7 @@ function piirraSaneluRivit() {
         (oma ? '<div><label>Yksikkö</label><select data-kentta="yksikko">' + yksOptiot + '</select></div>' +
                '<div><label>€/yks</label><input type="number" step="0.01" inputmode="decimal" data-kentta="hinta" value="' + saneluEsc(r.hinta) + '" placeholder="0,00"></div>' : '') +
       '</div>' +
+      '<div class="sanelu-kentat" style="margin-top:8px"><div class="sanelu-leveä"><label>Selite (valinnainen)</label><input type="text" data-kentta="selite" value="' + saneluEsc(r.selite) + '"></div></div>' +
       (r.huomio ? '<div class="sanelu-huomio">⚠️ ' + saneluEsc(r.huomio) + '</div>' : '') +
       (r.alkuperainen ? '<div class="sanelu-alkup">”' + saneluEsc(r.alkuperainen) + '”</div>' : '') +
     '</div>';
@@ -1705,7 +1781,7 @@ document.addEventListener('input', function(e) {
   var r = saneluEhdotukset[parseInt(kortti.dataset.i, 10)];
   if (!r) return;
   var k = el.dataset.kentta;
-  if (k === 'kuvaus' || k === 'pvm' || k === 'maara' || k === 'yksikko' || k === 'hinta') r[k] = el.value;
+  if (k === 'kuvaus' || k === 'pvm' || k === 'maara' || k === 'yksikko' || k === 'hinta' || k === 'selite') r[k] = el.value;
 }, true);
 
 function paivitaSaneluLisaaNappi() {
@@ -1773,6 +1849,7 @@ function saneluTaytaRivi(id, r) {
     if (priceEl) priceEl.value = isFinite(hinta) ? hinta.toFixed(2) : '';
   }
   saneluTulostusTeksti(id);
+  if (r.selite) asetaSelite(id, r.selite);
   var qtyEl = document.getElementById('qty_' + id);
   var maara = parseFloat(String(r.maara).replace(',', '.'));
   if (qtyEl) qtyEl.value = isFinite(maara) ? String(maara) : '';

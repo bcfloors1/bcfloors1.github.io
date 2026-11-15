@@ -194,6 +194,23 @@ button:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid
 .mk-badge-sent{background:#dbeafe;color:#0b4a8f;}
 .mk-badge-signed{background:#dcfce7;color:#14602d;}
 @media (max-width:560px){.pk-head{padding:14px;}.pk-body{padding:4px 12px 14px;}.pk-btn{flex:1 1 auto;justify-content:center;}.pk-btn-icon{flex:none;}.pk-pvm{min-width:70px;}}
+/* Pokaali allekirjoitetusta mittakirjasta */
+.pokaali-tausta{position:fixed;inset:0;z-index:5000;background:rgba(15,23,42,.55);display:flex;align-items:center;justify-content:center;padding:20px;animation:pkHaivy .25s ease-out;}
+.pokaali-tausta.pois{opacity:0;transition:opacity .25s;}
+.pokaali-konfetti{position:fixed;inset:0;pointer-events:none;}
+.pokaali-kortti{position:relative;background:white;border-radius:20px;padding:26px 26px 22px;max-width:360px;width:100%;text-align:center;box-shadow:0 24px 70px rgba(0,0,0,.35);animation:pkPomppu .55s cubic-bezier(.2,1.4,.4,1);font-family:inherit;}
+.pokaali-kuva{width:120px;height:120px;display:block;margin:-70px auto 6px;filter:drop-shadow(0 8px 14px rgba(201,138,11,.45));animation:pkHeilu 1.6s ease-in-out .5s 2;}
+.pokaali-otsikko{font-size:22px;font-weight:800;color:#0f172a;margin-bottom:6px;}
+.pokaali-teksti{font-size:15px;color:#334155;}
+.pokaali-kohde{font-size:15px;color:#006CB1;font-weight:700;margin-top:2px;}
+.pokaali-summa{font-size:28px;font-weight:800;color:#C98A0B;margin:10px 0 2px;}
+.pokaali-pieni{font-size:12px;color:#64748b;margin-top:4px;min-height:14px;}
+.pokaali-nappi{margin-top:16px;width:100%;padding:12px;border:none;border-radius:12px;background:#006CB1;color:white;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;}
+.pokaali-nappi:hover{background:#005a94;}
+@keyframes pkHaivy{from{opacity:0}to{opacity:1}}
+@keyframes pkPomppu{0%{transform:scale(.6) translateY(30px);opacity:0}100%{transform:none;opacity:1}}
+@keyframes pkHeilu{0%,100%{transform:rotate(0)}25%{transform:rotate(-8deg)}75%{transform:rotate(8deg)}}
+@media (prefers-reduced-motion: reduce){.pokaali-tausta,.pokaali-kortti,.pokaali-kuva{animation:none}}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
 </head>
@@ -1452,6 +1469,7 @@ bcKirjaudu(function() {
     if (doc.exists && doc.data().avain) firestoreApiAvain = doc.data().avain;
   }).catch(function(e) { console.warn('API-avaimen haku:', e.message); });
   lataaAlihankkijat();
+  seuraaAllekirjoituksia();
 });
 
 // ── Vieritä ja korosta tietty projekti, kun tultu tänne mittakirjasta ("← Projektipankki") ──
@@ -1940,6 +1958,111 @@ function waNumero(puh) {
 function waLinkki(v) {
   var num = waNumero(v.alihankkija && v.alihankkija.puhelin);
   return 'https://wa.me/' + (num ? num : '') + '?text=' + encodeURIComponent(valuViesti(v));
+}
+
+// ── Pokaali: uudet asiakkaan allekirjoittamat mittakirjat ──
+// Näytetään kerran per selain jokaisesta uudesta allekirjoituksesta (myös kesken käytön).
+// Ensimmäisellä kerralla olemassa olevat merkitään nähdyiksi ilman juhlintaa.
+var POKAALI_AVAIN = 'bc_pokaalit_nahty';
+var pokaaliJono = [];
+var pokaaliAuki = false;
+
+function pokaaliNahdyt() {
+  try { var x = JSON.parse(localStorage.getItem(POKAALI_AVAIN) || 'null'); return Array.isArray(x) ? x : null; } catch (e) { return null; }
+}
+function pokaaliMerkitse(ids) {
+  try {
+    var n = pokaaliNahdyt() || [];
+    ids.forEach(function(id) { if (n.indexOf(id) === -1) n.push(id); });
+    localStorage.setItem(POKAALI_AVAIN, JSON.stringify(n.slice(-500)));
+  } catch (e) {}
+}
+function mittakirjanSumma(d) {
+  return (d.rivit || []).reduce(function(s, r) {
+    var m = parseFloat(String(r.maara || '').replace(',', '.')), h = parseFloat(String(r.hinta || '').replace(',', '.'));
+    return s + (isFinite(m) && isFinite(h) ? m * h : 0);
+  }, 0);
+}
+
+function seuraaAllekirjoituksia() {
+  fbDb.collection('mittakirjat').where('tila', '==', 'allekirjoitettu').onSnapshot(function(snap) {
+    var nahdyt = pokaaliNahdyt();
+    var kaikki = [];
+    snap.forEach(function(doc) { var d = doc.data(); d._id = doc.id; kaikki.push(d); });
+    if (nahdyt === null) { pokaaliMerkitse(kaikki.map(function(d) { return d._id; })); return; }
+    var uudet = kaikki.filter(function(d) { return nahdyt.indexOf(d._id) === -1 && !pokaaliJono.some(function(j) { return j._id === d._id; }); });
+    uudet.sort(function(a, b) { return String(a.allekirjoitettuAika || '').localeCompare(String(b.allekirjoitettuAika || '')); });
+    pokaaliJono = pokaaliJono.concat(uudet);
+    if (!pokaaliAuki && pokaaliJono.length) naytaPokaali();
+  }, function(e) { console.warn('Allekirjoitusten seuranta:', e.message); });
+}
+
+function naytaPokaali() {
+  var d = pokaaliJono.shift();
+  if (!d) { pokaaliAuki = false; return; }
+  pokaaliAuki = true;
+  pokaaliMerkitse([d._id]);
+  var summa = mittakirjanSumma(d);
+  var aika = d.allekirjoitettuAika ? new Date(d.allekirjoitettuAika).toLocaleString('fi-FI', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+  var lisaa = pokaaliJono.length;
+  var el = document.createElement('div');
+  el.className = 'pokaali-tausta';
+  el.setAttribute('role', 'dialog');
+  el.setAttribute('aria-label', 'Mittakirja allekirjoitettu');
+  el.innerHTML =
+    '<canvas class="pokaali-konfetti"></canvas>' +
+    '<div class="pokaali-kortti">' +
+      '<svg class="pokaali-kuva" viewBox="0 0 120 120" aria-hidden="true">' +
+        '<defs><linearGradient id="pkKulta" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFE38A"/><stop offset="0.5" stop-color="#F2B42B"/><stop offset="1" stop-color="#C98A0B"/></linearGradient></defs>' +
+        '<path d="M34 18h52v22c0 18-11.6 31-26 31S34 58 34 40z" fill="url(#pkKulta)" stroke="#A06A00" stroke-width="2"/>' +
+        '<path d="M34 26H20c0 16 8 24 18 26M86 26h14c0 16-8 24-18 26" fill="none" stroke="#C98A0B" stroke-width="5" stroke-linecap="round"/>' +
+        '<rect x="54" y="70" width="12" height="16" fill="#C98A0B"/>' +
+        '<rect x="40" y="86" width="40" height="10" rx="2" fill="url(#pkKulta)" stroke="#A06A00" stroke-width="2"/>' +
+        '<rect x="34" y="96" width="52" height="10" rx="2" fill="#1A2530"/>' +
+        '<path d="M60 30l3.5 7.2 7.9 1.1-5.7 5.6 1.3 7.8L60 48l-7 3.7 1.3-7.8-5.7-5.6 7.9-1.1z" fill="#FFF6D5"/>' +
+      '</svg>' +
+      '<div class="pokaali-otsikko">Mittakirja allekirjoitettu!</div>' +
+      '<div class="pokaali-teksti"><b>' + esc(d.tilaaja || 'Asiakas') + '</b> hyväksyi mittakirjan</div>' +
+      '<div class="pokaali-kohde">' + esc(d.tyomaa || '') + '</div>' +
+      (summa ? '<div class="pokaali-summa">' + summa.toLocaleString('fi-FI', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €</div>' : '') +
+      '<div class="pokaali-pieni">' + esc([d.allekirjoittajaNimi, aika].filter(Boolean).join(' · ')) + '</div>' +
+      '<button type="button" class="pokaali-nappi">' + (lisaa ? 'Seuraava (' + lisaa + ' lisää) →' : 'Jee! 🎉') + '</button>' +
+    '</div>';
+  document.body.appendChild(el);
+  var nappi = el.querySelector('.pokaali-nappi');
+  nappi.focus();
+  var sulje = function() {
+    el.classList.add('pois');
+    setTimeout(function() { el.remove(); naytaPokaali(); }, 250);
+  };
+  nappi.addEventListener('click', sulje);
+  el.addEventListener('click', function(e) { if (e.target === el) sulje(); });
+  document.addEventListener('keydown', function esc_(e) { if (e.key === 'Escape') { document.removeEventListener('keydown', esc_); sulje(); } });
+  if (!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)) konfetti(el.querySelector('canvas'));
+}
+
+function konfetti(canvas) {
+  var ctx = canvas.getContext('2d');
+  var w = canvas.width = window.innerWidth, h = canvas.height = window.innerHeight;
+  var varit = ['#006CB1', '#E8A020', '#F2B42B', '#16A34A', '#E11D48', '#ffffff'];
+  var osat = [];
+  for (var i = 0; i < 160; i++) {
+    osat.push({ x: w / 2 + (Math.random() - 0.5) * 120, y: h * 0.42, vx: (Math.random() - 0.5) * 14, vy: -Math.random() * 15 - 5,
+      koko: 5 + Math.random() * 6, kulma: Math.random() * 6.28, pyor: (Math.random() - 0.5) * 0.3, vari: varit[i % varit.length] });
+  }
+  var alku = performance.now();
+  (function piirra(t) {
+    var kulunut = t - alku;
+    ctx.clearRect(0, 0, w, h);
+    osat.forEach(function(o) {
+      o.vy += 0.35; o.vx *= 0.99; o.x += o.vx; o.y += o.vy; o.kulma += o.pyor;
+      ctx.save(); ctx.translate(o.x, o.y); ctx.rotate(o.kulma);
+      ctx.globalAlpha = Math.max(0, 1 - kulunut / 3200);
+      ctx.fillStyle = o.vari; ctx.fillRect(-o.koko / 2, -o.koko / 4, o.koko, o.koko / 2);
+      ctx.restore();
+    });
+    if (kulunut < 3200 && canvas.isConnected) requestAnimationFrame(piirra);
+  })(alku);
 }
 
 // ── Valut ja alihankkijan kuittaukset ─────────────────────────
