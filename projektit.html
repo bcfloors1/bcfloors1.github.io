@@ -375,6 +375,7 @@ button:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid
 <div class="toast" id="toast"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
@@ -1436,6 +1437,9 @@ document.addEventListener('click', function(e) {
   else if (act === 'poistaValu') poistaValu(el.dataset.valu);
   else if (act === 'muokkaaPt') avaaPerustiedot(id);
   else if (act === 'betonointi') avaaBetonointi(id, el.dataset.valu);
+  else if (act === 'lisaaKK') { var kki = document.getElementById('kkInput'); if (kki) kki.click(); }
+  else if (act === 'avaaKK') avaaKuormakirja(el.dataset.kk);
+  else if (act === 'poistaKK') poistaKuormakirja(el.dataset.kk, el.dataset.valu);
   else if (act === 'muokkaaValu') avaaValuMuokkaus(el.dataset.valu);
   else if (act === 'vmTallenna') vmTallenna();
   else if (act === 'vmPeruuta') { var vid = vm && vm.v._id; vm = null; if (vid) avaaValu(vid); }
@@ -1452,6 +1456,11 @@ document.addEventListener('click', function(e) {
   else if (act === 'ahPoista') ahPoista(el.closest('[data-ah]'));
 });
 document.addEventListener('change', function(e) {
+  if (e.target && e.target.id === 'kkInput' && e.target.files && e.target.files.length) {
+    var kkFiles = Array.prototype.slice.call(e.target.files); var kkValu = e.target.dataset.valu; e.target.value = '';
+    lisaaValunKuormakirjat(kkValu, kkFiles).catch(function(er) { alert('Kuormakirjojen tallennus epäonnistui: ' + er.message); });
+    return;
+  }
   if (e.target && e.target.id === 'ptPdfInput' && e.target.files && e.target.files[0]) {
     var fr = new FileReader();
     fr.onload = function() { ptLueAIlla(String(fr.result).split(',')[1] || ''); };
@@ -2065,6 +2074,103 @@ function konfetti(canvas) {
   })(alku);
 }
 
+// ── Valun kuormakirjat (Firestore: kuormakirjat, PDF base64-muodossa) ──
+// Käsin vietynä (Simman ZIP tai PDF:t) nyt; myöhemmin sähköpostiautomaatio täyttää saman rakenteen.
+var KK_MAX_KOKO = 700 * 1024; // Firestoren 1 MiB:n dokumenttiraja base64-koodauksen jälkeen
+
+function tavutBase64(u) {
+  var s = '', palat = 0x8000;
+  for (var i = 0; i < u.length; i += palat) s += String.fromCharCode.apply(null, u.subarray(i, i + palat));
+  return btoa(s);
+}
+
+function lataaValunKuormakirjat(valuId) {
+  var el = document.getElementById('valuKuormakirjat');
+  if (!el) return;
+  el.innerHTML = '<div class="detalji-row"><span style="color:#94a3b8;font-size:13px">Ladataan…</span></div>';
+  fbDb.collection('kuormakirjat').where('valuId', '==', valuId).get().then(function(snap) {
+    var lista = [];
+    snap.forEach(function(d) { var x = d.data(); lista.push({ id: d.id, nimi: x.nimi || d.id, koko: x.koko || 0, lahde: x.lahde || '' }); });
+    lista.sort(function(a, b) { return a.nimi.localeCompare(b.nimi, 'fi', { numeric: true }); });
+    var otsikko = document.getElementById('valuKuormakirjatOtsikko');
+    if (otsikko) otsikko.textContent = 'Kuormakirjat (' + lista.length + ')';
+    var h = '';
+    if (!lista.length) h += '<div class="detalji-row"><span style="color:#94a3b8;font-size:13px">Ei kuormakirjoja. Lisää Simman ZIP tai PDF:t, niin betonointipöytäkirja hakee ne automaattisesti.</span></div>';
+    lista.forEach(function(k) {
+      h += '<div class="pk-rivi"><span class="pk-lisa" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">📄 ' + esc(k.nimi) + '</span>' +
+        '<span class="pk-lisa">' + Math.round(k.koko / 1024) + ' kt' + (k.lahde === 'sahkoposti' ? ' · sähköposti' : '') + '</span>' +
+        '<div class="pk-rivi-napit"><button type="button" class="mk-btn mk-btn-outline" data-act="avaaKK" data-kk="' + esc(k.id) + '">Avaa</button>' +
+        '<button type="button" class="mk-btn mk-btn-danger mk-btn-icon" data-act="poistaKK" data-kk="' + esc(k.id) + '" data-valu="' + esc(valuId) + '" aria-label="Poista kuormakirja">✕</button></div></div>';
+    });
+    h += '<div style="padding:10px 14px"><button type="button" class="pk-mini" data-act="lisaaKK" data-valu="' + esc(valuId) + '">' + ICON_PLUS + ' Lisää kuormakirjoja (ZIP tai PDF)</button>' +
+      '<input type="file" id="kkInput" accept=".pdf,.zip" multiple hidden data-valu="' + esc(valuId) + '"></div>';
+    el.innerHTML = h;
+  }).catch(function(e) {
+    el.innerHTML = '<div class="detalji-row"><span style="color:#dc2626;font-size:13px">Virhe: ' + esc(e.message) + '</span></div>';
+  });
+}
+
+async function lisaaValunKuormakirjat(valuId, tiedostot) {
+  var v = valutById[valuId] || {};
+  var pdft = [];
+  for (var i = 0; i < tiedostot.length; i++) {
+    var f = tiedostot[i];
+    if (/\.zip$/i.test(f.name)) {
+      if (typeof JSZip === 'undefined') { alert('ZIP-tuki ei latautunut. Lataa sivu uudelleen.'); return; }
+      var zip = await JSZip.loadAsync(f);
+      var entryt = [];
+      zip.forEach(function(polku, e) { if (!e.dir && /\.pdf$/i.test(polku)) entryt.push({ polku: polku, e: e }); });
+      for (var j = 0; j < entryt.length; j++) pdft.push({ nimi: entryt[j].polku.split('/').pop(), data: await entryt[j].e.async('uint8array') });
+    } else if (/\.pdf$/i.test(f.name)) {
+      pdft.push({ nimi: f.name, data: new Uint8Array(await f.arrayBuffer()) });
+    }
+  }
+  if (!pdft.length) { alert('Valituista tiedostoista ei löytynyt PDF-kuormakirjoja.'); return; }
+  var kuka = (window.bcKayttaja && window.bcKayttaja.email) || '';
+  var ok = 0, liianIsot = [];
+  naytaToast('⏳ Tallennetaan ' + pdft.length + ' kuormakirjaa…');
+  for (var k = 0; k < pdft.length; k++) {
+    var p = pdft[k];
+    if (p.data.length > KK_MAX_KOKO) { liianIsot.push(p.nimi); continue; }
+    await fbDb.collection('kuormakirjat').add({
+      valuId: valuId, projektiId: v.projektiId || '', pvm: v.pvm || '', nimi: p.nimi, koko: p.data.length,
+      pdfBase64: tavutBase64(p.data), lahde: 'kasin', lisatty: new Date().toISOString(), lisaaja: kuka
+    });
+    ok++;
+  }
+  naytaToast('✅ ' + ok + ' kuormakirjaa tallennettu');
+  if (liianIsot.length) alert('Nämä ovat liian suuria tallennettaviksi (yli 700 kt):\n' + liianIsot.join('\n'));
+  lataaValunKuormakirjat(valuId);
+}
+
+function avaaKuormakirja(kkId) {
+  // Ikkuna avataan heti napin painalluksesta, sisältö asetetaan haun jälkeen
+  var ikkuna = window.open('', '_blank');
+  fbDb.collection('kuormakirjat').doc(kkId).get().then(function(d) {
+    if (!d.exists || !d.data().pdfBase64) { if (ikkuna) ikkuna.close(); alert('Kuormakirjaa ei löytynyt.'); return; }
+    var bin = atob(d.data().pdfBase64), u = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+    var url = URL.createObjectURL(new Blob([u], { type: 'application/pdf' }));
+    var nimi = d.data().nimi || 'kuormakirja.pdf';
+    if (!ikkuna) { window.open(url, '_blank'); return; }
+    // Katselu + lataus oikealla tiedostonimellä (puhelimessa PDF yleensä ladataan)
+    ikkuna.document.write('<!doctype html><html lang="fi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + esc(nimi) + '</title></head>' +
+      '<body style="margin:0;font-family:system-ui,sans-serif"><div style="padding:10px 14px;background:#006CB1;display:flex;gap:12px;align-items:center;justify-content:space-between">' +
+      '<span style="color:white;font-weight:700;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(nimi) + '</span>' +
+      '<a href="' + url + '" download="' + esc(nimi) + '" style="background:white;color:#006CB1;font-weight:700;font-size:14px;padding:8px 14px;border-radius:8px;text-decoration:none;white-space:nowrap">Lataa PDF</a></div>' +
+      '<iframe src="' + url + '" title="' + esc(nimi) + '" style="border:0;width:100%;height:calc(100vh - 56px)"></iframe></body></html>');
+    ikkuna.document.close();
+  }).catch(function(e) { if (ikkuna) ikkuna.close(); alert('Virhe: ' + e.message); });
+}
+
+function poistaKuormakirja(kkId, valuId) {
+  if (!confirm('Poistetaanko kuormakirja valulta?')) return;
+  fbDb.collection('kuormakirjat').doc(kkId).delete().then(function() {
+    naytaToast('🗑 Kuormakirja poistettu');
+    lataaValunKuormakirjat(valuId);
+  }).catch(function(e) { alert('Virhe: ' + e.message); });
+}
+
 // ── Valut ja alihankkijan kuittaukset ─────────────────────────
 // Valu luodaan projektille, ja sen kuittauslinkki (valukuittaus.html?id=…) jaetaan alihankkijalle.
 // Alihankkija kirjaa linkin kautta pintatyön ajat, miesmäärät, jälkihoitoaineen, havainnot ja kuvat.
@@ -2457,6 +2563,7 @@ function piirraValu(v) {
   if (k.paivitetty) h += rivi('Päivitetty', new Date(k.paivitetty).toLocaleString('fi-FI'));
   h += '</div>';
 
+  h += '<div class="detalji-section"><div class="detalji-section-title" id="valuKuormakirjatOtsikko">Kuormakirjat</div><div id="valuKuormakirjat"></div></div>';
   h += '<div class="detalji-section"><div class="detalji-section-title">Kuvat (' + ((k.kuvat || []).length) + ')</div>';
   if (k.kuvat && k.kuvat.length) {
     h += '<div class="valu-kuvat">' + k.kuvat.map(function(kv, i) {
@@ -2484,6 +2591,7 @@ function piirraValu(v) {
   h += '<button type="button" data-act="poistaValu" data-valu="' + esc(v._id) + '" style="border:1.5px solid #fca5a5;background:white;color:#ef4444">Poista valu</button>';
   h += '</div>';
   document.getElementById('detaljitSisalto').innerHTML = h;
+  lataaValunKuormakirjat(v._id);
 }
 
 async function kaannaValunTarkennus(v) {

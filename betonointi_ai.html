@@ -886,7 +886,7 @@ function valuPvmFi(iso) { var m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{
 
 function paivitaValuValinta(projektiId) {
   var sel = document.getElementById('valuValinta');
-  valittuValuId = '';
+  valittuValuId = ''; valittuValuPvm = '';
   if (!sel) return;
   sel.innerHTML = '<option value="">— Valitse valu (alihankkijan kuittaus) —</option>';
   if (!projektiId) { sel.style.display = 'none'; return; }
@@ -922,8 +922,68 @@ function valitseValu(valuId) {
     if (!doc.exists) { naytaStatus('❌ Valua ei löytynyt.', 'red'); return; }
     var v = doc.data(); v._id = doc.id;
     if (v.lukittu && !confirm('Tämän valun kuittaus on jo lukittu (pöytäkirja on luotu aiemmin). Täytetäänkö kentät silti kuittauksen tiedoilla?')) { return; }
+    valittuValuPvm = v.pvm || '';
     await taytaValusta(v);
+    await haeValunKuormakirjat(valuId);
   }).catch(function(e) { naytaStatus('❌ Kuittauksen haku epäonnistui: ' + e.message, 'red'); });
+}
+
+// ── Valun kuormakirjat (Firestore: kuormakirjat, PDF base64-muodossa) ──
+var valittuValuPvm = '';
+var KK_MAX_KOKO = 700 * 1024; // Firestoren 1 MiB:n dokumenttiraja base64-koodauksen jälkeen
+
+function base64Tavuiksi(b64) {
+  var bin = atob(b64), u = new Uint8Array(bin.length);
+  for (var i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+  return u;
+}
+
+async function haeValunKuormakirjat(valuId) {
+  var tila = document.getElementById('tuontiStatus');
+  var edellinen = tila ? tila.textContent : '';
+  var snap;
+  try { snap = await fbDb.collection('kuormakirjat').where('valuId', '==', valuId).get(); }
+  catch (e) { console.warn('Kuormakirjojen haku:', e.message); return; }
+  var lista = [];
+  snap.forEach(function(d) { var x = d.data(); if (x.pdfBase64) lista.push({ nimi: x.nimi || (d.id + '.pdf'), data: base64Tavuiksi(x.pdfBase64), jarjestys: x.nimi || '' }); });
+  if (!lista.length) {
+    // Valulla ei vielä kuormakirjoja: jos ne on jo tuotu käsin, tallennetaan valulle
+    if (kuormakirjaTiedostot.length) tallennaKuormakirjatValulle();
+    return;
+  }
+  lista.sort(function(a, b) { return a.jarjestys.localeCompare(b.jarjestys, 'fi', { numeric: true }); });
+  await tuoKuormakirjat(null, lista.map(function(x) { return { nimi: x.nimi, data: x.data }; }));
+  var nyt = tila ? tila.textContent : '';
+  var teksti = edellinen + ' 📥 Valulta haettiin ' + lista.length + ' kuormakirjaa. ' + nyt;
+  naytaStatus(teksti, /⚠️|❌/.test(teksti) ? 'red' : 'green');
+}
+
+async function tallennaKuormakirjatValulle() {
+  var vid = valittuValuId, pid = document.getElementById('projektiValinta').value;
+  if (!vid || !kuormakirjaTiedostot.length) return;
+  try {
+    var olemassa = await fbDb.collection('kuormakirjat').where('valuId', '==', vid).get();
+    if (!olemassa.empty && !confirm('Valulla on jo ' + olemassa.size + ' tallennettua kuormakirjaa. Korvataanko ne nyt tuoduilla?')) return;
+    var poistot = []; olemassa.forEach(function(d) { poistot.push(fbDb.collection('kuormakirjat').doc(d.id).delete()); });
+    await Promise.all(poistot);
+    var kuka = (window.bcKayttaja && window.bcKayttaja.email) || '';
+    var ohitetut = 0;
+    for (var i = 0; i < kuormakirjaTiedostot.length; i++) {
+      var t = kuormakirjaTiedostot[i];
+      if (t.data.length > KK_MAX_KOKO) { ohitetut++; continue; }
+      await fbDb.collection('kuormakirjat').add({
+        valuId: vid, projektiId: pid || '', pvm: valittuValuPvm || '', nimi: String(t.nimi).split('/').pop(),
+        koko: t.data.length, pdfBase64: lueBase64(t.data), lahde: 'kasin',
+        lisatty: new Date().toISOString(), lisaaja: kuka
+      });
+    }
+    var tila = document.getElementById('tuontiStatus');
+    var lisa = ' 💾 Kuormakirjat tallennettu valulle (' + (kuormakirjaTiedostot.length - ohitetut) + ' kpl)' + (ohitetut ? ', ⚠️ ' + ohitetut + ' liian suurta jäi tallentamatta.' : '.');
+    naytaStatus((tila ? tila.textContent : '') + lisa, /⚠️|❌/.test((tila ? tila.textContent : '') + lisa) ? 'red' : 'green');
+  } catch (e) {
+    console.error('Kuormakirjojen tallennus valulle:', e);
+    naytaStatus('⚠️ Kuormakirjojen tallennus valulle epäonnistui: ' + e.message, 'red');
+  }
 }
 
 // Pyöristää "HH:MM" lähimpään puoleen tuntiin (pöytäkirjan valikoiden tarkkuus)
@@ -1535,19 +1595,24 @@ Palauta VAIN JSON ilman muuta tekstiä:
 }
 
 // ── Pää-funktio: tuo kuormakirjat ──
-async function tuoKuormakirjat(input) {
-  var tiedosto = input.files[0];
-  if (!tiedosto) return;
-  input.value = '';
+// input = tiedostokenttä (ZIP tai PDF) TAI null, jolloin valmiit = [{nimi, data (Uint8Array)}] (valun kuormakirjat)
+async function tuoKuormakirjat(input, valmiit) {
+  var tiedosto = valmiit ? null : input.files[0];
+  if (!valmiit && !tiedosto) return;
+  if (!valmiit) input.value = '';
   
   naytaStatus('⏳ Luetaan tiedostoa...', 'white');
   kuormakirjaTiedostot = [];
 
   var tekstit = [];
-  var onZip = tiedosto.name.toLowerCase().endsWith('.zip');
+  var onZip = !valmiit && tiedosto.name.toLowerCase().endsWith('.zip');
 
   try {
-    if (onZip) {
+    if (valmiit) {
+      naytaStatus('⏳ Luetaan ' + valmiit.length + ' kuormakirjaa...', 'white');
+      valmiit.forEach(function(p) { kuormakirjaTiedostot.push(p); });
+      tekstit = await Promise.all(valmiit.map(function(p) { return luePDFTeksti(lueBase64(p.data)); }));
+    } else if (onZip) {
       // ZIP — pura ja lue kaikki PDF:t
       var zip = await JSZip.loadAsync(tiedosto);
       var pdft = [];
@@ -1685,6 +1750,8 @@ async function tuoKuormakirjat(input) {
     };
     taytaKentat(tiedot);
     if (tuontiHuomio) naytaStatus('✅ Kentät täytetty.' + tuontiHuomio, 'red');
+    // Käsin tuodut kuormakirjat talteen valulle (jos valu on valittu)
+    if (!valmiit && valittuValuId) tallennaKuormakirjatValulle();
 
   } catch(err) {
     naytaStatus('❌ Virhe: ' + err.message, 'red');
