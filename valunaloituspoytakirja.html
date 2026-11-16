@@ -211,13 +211,18 @@ const storage = firebase.storage();
 async function loadProjektit() {
   const sel = document.getElementById('projektiSelect');
   sel.innerHTML = '<option value="">— Valitse projekti —</option>';
+  // Arkistoidut projektit eivät näy valikossa (kuten Projektipankissa), mutta ne lisätään,
+  // jos tarkastus avataan arkistoidun projektin linkistä.
+  const arkistoidut = {};
   try {
     const snap = await db.collection('projects').get();
     snap.forEach(doc => {
+      const d = doc.data();
+      if (d.arkistoitu) { arkistoidut[doc.id] = d; return; }
       const o = document.createElement('option');
       o.value = doc.id;
-      o.textContent = doc.data().tyomaa || doc.data().nimi || doc.id;
-      o.dataset.tyonumero = doc.data().tyonro || '';
+      o.textContent = d.tyomaa || d.nimi || doc.id;
+      o.dataset.tyonumero = d.tyonro || '';
       sel.appendChild(o);
     });
   } catch(e) { console.warn('Projekteja ei voitu ladata:', e); }
@@ -225,6 +230,15 @@ async function loadProjektit() {
   other.value = '__muu__';
   other.textContent = '— Kirjoita käsin —';
   sel.appendChild(other);
+  const varmistaValikossa = (id) => {
+    if (!id || !arkistoidut[id] || Array.from(sel.options).some(o => o.value === id)) return;
+    const d = arkistoidut[id];
+    const o = document.createElement('option');
+    o.value = id;
+    o.textContent = (d.tyomaa || d.nimi || id) + ' (arkistoitu)';
+    o.dataset.tyonumero = d.tyonro || '';
+    sel.insertBefore(o, other);
+  };
 
   // Lue projekti URL-parametrista (projektipankista tuleva linkki)
   const urlParams = new URLSearchParams(window.location.search);
@@ -236,6 +250,7 @@ async function loadProjektit() {
   }
 
   if (projektiParam) {
+    varmistaValikossa(projektiParam);
     sel.value = projektiParam;
     onProjektiChange();
   }
@@ -247,7 +262,7 @@ async function loadProjektit() {
       if (doc.exists) {
         const t = doc.data();
         // Täytä perustiedot
-        if (t.projektiId) { sel.value = t.projektiId; onProjektiChange(); }
+        if (t.projektiId) { varmistaValikossa(t.projektiId); sel.value = t.projektiId; onProjektiChange(); }
         document.getElementById('tyonumero').value = t.tyonumero || '';
         document.getElementById('paivamaara').value = t.paivamaara || '';
         document.getElementById('tarkastaja').value = t.tarkastaja || '';

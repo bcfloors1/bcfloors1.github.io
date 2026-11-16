@@ -777,13 +777,16 @@ bcKirjaudu(function() {
 fbDb.collection('projects').orderBy('tyomaa').onSnapshot(function(snap) {
   var sel = document.getElementById('projektiValinta');
   var cur = sel.value;
+  // Arkistoidut projektit piilotetaan (kuten Projektipankissa), paitsi jos se on jo valittu tai avattu osoitteesta
+  var urlPid = new URLSearchParams(location.search).get('projekti') || '';
   sel.innerHTML = '<option value="">— Valitse projekti tai täytä käsin —</option>';
   snap.forEach(function(d) {
     var p = d.data();
     projektitData[d.id] = p;
+    if (p.arkistoitu && d.id !== cur && d.id !== urlPid) return;
     var opt = document.createElement('option');
     opt.value = d.id;
-    opt.textContent = (p.tyomaa||'') + (p.tilaaja ? ' – ' + p.tilaaja : '') + (p.tyonro ? ' ('+p.tyonro+')' : '');
+    opt.textContent = (p.tyomaa||'') + (p.tilaaja ? ' – ' + p.tilaaja : '') + (p.tyonro ? ' ('+p.tyonro+')' : '') + (p.arkistoitu ? ' (arkistoitu)' : '');
     opt.setAttribute('data-tilaaja', p.tilaaja||'');
     opt.setAttribute('data-tyomaa', p.tyomaa||'');
     opt.setAttribute('data-tyonro', p.tyonro||'');

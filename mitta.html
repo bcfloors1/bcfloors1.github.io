@@ -684,6 +684,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (p.tyomaa) document.getElementById('tyomaa').value = p.tyomaa;
         if (p.tyonro) document.getElementById('tyonro').value = p.tyonro;
         // Valitse projektiValinta-listassa
+        lisaaArkistoituValikkoon(projektiId);
         var sel = document.getElementById('projektiValinta');
         for (var j = 0; j < sel.options.length; j++) {
           if (sel.options[j].value === projektiId) { sel.selectedIndex = j; break; }
@@ -1245,20 +1246,36 @@ if (!firebase.apps.length) firebase.initializeApp(fbConfig2);
 var fbDb2 = firebase.firestore();
 
 bcKirjaudu(function() {
+var arkistoidutProjektit = {};
+function projektiOptio(id, p) {
+  var opt = document.createElement('option');
+  opt.value = id;
+  opt.textContent = (p.tyomaa||'') + (p.tilaaja ? ' – ' + p.tilaaja : '') + (p.tyonro ? ' ('+p.tyonro+')' : '') + (p.arkistoitu ? ' (arkistoitu)' : '');
+  opt.setAttribute('data-tilaaja', p.tilaaja||'');
+  opt.setAttribute('data-tyomaa', p.tyomaa||'');
+  opt.setAttribute('data-tyonro', p.tyonro||'');
+  opt.setAttribute('data-yhteys', p.yhteys||'');
+  return opt;
+}
+// Vanhaa mittakirjaa avattaessa arkistoitu projekti lisätään valikkoon
+function lisaaArkistoituValikkoon(id) {
+  var sel = document.getElementById('projektiValinta');
+  if (!sel || !id || !arkistoidutProjektit[id]) return;
+  if (Array.prototype.some.call(sel.options, function(o) { return o.value === id; })) return;
+  sel.appendChild(projektiOptio(id, arkistoidutProjektit[id]));
+}
+
 fbDb2.collection('projects').orderBy('tyomaa').onSnapshot(function(snap) {
   var sel = document.getElementById('projektiValinta');
   var edellinenValinta = sel.value || aktiivinenProjektiId || '';
+  // Arkistoidut projektit piilotetaan (kuten Projektipankissa), paitsi jos se on jo valittu tai avattu osoitteesta
+  var urlPid = new URLSearchParams(location.search).get('projekti') || '';
+  arkistoidutProjektit = {};
   sel.innerHTML = '<option value="">— Valitse projekti tai täytä käsin —</option>';
   snap.forEach(function(d) {
     var p = d.data();
-    var opt = document.createElement('option');
-    opt.value = d.id;
-    opt.textContent = (p.tyomaa||'') + (p.tilaaja ? ' – ' + p.tilaaja : '') + (p.tyonro ? ' ('+p.tyonro+')' : '');
-    opt.setAttribute('data-tilaaja', p.tilaaja||'');
-    opt.setAttribute('data-tyomaa', p.tyomaa||'');
-    opt.setAttribute('data-tyonro', p.tyonro||'');
-    opt.setAttribute('data-yhteys', p.yhteys||'');
-    sel.appendChild(opt);
+    if (p.arkistoitu && d.id !== edellinenValinta && d.id !== urlPid) { arkistoidutProjektit[d.id] = p; return; }
+    sel.appendChild(projektiOptio(d.id, p));
   });
   if (edellinenValinta) {
     for (var k = 0; k < sel.options.length; k++) {
