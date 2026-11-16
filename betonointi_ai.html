@@ -1493,7 +1493,8 @@ function lueSchwenkKuorma(teksti) {
   var rivit = teksti.split('\n');
   var m3 = null, kum = null;
   for (var i = 0; i < rivit.length; i++) {
-    var m = rivit[i].match(/^\s*\d{6,7}\s.*?(\d+,\d{2})\s+(\d+,\d{2})\s+(\d+,\d{2})\s+(\d+,\d{2})\s*$/);
+    // [tämä kuorma][tilattu][toimitettu yht.][jäljellä] – jäljellä on tyhjä, kun koko tilaus tuli (viimeinen tai ainoa kuorma)
+    var m = rivit[i].match(/^\s*\d{6,7}\s.*?(\d+,\d{2})\s+(\d+,\d{2})\s+(\d+,\d{2})(?:\s+(\d+,\d{2}))?\s*$/);
     if (m) {
       m3 = parseFloat(m[1].replace(',', '.'));
       kum = parseFloat(m[3].replace(',', '.'));
@@ -1511,7 +1512,15 @@ function lueSchwenkKuorma(teksti) {
   if (alku >= 0) ajat = rivit.slice(alku, loppu).join(' ').match(/\b\d{2}:\d{2}\b/g) || [];
   var purkuAlkaa = null, purkuLoppuu = null;
   if (ajat.length >= 5) { purkuAlkaa = ajat[2]; purkuLoppuu = ajat[3]; }
-  else if (ajat.length === 4) { purkuAlkaa = ajat[1]; purkuLoppuu = ajat[2]; } // purku alkaa -kenttä tyhjä: alkoi saapuessa
+  else if (ajat.length === 4) {
+    // Neljä aikaa: puuttuu joko "purku alkaa" (alkoi saapuessa) tai "saapuminen tehtaalle".
+    // Odotusaika (saapuminen → purku alkaa) ratkaisee: jos 3. aika = saapuminen + odotus, se on purun alku.
+    var odotus = alku >= 0 ? (rivit.slice(alku, loppu).join(' ').match(/(\d+)\s*min\b/) || [])[1] : null;
+    var min = function(t) { var p = t.split(':'); return +p[0] * 60 + +p[1]; };
+    var ero = (min(ajat[2]) - min(ajat[1]) + 1440) % 1440;
+    if (odotus !== undefined && odotus !== null && ero === +odotus && +odotus > 0) { purkuAlkaa = ajat[2]; purkuLoppuu = ajat[3]; }
+    else { purkuAlkaa = ajat[1]; purkuLoppuu = ajat[2]; } // purku alkaa -kenttä tyhjä: alkoi saapuessa
+  }
   return { m3: m3, kum: kum, alkaa: purkuAlkaa, loppuu: purkuLoppuu };
 }
 
