@@ -255,6 +255,34 @@ async function loadProjektit() {
     onProjektiChange();
   }
 
+  // Projektipankin valulta avattaessa (?valu=<id>): perustiedot valulta, tarkastus kytketään valuun
+  const valuParam = urlParams.get('valu');
+  if (valuParam && !tarkastusParam) {
+    try {
+      const vd = await db.collection('valut').doc(valuParam).get();
+      if (vd.exists) {
+        const v = vd.data();
+        linkattuValuId = valuParam;
+        const aseta = (id, arvo) => { const el = document.getElementById(id); if (el && arvo && !el.value.trim()) el.value = arvo; };
+        if (v.projektiId) {
+          varmistaValikossa(v.projektiId);
+          if (Array.from(sel.options).some(o => o.value === v.projektiId)) { sel.value = v.projektiId; onProjektiChange(); }
+        }
+        aseta('tyonumero', v.tyonro);
+        if (v.pvm) document.getElementById('paivamaara').value = v.pvm;
+        aseta('valualue', [v.valualue, v.kerros].filter(Boolean).join(', '));
+        aseta('tarkastaja', nimiSahkopostista((window.bcKayttaja && window.bcKayttaja.email) || ''));
+        if (v.projektiId) {
+          try {
+            const pd = await db.collection('projects').doc(v.projektiId).get();
+            if (pd.exists) aseta('tilaaja', pd.data().yhteys || '');
+          } catch (e) { console.warn('Projektin haku:', e); }
+        }
+        naytaValuLinkki(v);
+      }
+    } catch (e) { console.warn('Valun haku:', e); }
+  }
+
   // Lataa vanha tarkastus jos avataan PDF-linkistä
   if (tarkastusParam) {
     try {
@@ -263,6 +291,7 @@ async function loadProjektit() {
         const t = doc.data();
         // Täytä perustiedot
         if (t.projektiId) { varmistaValikossa(t.projektiId); sel.value = t.projektiId; onProjektiChange(); }
+        linkattuValuId = t.valuId || null;
         document.getElementById('tyonumero').value = t.tyonumero || '';
         document.getElementById('paivamaara').value = t.paivamaara || '';
         document.getElementById('tarkastaja').value = t.tarkastaja || '';
@@ -424,6 +453,28 @@ window.addEventListener('load',()=>{
   document.getElementById('paivamaara').value=new Date().toISOString().split('T')[0];
   bcKirjaudu(function(){ loadProjektit(); });
 });
+
+// Valu, johon tarkastus kytketään (Projektipankin valulta avattaessa)
+let linkattuValuId = null;
+
+// "lari.knuuttila@bcfloors.fi" → "Lari Knuuttila"
+function nimiSahkopostista(email) {
+  const osa = String(email || '').split('@')[0];
+  if (!osa) return '';
+  return osa.split(/[._-]+/).filter(Boolean).map(x => x.charAt(0).toUpperCase() + x.slice(1)).join(' ');
+}
+
+function naytaValuLinkki(v) {
+  const sel = document.getElementById('projektiSelect');
+  const osio = sel && sel.closest('.section');
+  if (!osio || document.getElementById('valuLinkki')) return;
+  const pvm = String(v.pvm || '').split('-').reverse().join('.');
+  const el = document.createElement('div');
+  el.id = 'valuLinkki';
+  el.style.cssText = 'background:#e8f4fc;border:1px solid #bfdbfe;color:#0b4a8f;border-radius:8px;padding:9px 12px;margin-bottom:12px;font-size:13px;font-weight:600';
+  el.textContent = '🔗 Tarkastus kytketään valuun: ' + [pvm, v.valualue, v.rakennetyyppi && v.rakennetyyppi.rakenne].filter(Boolean).join(' · ');
+  osio.insertBefore(el, osio.firstChild);
+}
 
 function getProjektiNimi() {
   const sel = document.getElementById('projektiSelect');
@@ -747,6 +798,7 @@ async function submitForm(silent = false) {
     // Tallenna ensin ilman kuvia
     const docRef = await db.collection('raudoitustarkastukset').add({
       projektiId:sel.value!=='__muu__'?sel.value:null,
+      valuId:linkattuValuId||null,
       projekti:nimi,
       tyonumero:document.getElementById('tyonumero').value.trim(),
       paivamaara:document.getElementById('paivamaara').value,

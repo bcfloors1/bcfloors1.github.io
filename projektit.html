@@ -1437,6 +1437,7 @@ document.addEventListener('click', function(e) {
   else if (act === 'poistaValu') poistaValu(el.dataset.valu);
   else if (act === 'muokkaaPt') avaaPerustiedot(id);
   else if (act === 'betonointi') avaaBetonointi(id, el.dataset.valu);
+  else if (act === 'raudoitus') avaaRaudoitustarkastus(id, el.dataset.valu);
   else if (act === 'lisaaKK') { var kki = document.getElementById('kkInput'); if (kki) kki.click(); }
   else if (act === 'avaaKK') avaaKuormakirja(el.dataset.kk);
   else if (act === 'poistaKK') poistaKuormakirja(el.dataset.kk, el.dataset.valu);
@@ -2233,11 +2234,14 @@ function valuRiviHtml(projektinId, v) {
   if (v.alihankkija && v.alihankkija.nimi) lisa.push(esc(v.alihankkija.nimi));
   if (k.pintaAlkoi) lisa.push('pinta ' + valuAika(k.pintaAlkoi) + '–' + valuAika(k.pintaPaattyi));
   if (k.kuvat && k.kuvat.length) lisa.push(k.kuvat.length + ' kuvaa');
+  var tk = valunTarkastus(projektinId, v._id);
+  if (tk) lisa.push('<span style="color:#16a34a;font-weight:600">✓ Tarkastettu</span>');
   return '<div class="pk-rivi"><span class="pk-pvm">' + valuPvmFi(v.pvm) + '</span>' +
     '<span class="valu-badge ' + tila.luokka + '">' + tila.teksti + '</span>' +
     (lisa.length ? '<span class="pk-lisa">' + lisa.join(' · ') + '</span>' : '') +
     '<span class="pk-grow"></span><div class="pk-rivi-napit">' +
     '<button type="button" class="mk-btn mk-btn-primary" data-act="avaaValu" data-valu="' + esc(v._id) + '">Avaa</button>' +
+    (!tk && !v.lukittu ? '<button type="button" class="mk-btn mk-btn-outline" data-act="raudoitus" data-id="' + esc(projektinId) + '" data-valu="' + esc(v._id) + '">Tarkastus</button>' : '') +
     '<button type="button" class="mk-btn mk-btn-outline" data-act="betonointi" data-id="' + esc(projektinId) + '" data-valu="' + esc(v._id) + '">Pöytäkirja</button>' +
     (v.lukittu ? '' : '<button type="button" class="mk-btn mk-btn-green" data-act="jaaValu" data-valu="' + esc(v._id) + '">WhatsApp</button>' +
     '<button type="button" class="mk-btn mk-btn-copy" data-act="kopioiValu" data-valu="' + esc(v._id) + '">Kopioi linkki</button>') +
@@ -2507,6 +2511,53 @@ function avaaBetonointi(projektinId, valuId) {
   window.open('betonointi_ai.html' + (q.length ? '?' + q.join('&') : ''), '_blank');
 }
 
+// ── Raudoitustarkastus (valunaloituspöytäkirja) kytkettynä valuun ──
+// Tarkastus tallentaa valuId:n; projektin tarkastukset ovat tarkCache[projektiId]-listassa.
+var odottavaTarkastus = null; // { projektiId, valuId } – päivitetään, kun palataan välilehdelle
+
+function valunTarkastus(projektinId, valuId) {
+  var lista = tarkCache[projektinId];
+  if (!Array.isArray(lista)) return null;
+  for (var i = 0; i < lista.length; i++) { if (lista[i].data().valuId === valuId) return lista[i]; }
+  return null;
+}
+
+function avaaRaudoitustarkastus(projektinId, valuId) {
+  odottavaTarkastus = { projektiId: projektinId, valuId: valuId };
+  window.open('valunaloituspoytakirja.html?projekti=' + encodeURIComponent(projektinId) + '&valu=' + encodeURIComponent(valuId), '_blank');
+}
+
+function lataaValunTarkastus(v) {
+  var el = document.getElementById('valuTarkastus');
+  if (!el) return;
+  el.innerHTML = '<div class="detalji-row"><span style="color:#94a3b8;font-size:13px">Ladataan…</span></div>';
+  db.collection('raudoitustarkastukset').where('valuId', '==', v._id).get().then(function(snap) {
+    var h = '';
+    snap.forEach(function(d) {
+      var t = d.data();
+      var pvm = t.paivamaara ? t.paivamaara.split('-').reverse().join('.') : '';
+      var tulos = t.tulos === 'ok' ? '<span class="tark-tulos-ok">✅ Hyväksytty</span>' : t.tulos === 'warn' ? '<span class="tark-tulos-warn">⚠️ Huomautuksella</span>' : '<span class="tark-tulos-error">❌ Hylätty</span>';
+      h += '<div class="pk-rivi"><span class="pk-pvm">' + esc(pvm) + '</span>' + tulos +
+        '<span class="pk-lisa">' + esc(t.tarkastaja || '') + (t.kuvat && t.kuvat.length ? ' · ' + t.kuvat.length + ' kuvaa' : '') + '</span>' +
+        '<span class="pk-grow"></span><div class="pk-rivi-napit"><button type="button" class="mk-btn mk-btn-primary" onclick="lataaVanhaPDF(&quot;' + esc(d.id) + '&quot;)">PDF</button></div></div>';
+    });
+    if (!h) h = '<div class="detalji-row"><span style="color:#94a3b8;font-size:13px">Tarkastusta ei ole tehty.</span></div>';
+    h += '<div style="padding:10px 14px"><button type="button" class="pk-mini" data-act="raudoitus" data-id="' + esc(v.projektiId || '') + '" data-valu="' + esc(v._id) + '">' + ICON_PLUS + (snap.empty ? ' Tee raudoitustarkastus' : ' Uusi tarkastus') + '</button></div>';
+    el.innerHTML = h;
+  }).catch(function(e) {
+    el.innerHTML = '<div class="detalji-row"><span style="color:#dc2626;font-size:13px">Virhe: ' + esc(e.message) + '</span></div>';
+  });
+}
+
+// Palattaessa tarkastuksen välilehdeltä päivitetään valun tila ja avoin valunäkymä
+window.addEventListener('focus', function() {
+  if (!odottavaTarkastus) return;
+  var o = odottavaTarkastus;
+  lataaProjektinTarkastukset(o.projektiId);
+  var auki = document.getElementById('valuTarkastus');
+  if (auki && valutById[o.valuId]) lataaValunTarkastus(valutById[o.valuId]);
+});
+
 function avaaValu(valuId) {
   haeValu(valuId).then(function(v) {
     piirraValu(v);
@@ -2563,6 +2614,7 @@ function piirraValu(v) {
   if (k.paivitetty) h += rivi('Päivitetty', new Date(k.paivitetty).toLocaleString('fi-FI'));
   h += '</div>';
 
+  h += '<div class="detalji-section"><div class="detalji-section-title">Raudoitustarkastus</div><div id="valuTarkastus"></div></div>';
   h += '<div class="detalji-section"><div class="detalji-section-title" id="valuKuormakirjatOtsikko">Kuormakirjat</div><div id="valuKuormakirjat"></div></div>';
   h += '<div class="detalji-section"><div class="detalji-section-title">Kuvat (' + ((k.kuvat || []).length) + ')</div>';
   if (k.kuvat && k.kuvat.length) {
@@ -2592,6 +2644,7 @@ function piirraValu(v) {
   h += '</div>';
   document.getElementById('detaljitSisalto').innerHTML = h;
   lataaValunKuormakirjat(v._id);
+  lataaValunTarkastus(v);
 }
 
 async function kaannaValunTarkennus(v) {
