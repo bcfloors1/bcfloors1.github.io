@@ -2182,8 +2182,9 @@ function analysoiSchwenk(kuormat, pumput) {
   });
   var vajaat = tilaukset.filter(function(t) { return !t.taysi; });
   if (!valmis) {
-    huomiot.push('⚠️ Valu voi olla kesken: ' + vajaat.map(function(t) { return 'tilaus ' + fi(t.tilattu) + ' m³, toimitettu ' + fi(t.toimitettu) + ' m³'; }).join('; ') +
-      (pumppu ? '; lopullinen pumppulappu puuttuu' : '') + '. Lisää kuormakirjoja voi olla tulossa.');
+    var syyt = vajaat.map(function(t) { return 'tilaus ' + fi(t.tilattu) + ' m³, toimitettu ' + fi(t.toimitettu) + ' m³'; });
+    if (pumppu) syyt.push('lopullinen pumppulappu puuttuu');
+    huomiot.push('⚠️ Valu voi olla kesken: ' + syyt.join('; ') + '. Lisää kuormakirjoja voi olla tulossa.');
   } else {
     vajaat.forEach(function(t) { huomiot.push('ℹ️ Tilaus ' + fi(t.tilattu) + ' m³: toimitettu ' + fi(t.toimitettu) + ' m³ (' + fi(t.jaljella) + ' m³ jäi toimittamatta).'); });
   }
