@@ -1353,6 +1353,26 @@ function asetaCheckbox(nimi, arvo) {
   });
 }
 
+// Useamman massan valu (esim. sisälattia + ulkoluiska): betonikentät päämassan mukaan, erittely Muut huomiot -kenttään
+function asetaPaamassa(a) {
+  var p = a.paamassa;
+  if (!p) return;
+  if (p.lujuus) asetaDropdown('lujuus', p.lujuus);
+  if (p.notkeus) asetaDropdown('notkeus', p.notkeus);
+  if (p.raekoko) asetaDropdown('raekoko', '#' + p.raekoko + ' mm');
+  ['XC1','XC2','XC3','XC4','XF1','XF2','XF3','XF4','XD1','XD2','XD3','XS1','XS2','XS3','NP'].forEach(function(r) { asetaCheckbox(r, false); });
+  (p.rasitus || []).forEach(function(r) { asetaCheckbox(r, true); });
+  document.querySelectorAll('.cbi').forEach(function(el) {
+    var t = el.querySelector('span') ? el.querySelector('span').textContent.trim() : '';
+    var cb = el.querySelector('input[type="checkbox"]');
+    if (!cb) return;
+    if (t === '50 v') cb.checked = (p.kayttoika || []).indexOf('50') >= 0;
+    if (t === '100 v') cb.checked = (p.kayttoika || []).indexOf('100') >= 0;
+  });
+  var mh = document.getElementById('muutHuomiot');
+  if (mh && a.erittely && mh.value.indexOf('betonimassaa:') < 0) mh.value = (mh.value.trim() ? mh.value.trim() + '\n' : '') + a.erittely;
+}
+
 // ── Täytä kentät AI:n palauttamilla tiedoilla ──
 function taytaKentat(tiedot) {
   // Toimittaja
@@ -1498,11 +1518,14 @@ function lueBase64(uint8array) {
 function lueSchwenkKuorma(teksti) {
   if (!/Kuormakirjanumero/i.test(teksti) || !/M\u00e4\u00e4r\u00e4 j\u00e4ljell\u00e4/i.test(teksti)) return null;
   var rivit = teksti.split('\n');
-  var m3 = null, kum = null, tilattu = null, jaljella = 0, tuote = '';
+  var m3 = null, kum = null, tilattu = null, jaljella = 0, tuote = '', lujuus = '', notkeus = '', raekoko = '';
   for (var i = 0; i < rivit.length; i++) {
     var m = rivit[i].match(/^\s*(\d{6,7})\s.*?(\d+,\d{2})\s+(\d+,\d{2})\s+(\d+,\d{2})(?:\s+(\d+,\d{2}))?\s*$/);
     if (m) {
       tuote = m[1];
+      lujuus = (rivit[i].match(/\b(C\d{2}\/\d{2})\b/) || [])[1] || '';
+      var nk = rivit[i].match(/\b(S[1-5])\s+(\d{1,2})\b/);
+      if (nk) { notkeus = nk[1]; raekoko = nk[2]; }
       m3 = parseFloat(m[2].replace(',', '.'));
       tilattu = parseFloat(m[3].replace(',', '.'));
       kum = parseFloat(m[4].replace(',', '.'));
@@ -1512,6 +1535,21 @@ function lueSchwenkKuorma(teksti) {
   }
   if (m3 === null) return null;
   var nro = (teksti.match(/Kuormakirjanumero:?\s*(\d{5,12})/i) || [])[1] || '';
+  // Tuotenimi (Tuotenimi-otsikon seuraava rivi notkeusluokkaan asti), rasitusluokat ja käyttöikä
+  var tuotenimi = '';
+  for (var n = 0; n < rivit.length - 1; n++) {
+    if (/^Tuotenimi\b/i.test(rivit[n].trim())) {
+      // Otsikon jälkeen voi olla otsikon paloja (esim. "Käyttö"): nimi on rivi, jossa on lujuusluokka, Dmax tai notkeusluokka
+      for (var q = n + 1; q < Math.min(rivit.length, n + 5); q++) {
+        if (/C\d{2}\/\d{2}|Dmax|\bS[1-5]\b/.test(rivit[q])) { var tn = rivit[q].match(/^(.*?\bS[1-5]\b)/); tuotenimi = (tn ? tn[1] : rivit[q].slice(0, 40)).trim(); break; }
+      }
+      break;
+    }
+  }
+  var rasitus = [];
+  (teksti.match(/\bX[CFDSA]\d\b/g) || []).forEach(function(x) { if (rasitus.indexOf(x) < 0) rasitus.push(x); });
+  var ki = teksti.match(/\b(\d{2,3})(?:\s*ja\s*(\d{2,3}))?\s*vu\b/);
+  var kayttoika = ki ? [ki[1]].concat(ki[2] ? [ki[2]] : []) : [];
   var alku = -1, loppu = rivit.length;
   for (var j = 0; j < rivit.length; j++) {
     if (alku < 0 && /Lis\u00e4palvelut/i.test(rivit[j])) alku = j;
@@ -1533,7 +1571,8 @@ function lueSchwenkKuorma(teksti) {
     // Kolme aikaa: lastaus, saapuminen (= purku alkaa), purku loppuu
     purkuAlkaa = ajat[1]; purkuLoppuu = ajat[2];
   }
-  return { nro: nro, tuote: tuote, m3: m3, tilattu: tilattu, kum: kum, jaljella: jaljella, lastaus: ajat[0] || '', alkaa: purkuAlkaa, loppuu: purkuLoppuu };
+  return { nro: nro, tuote: tuote, tuotenimi: tuotenimi, lujuus: lujuus, notkeus: notkeus, raekoko: raekoko, rasitus: rasitus, kayttoika: kayttoika,
+    m3: m3, tilattu: tilattu, kum: kum, jaljella: jaljella, lastaus: ajat[0] || '', alkaa: purkuAlkaa, loppuu: purkuLoppuu };
 }
 
 function lueSchwenkPumppu(teksti) {
@@ -1558,8 +1597,11 @@ function analysoiSchwenk(kuormat, pumput) {
   var tilMap = {}, tilaukset = [];
   kuormat.forEach(function(k) {
     var avain = (k.tuote || '') + '|' + k.tilattu;
-    if (!tilMap[avain]) { tilMap[avain] = { tuote: k.tuote, tilattu: k.tilattu, kuormia: 0, summa: 0, toimitettu: 0, ensimmainen: '' }; tilaukset.push(tilMap[avain]); }
+    if (!tilMap[avain]) { tilMap[avain] = { tuote: k.tuote, tilattu: k.tilattu, kuormia: 0, summa: 0, toimitettu: 0, ensimmainen: '', tuotenimi: '', lujuus: '', notkeus: '', raekoko: '', rasitus: [], kayttoika: [] }; tilaukset.push(tilMap[avain]); }
     var t = tilMap[avain];
+    ['tuotenimi', 'lujuus', 'notkeus', 'raekoko'].forEach(function(x) { if (!t[x] && k[x]) t[x] = k[x]; });
+    (k.rasitus || []).forEach(function(x) { if (t.rasitus.indexOf(x) < 0) t.rasitus.push(x); });
+    (k.kayttoika || []).forEach(function(x) { if (t.kayttoika.indexOf(x) < 0) t.kayttoika.push(x); });
     t.kuormia++; t.summa += k.m3;
     if (k.kum > t.toimitettu) t.toimitettu = k.kum;
     if (k.lastaus && (!t.ensimmainen || k.lastaus < t.ensimmainen)) t.ensimmainen = k.lastaus;
@@ -1590,11 +1632,25 @@ function analysoiSchwenk(kuormat, pumput) {
   } else {
     vajaat.forEach(function(t) { huomiot.push('ℹ️ Tilaus ' + fi(t.tilattu) + ' m³: toimitettu ' + fi(t.toimitettu) + ' m³ (' + fi(t.jaljella) + ' m³ jäi toimittamatta).'); });
   }
+  // Eri massat (tuotteet): päämassa = suurin toimitettu määrä
+  var massaMap = {}, massat = [];
+  tilaukset.forEach(function(t) {
+    if (!massaMap[t.tuote]) { massaMap[t.tuote] = { tuote: t.tuote, tuotenimi: t.tuotenimi, lujuus: t.lujuus, notkeus: t.notkeus, raekoko: t.raekoko, rasitus: t.rasitus.slice(), kayttoika: t.kayttoika.slice(), m3: 0 }; massat.push(massaMap[t.tuote]); }
+    massaMap[t.tuote].m3 = pyor(massaMap[t.tuote].m3 + t.toimitettu);
+  });
+  var paamassa = massat.slice().sort(function(a, b) { return b.m3 - a.m3; })[0] || null;
+  var massaTeksti = function(x) {
+    return (x.tuotenimi || ('tuote ' + x.tuote)) + ' (' + [x.lujuus, x.notkeus].filter(Boolean).join(' ') +
+      (x.rasitus.length ? ', ' + x.rasitus.join('/') : '') + (x.kayttoika.length ? ', ' + x.kayttoika.join(' ja ') + ' v' : '') + ', tuote ' + x.tuote + ') ' + fi(x.m3) + ' m³';
+  };
+  var erittely = massat.length > 1 ? 'Valussa ' + massat.length + ' betonimassaa: ' + massat.map(massaTeksti).join('; ') + '.' : '';
+  if (massat.length > 1) huomiot.push('ℹ️ ' + massat.length + ' massaa: betonin tiedot päämassan mukaan, erittely Muut huomiot -kohdassa.');
   var yhteenveto = kuormat.length + (kuormat.length === 1 ? ' kuorma · ' : ' kuormaa · ') + fi(toteutunut) + ' m³' +
     (tilaukset.length > 1 ? ' (' + tilaukset.length + ' tilausta)' : '') +
     (pumppu ? (pumppu.lopullinen ? ' · pumppaus ' + pumppu.alku + '–' + pumppu.loppu : ' · pumppu: vain aloituslappu') : '') +
     (valmis ? ' · ✓ valmis' : ' · ⏳ kesken?');
-  return { kuormia: kuormat.length, tilaukset: tilaukset, toteutunut: toteutunut, pumppu: pumppu, valmis: valmis, huomiot: huomiot, yhteenveto: yhteenveto };
+  return { kuormia: kuormat.length, tilaukset: tilaukset, toteutunut: toteutunut, pumppu: pumppu, valmis: valmis, huomiot: huomiot, yhteenveto: yhteenveto,
+    massat: massat, paamassa: paamassa, erittely: erittely };
 }
 
 // ── Kutsu Anthropic API ──
@@ -1827,12 +1883,13 @@ async function tuoKuormakirjat(input, valmiit) {
       kuormakirjoja: tekstit.length,
       kuormat: kuormaLista.sort(function(a, b) { return (a.purkuAlkaa || '').localeCompare(b.purkuAlkaa || ''); }),
       totBetoni: (tiedot.totBetoni !== null && tiedot.totBetoni !== undefined) ? tiedot.totBetoni : null,
-      tilaukset: swAnalyysi ? swAnalyysi.tilaukset.map(function(t) { return { tuote: t.tuote, tilattu: t.tilattu, toimitettu: t.toimitettu, kuormia: t.kuormia }; }) : [],
+      tilaukset: swAnalyysi ? swAnalyysi.tilaukset.map(function(t) { return { tuote: t.tuote, tuotenimi: t.tuotenimi, lujuus: t.lujuus, rasitus: t.rasitus, tilattu: t.tilattu, toimitettu: t.toimitettu, kuormia: t.kuormia }; }) : [],
       pumppu: swAnalyysi && swAnalyysi.pumppu ? { alku: swAnalyysi.pumppu.alku, loppu: swAnalyysi.pumppu.loppu } : null,
       valmis: swAnalyysi ? swAnalyysi.valmis : null,
       valuAlkoi: tiedot.valuAlkoi || '', valuPaattyi: tiedot.valuPaattyi || ''
     };
     taytaKentat(tiedot);
+    if (swAnalyysi && swAnalyysi.massat.length > 1) asetaPaamassa(swAnalyysi);
     if (tuontiHuomio) naytaStatus('✅ Kentät täytetty.' + tuontiHuomio, /⚠️/.test(tuontiHuomio) ? 'red' : 'green');
     // Käsin tuodut kuormakirjat talteen valulle (jos valu on valittu)
     if (!valmiit && valittuValuId) tallennaKuormakirjatValulle();
