@@ -125,6 +125,11 @@ button:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid
 .valu-kaynnissa{background:#dbeafe;color:#0b4a8f;}
 .valu-kuitattu{background:#dcfce7;color:#14602d;}
 .valu-kesken{background:#fff4dc;color:#7a4b00;}
+.kk-auto{background:white;border-radius:12px;padding:10px 14px;box-shadow:0 2px 8px rgba(0,0,0,0.06);}
+.kk-auto-yla{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12px;color:#64748b;}
+.kk-kohd-otsikko{font-size:12px;font-weight:700;color:#b45309;margin:10px 0 4px;}
+.kk-kohd-rivi{flex-wrap:wrap;}
+.kk-valu-sel{padding:6px 8px;border:1px solid #e2e8f0;border-radius:6px;font-family:inherit;font-size:12px;max-width:260px;}
 .vm-havainnot{display:flex;flex-wrap:wrap;gap:6px 14px;}
 #detaljitSisalto .ff label.vm-hav{display:inline-flex;flex-direction:row;align-items:center;gap:6px;font-size:14px;color:#1e293b;text-transform:none;letter-spacing:0;font-weight:500;margin:0;padding:6px 10px;border:1.5px solid #e2e8f0;border-radius:18px;cursor:pointer;background:white;}
 #detaljitSisalto .ff label.vm-hav input{width:auto;margin:0;padding:0;}
@@ -238,6 +243,7 @@ button:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid
   </div>
 </div>
 <div class="pk-ei-tuloksia" id="pkTyhja" hidden>Ei hakua vastaavia projekteja.</div>
+<div id="kkAutomaatioOsio" style="padding:0 16px 10px;"><div class="kk-auto"><div class="kk-auto-yla"><span id="kkAutoTila">🚚 Kuormakirjat…</span><button type="button" class="mk-btn mk-btn-outline" data-act="kkHaeNyt">Hae nyt</button></div><div id="kkKohdistamattomat"></div></div></div>
 <div class="content" id="projektilista">
   <div class="empty">Ladataan projekteja...</div>
 </div>
@@ -380,6 +386,7 @@ button:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-functions.js"></script>
 <script src="auth.js"></script>
 <script>
 
@@ -1438,6 +1445,8 @@ document.addEventListener('click', function(e) {
   else if (act === 'muokkaaPt') avaaPerustiedot(id);
   else if (act === 'betonointi') avaaBetonointi(id, el.dataset.valu);
   else if (act === 'raudoitus') avaaRaudoitustarkastus(id, el.dataset.valu);
+  else if (act === 'kkLiita') liitaKuormakirjaValuun(el.dataset.kk);
+  else if (act === 'kkHaeNyt') haeKuormakirjatNyt(el);
   else if (act === 'lisaaKK') { var kki = document.getElementById('kkInput'); if (kki) kki.click(); }
   else if (act === 'avaaKK') avaaKuormakirja(el.dataset.kk);
   else if (act === 'poistaKK') poistaKuormakirja(el.dataset.kk, el.dataset.valu);
@@ -1480,6 +1489,8 @@ bcKirjaudu(function() {
   }).catch(function(e) { console.warn('API-avaimen haku:', e.message); });
   lataaAlihankkijat();
   seuraaAllekirjoituksia();
+  lataaKuormakirjaTila();
+  seuraaKohdistamattomia();
 });
 
 // ── Vieritä ja korosta tietty projekti, kun tultu tänne mittakirjasta ("← Projektipankki") ──
@@ -2172,6 +2183,130 @@ function poistaKuormakirja(kkId, valuId) {
   }).catch(function(e) { alert('Virhe: ' + e.message); });
 }
 
+// ── Kuormakirjojen automaatio: tila, kohdistamattomat ja käsin liittäminen ──
+// Palvelinfunktio (Firebase Functions, europe-west1) tallentaa sähköpostin kuormakirjat kuormakirjat-kokoelmaan.
+// Kohdistamattomat (valuId == null) näytetään tässä, ja ne liitetään valuun käsin; työmaanumero opitaan projektille.
+var kkValutPaivalle = {}; // pvm → [valut]
+
+function kkFiPvm(iso) { var m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? m[3] + '.' + m[2] + '.' + m[1] : ''; }
+
+function lataaKuormakirjaTila() {
+  db.collection('asetukset').doc('kuormakirjaAutomaatio').get().then(function(d) {
+    var el = document.getElementById('kkAutoTila');
+    if (!el) return;
+    if (!d.exists) { el.textContent = 'Kuormakirjojen automaattinen haku ei ole vielä käytössä.'; return; }
+    var x = d.data(), t = x.tulos || {};
+    var aika = x.viimeksi ? new Date(x.viimeksi).toLocaleString('fi-FI', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+    el.textContent = 'Kuormakirjat haettu ' + aika + (t.tallennettu ? ' · ' + t.tallennettu + ' uutta' : ' · ei uusia') + ((t.virheet || []).length ? ' · ⚠️ virheitä ' + t.virheet.length : '');
+  }).catch(function(e) { console.warn('Automaation tila:', e.message); });
+}
+
+function seuraaKohdistamattomia() {
+  db.collection('kuormakirjat').where('valuId', '==', null).onSnapshot(function(snap) {
+    var lista = [];
+    snap.forEach(function(d) { var x = d.data(); lista.push({ id: d.id, pvm: x.pvm || '', nimi: x.nimi || d.id, tyomaaNimi: x.tyomaaNimi || '', tyomaanro: x.tyomaanro || '', projektiId: x.projektiId || '' }); });
+    lista.sort(function(a, b) { return (a.pvm + a.nimi).localeCompare(b.pvm + b.nimi, 'fi', { numeric: true }); });
+    piirraKohdistamattomat(lista);
+  }, function(e) { console.warn('Kohdistamattomat kuormakirjat:', e.message); });
+}
+
+function piirraKohdistamattomat(lista) {
+  var el = document.getElementById('kkKohdistamattomat');
+  if (!el) return;
+  if (!lista.length) { el.innerHTML = ''; return; }
+  var h = '<div class="kk-kohd-otsikko">⚠️ Kohdistamattomat kuormakirjat (' + lista.length + ')</div>';
+  lista.forEach(function(k) {
+    h += '<div class="pk-rivi kk-kohd-rivi"><span class="pk-pvm">' + esc(kkFiPvm(k.pvm)) + '</span>' +
+      '<span class="pk-lisa">' + esc(k.nimi.replace(/\.pdf$/i, '')) + (k.tyomaaNimi ? ' · ' + esc(k.tyomaaNimi) : '') + (k.tyomaanro ? ' (' + esc(k.tyomaanro) + ')' : '') + '</span>' +
+      '<span class="pk-grow"></span>' +
+      '<select id="kkValu_' + esc(k.id) + '" data-pvm="' + esc(k.pvm) + '" class="kk-valu-sel"><option value="">Ladataan valuja…</option></select>' +
+      '<div class="pk-rivi-napit"><button type="button" class="mk-btn mk-btn-primary" data-act="kkLiita" data-kk="' + esc(k.id) + '">Liitä</button>' +
+      '<button type="button" class="mk-btn mk-btn-outline" data-act="avaaKK" data-kk="' + esc(k.id) + '">Avaa</button>' +
+      '<button type="button" class="mk-btn mk-btn-danger mk-btn-icon" data-act="poistaKK" data-kk="' + esc(k.id) + '" data-valu="" aria-label="Poista kuormakirja">✕</button></div></div>';
+  });
+  el.innerHTML = h;
+  // Valuvaihtoehdot: saman päivän valut kaikista projekteista
+  lista.forEach(function(k) {
+    valutPaivalle(k.pvm).then(function(valut) {
+      var sel = document.getElementById('kkValu_' + k.id);
+      if (!sel) return;
+      if (!valut.length) { sel.innerHTML = '<option value="">Ei valua ' + esc(kkFiPvm(k.pvm)) + ' – luo valu</option>'; return; }
+      sel.innerHTML = '<option value="">Valitse valu…</option>' + valut.map(function(v) {
+        var valittu = k.projektiId && v.projektiId === k.projektiId && valut.filter(function(x) { return x.projektiId === k.projektiId; }).length === 1;
+        return '<option value="' + esc(v._id) + '"' + (valittu ? ' selected' : '') + '>' + esc((v.tyomaa || '') + (v.valualue ? ' · ' + v.valualue : '')) + '</option>';
+      }).join('');
+    });
+  });
+}
+
+function valutPaivalle(pvm) {
+  if (!pvm) return Promise.resolve([]);
+  if (kkValutPaivalle[pvm]) return Promise.resolve(kkValutPaivalle[pvm]);
+  return db.collection('valut').where('pvm', '==', pvm).get().then(function(snap) {
+    var l = []; snap.forEach(function(d) { var v = d.data(); v._id = d.id; l.push(v); valutById[d.id] = valutById[d.id] || v; });
+    kkValutPaivalle[pvm] = l; return l;
+  }).catch(function() { return []; });
+}
+
+function liitaKuormakirjaValuun(kkId) {
+  var sel = document.getElementById('kkValu_' + kkId);
+  var valuId = sel && sel.value;
+  if (!valuId) { alert('Valitse valu ensin.'); return; }
+  var v = (kkValutPaivalle[sel.dataset.pvm] || []).filter(function(x) { return x._id === valuId; })[0] || valutById[valuId] || {};
+  db.collection('kuormakirjat').doc(kkId).get().then(function(d) {
+    var k = d.exists ? d.data() : {};
+    var paivitys = db.collection('kuormakirjat').doc(kkId).update({ valuId: valuId, projektiId: v.projektiId || null, kohdistus: 'kasin' });
+    // Työmaanumero opitaan projektille: jatkossa saman työmaan kuormakirjat kohdistuvat automaattisesti
+    var oppi = (k.tyomaanro && v.projektiId)
+      ? db.collection('projects').doc(v.projektiId).update({ toimittajaTyomaanumerot: firebase.firestore.FieldValue.arrayUnion(k.tyomaanro) })
+      : Promise.resolve();
+    return Promise.all([paivitys, oppi]);
+  }).then(function() {
+    naytaToast('✅ Kuormakirja liitetty valuun');
+    if (document.getElementById('valuKuormakirjat') && valutById[valuId]) lataaValunKuormakirjat(valuId);
+  }).catch(function(e) { alert('Virhe: ' + e.message); });
+}
+
+function haeKuormakirjatNyt(nappi) {
+  if (!firebase.functions) { alert('Palvelinfunktioiden kirjasto ei latautunut.'); return; }
+  nappi.disabled = true; var teksti = nappi.textContent; nappi.textContent = '⏳ Haetaan…';
+  firebase.app().functions('europe-west1').httpsCallable('haeKuormakirjatNyt')().then(function(r) {
+    var t = (r && r.data) || {};
+    naytaToast('🚚 ' + (t.tallennettu || 0) + ' uutta kuormakirjaa' + (t.kohdistamaton ? ', ' + t.kohdistamaton + ' kohdistamatonta' : ''));
+    lataaKuormakirjaTila();
+  }).catch(function(e) {
+    alert('Kuormakirjojen haku epäonnistui: ' + (e.message || e) + (/not.?found|NOT_FOUND/i.test(String(e.code || e.message)) ? '\n\nPalvelinfunktiota ei ole vielä julkaistu.' : ''));
+  }).then(function() { nappi.disabled = false; nappi.textContent = teksti; });
+}
+
+// Uusi valu: saman päivän kohdistamattomat kuormakirjat liitetään, jos ne kuuluvat tälle projektille
+// (projekti tunnistettu, työmaanumero tunnettu tai päivälle ei ole muita valuja)
+function kohdistaOdottavatValulle(valuId, v) {
+  var p = (viimeisinProjektiSnap && viimeisinProjektiSnap.docs.filter(function(d) { return d.id === v.projektiId; })[0]);
+  p = p ? p.data() : {};
+  var numerot = String(p.toimittajaTyomaanro || '').split(/[\s,;]+/).filter(Boolean).concat(p.toimittajaTyomaanumerot || []);
+  delete kkValutPaivalle[v.pvm];
+  return Promise.all([
+    db.collection('kuormakirjat').where('valuId', '==', null).get(),
+    db.collection('valut').where('pvm', '==', v.pvm).get()
+  ]).then(function(r) {
+    var ainoa = r[1].size === 1;
+    var tyot = [];
+    r[0].forEach(function(d) {
+      var k = d.data();
+      if (k.pvm !== v.pvm) return;
+      var kuuluu = k.projektiId === v.projektiId || (k.tyomaanro && numerot.indexOf(k.tyomaanro) >= 0) || (!k.projektiId && ainoa);
+      if (!kuuluu) return;
+      tyot.push(db.collection('kuormakirjat').doc(d.id).update({ valuId: valuId, projektiId: v.projektiId, kohdistus: 'uusi valu' }));
+      if (k.tyomaanro && numerot.indexOf(k.tyomaanro) < 0) {
+        numerot.push(k.tyomaanro);
+        tyot.push(db.collection('projects').doc(v.projektiId).update({ toimittajaTyomaanumerot: firebase.firestore.FieldValue.arrayUnion(k.tyomaanro) }));
+      }
+    });
+    return Promise.all(tyot).then(function() { if (tyot.length) naytaToast('🚚 Valulle liitettiin odottaneet kuormakirjat'); });
+  }).catch(function(e) { console.warn('Odottavien kuormakirjojen kohdistus:', e.message); });
+}
+
 // ── Valut ja alihankkijan kuittaukset ─────────────────────────
 // Valu luodaan projektille, ja sen kuittauslinkki (valukuittaus.html?id=…) jaetaan alihankkijalle.
 // Alihankkija kirjaa linkin kautta pintatyön ajat, miesmäärät, jälkihoitoaineen, havainnot ja kuvat.
@@ -2315,6 +2450,7 @@ function luoValu(jaa) {
   if (jaa) avaaWhatsApp(nayta);
   tallennus.then(function() {
     naytaToast('✅ Valu luotu');
+    kohdistaOdottavatValulle(ref.id, data);
     return lataaProjektinValut(pid);
   }).catch(function(e) {
     delete valutById[ref.id];
@@ -2726,11 +2862,12 @@ function avaaDetalji(projektinId) {
       });
       html += '</div>';
     }
-    if (p.toimittaja || p.betoniYhteys || p.toimittajaTyomaanro) {
+    if (p.toimittaja || p.betoniYhteys || p.toimittajaTyomaanro || (p.toimittajaTyomaanumerot || []).length) {
       html += '<div class="detalji-section"><div class="detalji-section-title">🚚 Betonitoimittaja</div>';
       if (p.toimittaja) html += dr('Toimittaja', esc(p.toimittaja));
       if (p.betoniYhteys) html += dr('Yhteyshenkilö', esc(p.betoniYhteys));
       if (p.toimittajaTyomaanro) html += dr('Työmaanumero', esc(p.toimittajaTyomaanro));
+      if (Array.isArray(p.toimittajaTyomaanumerot) && p.toimittajaTyomaanumerot.length) html += dr('Opitut työmaanumerot', esc(p.toimittajaTyomaanumerot.join(', ')));
       html += '</div>';
     }
     if (p.sirote || p.valihoitoaine || p.jalkihoitoaine || p.polynsidonta) {
