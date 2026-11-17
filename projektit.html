@@ -125,6 +125,7 @@ button:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid
 .valu-kaynnissa{background:#dbeafe;color:#0b4a8f;}
 .valu-kuitattu{background:#dcfce7;color:#14602d;}
 .valu-kesken{background:#fff4dc;color:#7a4b00;}
+.pt-vihje{font-size:12px;color:#64748b;margin:2px 0 6px;line-height:1.4;}
 .kk-yhteenveto{margin:10px 14px 4px;padding:9px 12px;border-radius:8px;background:#f1f5f9;color:#334155;font-size:13px;line-height:1.5;}
 .kk-yht-ok{background:#ecfdf5;color:#14532d;}
 .kk-yht-varoitus{background:#fff7ed;color:#7c2d12;}
@@ -1737,6 +1738,21 @@ var pt = null; // { id, data } muokattavana olevat perustiedot
 function ptDatalist(id, arvot) {
   return '<datalist id="' + id + '">' + arvot.map(function(a) { return '<option value="' + esc(a) + '">'; }).join('') + '</datalist>';
 }
+// SharePoint-kansion nimi: oma nimi tai "<tarjousnumero> <kohde>" (sama sääntö kuin palvelinfunktiossa)
+function spKansioNimi(p) {
+  var oma = String(p.sharepointKansio || '').trim();
+  var nro = String(p.tarjousnro || '').trim(), kohde = String(p.tyomaa || '').trim();
+  var n = oma || (nro && kohde ? nro + ' ' + kohde : '');
+  return n.replace(/["*:<>?\/\\|]/g, '').replace(/\s+/g, ' ').trim();
+}
+
+function spKuvaus(p) {
+  var oma = String(p.sharepointKansio || '').trim(), nro = String(p.tarjousnro || '').trim();
+  if (oma) return esc(spKansioNimi(p));
+  if (nro) return 'Työmaat / ' + esc(nro) + ' … <span style="color:#64748b">(kansio tunnistetaan tarjousnumerosta)</span>';
+  return '<span style="color:#b45309">tarjousnumero puuttuu</span>';
+}
+
 function ptKentta(nimi, label, arvo, lista, tyyppi) {
   return '<div class="ff"><label>' + label + '</label><input type="' + (tyyppi || 'text') + '" data-pt="' + nimi + '" value="' + esc(arvo == null ? '' : arvo) + '"' + (lista ? ' list="' + lista + '"' : '') + '></div>';
 }
@@ -1747,6 +1763,7 @@ function avaaPerustiedot(projektinId) {
     var p = doc.data();
     pt = { id: projektinId, data: {
       tyomaa: p.tyomaa || '', tilaaja: p.tilaaja || '', tyonro: p.tyonro || '', osoite: p.osoite || '',
+      tarjousnro: p.tarjousnro || '', sharepointKansio: p.sharepointKansio || '',
       yhteyshenkilot: Array.isArray(p.yhteyshenkilot) && p.yhteyshenkilot.length ? p.yhteyshenkilot.map(function(x) { return Object.assign({}, x); })
         : (p.yhteys ? [{ rooli: '', nimi: p.yhteys, puhelin: '', email: '' }] : []),
       toimittaja: p.toimittaja || '', betoniYhteys: p.betoniYhteys || '', toimittajaTyomaanro: p.toimittajaTyomaanro || '',
@@ -1769,7 +1786,14 @@ function piirraPerustiedot() {
   h += '</div><input type="file" id="ptPdfInput" accept=".pdf" hidden></div>';
 
   h += '<div class="detalji-section"><div class="detalji-section-title">📋 Perustiedot</div><div class="pt-sisalto">';
-  h += ptKentta('tyomaa', 'Projekti / kohde', d.tyomaa) + ptKentta('tilaaja', 'Tilaaja', d.tilaaja) + ptKentta('tyonro', 'Työnumero', d.tyonro) + ptKentta('osoite', 'Osoite', d.osoite);
+  h += ptKentta('tyomaa', 'Projekti / kohde', d.tyomaa) + ptKentta('tilaaja', 'Tilaaja', d.tilaaja) + ptKentta('tarjousnro', 'Tarjousnumero (BC Floors)', d.tarjousnro) + ptKentta('tyonro', 'Työnumero (tilaajan)', d.tyonro) + ptKentta('osoite', 'Osoite', d.osoite);
+  h += '</div></div>';
+
+  // SharePoint: pöytäkirjat tallentuvat kansioon Työmaat / <tarjousnumero kohde> / 4 Betonointipöytäkirjat
+  var spOletus = spKansioNimi({ tarjousnro: d.tarjousnro, tyomaa: d.tyomaa });
+  h += '<div class="detalji-section"><div class="detalji-section-title">📁 SharePoint</div><div class="pt-sisalto">';
+  h += ptKentta('sharepointKansio', 'Kansion nimi (jos poikkeaa oletuksesta)', d.sharepointKansio);
+  h += '<div class="pt-vihje">Ilman omaa nimeä pöytäkirjat tallentuvat kansioon, joka alkaa tarjousnumerolla (Työmaat tai Valmiit työmaat). ' + (spOletus ? 'Jos kansiota ei ole, luodaan <b>Työmaat / ' + esc(spOletus) + '</b>.' : '<b>Täytä tarjousnumero.</b>') + '</div>';
   h += '</div></div>';
 
   h += '<div class="detalji-section"><div class="detalji-section-title">👥 Tilaajan yhteyshenkilöt</div><div class="pt-sisalto">';
@@ -1838,6 +1862,7 @@ function ptTallenna() {
   if (!d.tyomaa) { alert('Projektin nimi ei voi olla tyhjä.'); return; }
   fbDb.collection('projects').doc(pt.id).update({
     tyomaa: d.tyomaa, tilaaja: d.tilaaja, tyonro: d.tyonro, osoite: d.osoite,
+    tarjousnro: d.tarjousnro, sharepointKansio: d.sharepointKansio,
     yhteyshenkilot: yh, yhteys: yh.length ? yh[0].nimi : '',
     toimittaja: d.toimittaja, betoniYhteys: d.betoniYhteys, toimittajaTyomaanro: d.toimittajaTyomaanro,
     sirote: d.sirote, valihoitoaine: d.valihoitoaine, jalkihoitoaine: d.jalkihoitoaine, polynsidonta: d.polynsidonta,
@@ -1862,9 +1887,9 @@ async function ptLueAIlla(pdfBase64) {
         messages: [{ role: 'user', content: [
           { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: pdfBase64 } },
           { type: 'text', text: 'Tämä on betonilattiaurakan tarjous, urakkaohjelma tai muu urakka-asiakirja. Poimi siitä projektin perustiedot. Palauta VAIN JSON ilman muuta tekstiä:\n' +
-            '{"tilaaja":"","osoite":"","yhteyshenkilot":[{"rooli":"","nimi":"","puhelin":"","email":""}],"toimittaja":"","betoniYhteys":"","toimittajaTyomaanro":"",' +
+            '{"tarjousnro":"","tilaaja":"","osoite":"","yhteyshenkilot":[{"rooli":"","nimi":"","puhelin":"","email":""}],"toimittaja":"","betoniYhteys":"","toimittajaTyomaanro":"",' +
             '"sirote":"","valihoitoaine":"","jalkihoitoaine":"","polynsidonta":"","rakennetyypit":[{"tunnus":"","rakenne":"","paksuus":null}]}\n' +
-            'Säännöt: yhteyshenkilot = tilaajan/pääurakoitsijan henkilöt (rooli esim. Työmaapäällikkö, Vastaava työnjohtaja, Valvoja). toimittaja = betonitoimittajan yritysnimi. ' +
+            'Säännöt: tarjousnro = BC Floors Oy:n oma tarjousnumero (esim. "Tarjous 644" -> "644"), ei tilaajan työnumeroa. yhteyshenkilot = tilaajan/pääurakoitsijan henkilöt (rooli esim. Työmaapäällikkö, Vastaava työnjohtaja, Valvoja). toimittaja = betonitoimittajan yritysnimi. ' +
             'sirote, valihoitoaine, jalkihoitoaine = tuotenimet sellaisinaan, jos mainittu. polynsidonta = pölynsidonta tai muu pintakäsittely, jos mainittu. ' +
             'rakennetyypit = lattiarakenteet/positiot: tunnus (esim. "AP 1.1" tai "Pos 2"), rakenne (esim. "maanvarainen teräskuitubetonilaatta"), paksuus millimetreinä numerona. ' +
             'Älä keksi tietoja: jätä tyhjäksi tai tyhjäksi listaksi, jos tietoa ei ole.' }
@@ -1880,7 +1905,7 @@ async function ptLueAIlla(pdfBase64) {
     var a = t.indexOf('{'), b = t.lastIndexOf('}');
     var tulos = JSON.parse(t.substring(a, b + 1));
     var d = pt.data, taytetyt = [];
-    ['tilaaja', 'osoite', 'toimittaja', 'betoniYhteys', 'toimittajaTyomaanro', 'sirote', 'valihoitoaine', 'jalkihoitoaine', 'polynsidonta'].forEach(function(k) {
+    ['tarjousnro', 'tilaaja', 'osoite', 'toimittaja', 'betoniYhteys', 'toimittajaTyomaanro', 'sirote', 'valihoitoaine', 'jalkihoitoaine', 'polynsidonta'].forEach(function(k) {
       var v = String(tulos[k] || '').trim();
       if (v && !d[k]) { d[k] = v; taytetyt.push(k); }
     });
@@ -3077,7 +3102,9 @@ function avaaDetalji(projektinId) {
     html += '<div class="detalji-section">';
     html += '<div class="detalji-section-title">📋 Perustiedot</div>';
     if (p.tilaaja) html += '<div class="detalji-row"><span class="detalji-label">Tilaaja</span><span class="detalji-val">' + p.tilaaja + '</span></div>';
+    if (p.tarjousnro) html += '<div class="detalji-row"><span class="detalji-label">Tarjousnumero</span><span class="detalji-val">' + esc(p.tarjousnro) + '</span></div>';
     if (p.tyonro) html += '<div class="detalji-row"><span class="detalji-label">Työnumero</span><span class="detalji-val">' + p.tyonro + '</span></div>';
+    html += '<div class="detalji-row"><span class="detalji-label">SharePoint</span><span class="detalji-val">' + spKuvaus(p) + '</span></div>';
     if (p.yhteys) html += '<div class="detalji-row"><span class="detalji-label">Yhteyshenkilö</span><span class="detalji-val">' + p.yhteys + '</span></div>';
     if (p.osoite) html += '<div class="detalji-row"><span class="detalji-label">Osoite</span><span class="detalji-val">' + p.osoite + '</span></div>';
     if (p.luotu) html += '<div class="detalji-row"><span class="detalji-label">Lisätty</span><span class="detalji-val">' + p.luotu.split('T')[0] + '</span></div>';
