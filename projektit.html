@@ -125,6 +125,9 @@ button:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid
 .valu-kaynnissa{background:#dbeafe;color:#0b4a8f;}
 .valu-kuitattu{background:#dcfce7;color:#14602d;}
 .valu-kesken{background:#fff4dc;color:#7a4b00;}
+.kk-yhteenveto{margin:10px 14px 4px;padding:9px 12px;border-radius:8px;background:#f1f5f9;color:#334155;font-size:13px;line-height:1.5;}
+.kk-yht-ok{background:#ecfdf5;color:#14532d;}
+.kk-yht-varoitus{background:#fff7ed;color:#7c2d12;}
 .kk-auto{background:white;border-radius:12px;padding:10px 14px;box-shadow:0 2px 8px rgba(0,0,0,0.06);}
 .kk-auto-yla{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12px;color:#64748b;}
 .kk-kohd-otsikko{font-size:12px;font-weight:700;color:#b45309;margin:10px 0 4px;}
@@ -2086,6 +2089,163 @@ function konfetti(canvas) {
   })(alku);
 }
 
+// ── Schwenkin kuormakirjat: jäsennys ja analyysi (sama koodi: betonointi_ai.html ja projektit.html) ──
+// Betonikuorma: tuoterivillä [tämä kuorma][tilattu][toimitettu yht.][jäljellä]; jäljellä on tyhjä, kun tilaus täyttyy.
+// Ajat (Lisäpalvelut-osio): lastaus, saapuminen, purku alkaa, purku loppuu, (odotus), saapuminen tehtaalle.
+// Pumppulappu: tuote "Pumppu …", ajat saapuminen, pumppauksen alku, pumppauksen loppu (loppu vasta lopullisessa lapussa).
+function lueSchwenkKuorma(teksti) {
+  if (!/Kuormakirjanumero/i.test(teksti) || !/M\u00e4\u00e4r\u00e4 j\u00e4ljell\u00e4/i.test(teksti)) return null;
+  var rivit = teksti.split('\n');
+  var m3 = null, kum = null, tilattu = null, jaljella = 0, tuote = '';
+  for (var i = 0; i < rivit.length; i++) {
+    var m = rivit[i].match(/^\s*(\d{6,7})\s.*?(\d+,\d{2})\s+(\d+,\d{2})\s+(\d+,\d{2})(?:\s+(\d+,\d{2}))?\s*$/);
+    if (m) {
+      tuote = m[1];
+      m3 = parseFloat(m[2].replace(',', '.'));
+      tilattu = parseFloat(m[3].replace(',', '.'));
+      kum = parseFloat(m[4].replace(',', '.'));
+      jaljella = m[5] ? parseFloat(m[5].replace(',', '.')) : 0;
+      break;
+    }
+  }
+  if (m3 === null) return null;
+  var nro = (teksti.match(/Kuormakirjanumero:?\s*(\d{5,12})/i) || [])[1] || '';
+  var alku = -1, loppu = rivit.length;
+  for (var j = 0; j < rivit.length; j++) {
+    if (alku < 0 && /Lis\u00e4palvelut/i.test(rivit[j])) alku = j;
+    if (alku >= 0 && /^Kuljettaja\s+ei\s+lis/i.test(rivit[j])) { loppu = j; break; }
+  }
+  var osio = alku >= 0 ? rivit.slice(alku, loppu).join(' ') : '';
+  var ajat = osio.match(/\b\d{2}:\d{2}\b/g) || [];
+  var purkuAlkaa = null, purkuLoppuu = null;
+  if (ajat.length >= 5) { purkuAlkaa = ajat[2]; purkuLoppuu = ajat[3]; }
+  else if (ajat.length === 4) {
+    // Neljä aikaa: puuttuu joko "purku alkaa" (alkoi saapuessa) tai "saapuminen tehtaalle".
+    // Odotusaika (saapuminen → purku alkaa) ratkaisee: jos 3. aika = saapuminen + odotus, se on purun alku.
+    var odotus = (osio.match(/(\d+)\s*min\b/) || [])[1];
+    var min = function(t) { var p = t.split(':'); return +p[0] * 60 + +p[1]; };
+    var ero = (min(ajat[2]) - min(ajat[1]) + 1440) % 1440;
+    if (odotus && +odotus > 0 && ero === +odotus) { purkuAlkaa = ajat[2]; purkuLoppuu = ajat[3]; }
+    else { purkuAlkaa = ajat[1]; purkuLoppuu = ajat[2]; }
+  } else if (ajat.length === 3) {
+    // Kolme aikaa: lastaus, saapuminen (= purku alkaa), purku loppuu
+    purkuAlkaa = ajat[1]; purkuLoppuu = ajat[2];
+  }
+  return { nro: nro, tuote: tuote, m3: m3, tilattu: tilattu, kum: kum, jaljella: jaljella, lastaus: ajat[0] || '', alkaa: purkuAlkaa, loppuu: purkuLoppuu };
+}
+
+function lueSchwenkPumppu(teksti) {
+  if (!/Kuormakirjanumero/i.test(teksti) || !/Pumppauksen/i.test(teksti)) return null;
+  var rivit = teksti.split('\n');
+  var alku = -1, loppu = rivit.length;
+  for (var j = 0; j < rivit.length; j++) {
+    if (alku < 0 && /Lis\u00e4palvelut/i.test(rivit[j])) alku = j;
+    if (alku >= 0 && /^(Huomautus|Asiakkaan merkinn)/i.test(rivit[j].trim())) { loppu = j; break; }
+  }
+  var ajat = alku >= 0 ? (rivit.slice(alku, loppu).join(' ').match(/\b\d{2}:\d{2}\b/g) || []) : [];
+  return {
+    nro: (teksti.match(/Kuormakirjanumero:?\s*(\d{5,12})/i) || [])[1] || '',
+    saapuminen: ajat[0] || '', alku: ajat[1] || '', loppu: ajat[2] || '', lopullinen: ajat.length >= 3
+  };
+}
+
+// kuormat = lueSchwenkKuorma-tulokset, pumput = lueSchwenkPumppu-tulokset
+function analysoiSchwenk(kuormat, pumput) {
+  var pyor = function(x) { return Math.round(x * 100) / 100; };
+  var fi = function(x) { return String(pyor(x)).replace('.', ','); };
+  var tilMap = {}, tilaukset = [];
+  kuormat.forEach(function(k) {
+    var avain = (k.tuote || '') + '|' + k.tilattu;
+    if (!tilMap[avain]) { tilMap[avain] = { tuote: k.tuote, tilattu: k.tilattu, kuormia: 0, summa: 0, toimitettu: 0, ensimmainen: '' }; tilaukset.push(tilMap[avain]); }
+    var t = tilMap[avain];
+    t.kuormia++; t.summa += k.m3;
+    if (k.kum > t.toimitettu) t.toimitettu = k.kum;
+    if (k.lastaus && (!t.ensimmainen || k.lastaus < t.ensimmainen)) t.ensimmainen = k.lastaus;
+  });
+  tilaukset.forEach(function(t) {
+    t.summa = pyor(t.summa); t.toimitettu = pyor(t.toimitettu);
+    t.puuttuu = pyor(t.toimitettu - t.summa);
+    t.taysi = t.toimitettu >= t.tilattu - 0.001;
+    t.jaljella = pyor(Math.max(0, t.tilattu - t.toimitettu));
+  });
+  tilaukset.sort(function(a, b) { return (a.ensimmainen || '').localeCompare(b.ensimmainen || ''); });
+  // Uusin pumppulappu: lopullinen (pumppauksen loppuaika) ennen aloituslappua
+  var pumppu = null;
+  (pumput || []).forEach(function(p) { if (!pumppu || (p.lopullinen && !pumppu.lopullinen)) pumppu = p; });
+  var toteutunut = pyor(tilaukset.reduce(function(s, t) { return s + t.toimitettu; }, 0));
+  // Pumppuvalu: valmis vasta lopullisesta pumppulapusta (lisätilaus voi tulla, vaikka tilaus on täynnä).
+  // Ilman pumppua: valmis, kun kaikki tilaukset ovat täynnä.
+  var valmis = pumppu ? !!pumppu.lopullinen : (tilaukset.length > 0 && tilaukset.every(function(t) { return t.taysi; }));
+  var huomiot = [];
+  tilaukset.forEach(function(t) {
+    if (t.puuttuu > 0.001) huomiot.push('⚠️ Tilaus ' + fi(t.tilattu) + ' m³: kuormakirjoja puuttuu välistä (' + fi(t.puuttuu) + ' m³).');
+  });
+  var vajaat = tilaukset.filter(function(t) { return !t.taysi; });
+  if (!valmis) {
+    huomiot.push('⚠️ Valu voi olla kesken: ' + vajaat.map(function(t) { return 'tilaus ' + fi(t.tilattu) + ' m³, toimitettu ' + fi(t.toimitettu) + ' m³'; }).join('; ') +
+      (pumppu ? '; lopullinen pumppulappu puuttuu' : '') + '. Lisää kuormakirjoja voi olla tulossa.');
+  } else {
+    vajaat.forEach(function(t) { huomiot.push('ℹ️ Tilaus ' + fi(t.tilattu) + ' m³: toimitettu ' + fi(t.toimitettu) + ' m³ (' + fi(t.jaljella) + ' m³ jäi toimittamatta).'); });
+  }
+  var yhteenveto = kuormat.length + (kuormat.length === 1 ? ' kuorma · ' : ' kuormaa · ') + fi(toteutunut) + ' m³' +
+    (tilaukset.length > 1 ? ' (' + tilaukset.length + ' tilausta)' : '') +
+    (pumppu ? (pumppu.lopullinen ? ' · pumppaus ' + pumppu.alku + '–' + pumppu.loppu : ' · pumppu: vain aloituslappu') : '') +
+    (valmis ? ' · ✓ valmis' : ' · ⏳ kesken?');
+  return { kuormia: kuormat.length, tilaukset: tilaukset, toteutunut: toteutunut, pumppu: pumppu, valmis: valmis, huomiot: huomiot, yhteenveto: yhteenveto };
+}
+
+// PDF:n teksti riveittäin (sama menetelmä kuin betonointipöytäkirjassa); pdf.js ladataan vasta tarvittaessa
+var pdfjsLataus = null;
+function lataaPdfJs() {
+  if (window.pdfjsLib) return Promise.resolve();
+  if (pdfjsLataus) return pdfjsLataus;
+  pdfjsLataus = new Promise(function(res, rej) {
+    var sc = document.createElement('script');
+    sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    sc.onload = function() { pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; res(); };
+    sc.onerror = function() { pdfjsLataus = null; rej(new Error('pdf.js ei latautunut')); };
+    document.head.appendChild(sc);
+  });
+  return pdfjsLataus;
+}
+async function kkPdfTeksti(b64) {
+  var bin = atob(b64), bytes = new Uint8Array(bin.length);
+  for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  var pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
+  var rivit = [];
+  for (var p = 1; p <= pdf.numPages; p++) {
+    var sisalto = await (await pdf.getPage(p)).getTextContent();
+    var riviMap = {};
+    sisalto.items.forEach(function(it) { var y = Math.round(it.transform[5]); (riviMap[y] = riviMap[y] || []).push({ x: it.transform[4], str: it.str }); });
+    Object.keys(riviMap).map(Number).sort(function(a, b) { return b - a; }).forEach(function(y) {
+      rivit.push(riviMap[y].sort(function(a, b) { return a.x - b.x; }).map(function(s) { return s.str; }).join(' ').trim());
+    });
+  }
+  return rivit.filter(function(r) { return r.length > 0; }).join('\n');
+}
+
+// Valun kuormakirjojen yhteenveto: kuormat, toteutunut m³, tilaukset, pumppu, onko valu valmis
+async function analysoiValunKuormakirjat(el, pdfLista) {
+  try {
+    await lataaPdfJs();
+    var kuormat = [], pumput = [];
+    for (var i = 0; i < pdfLista.length; i++) {
+      if (!pdfLista[i]) continue;
+      var t = await kkPdfTeksti(pdfLista[i]);
+      var sw = lueSchwenkKuorma(t); if (sw) { kuormat.push(sw); continue; }
+      var sp = lueSchwenkPumppu(t); if (sp) pumput.push(sp);
+    }
+    if (!document.body.contains(el)) return;
+    if (!kuormat.length && !pumput.length) { el.style.display = 'none'; return; }
+    var a = analysoiSchwenk(kuormat, pumput);
+    var varoitus = a.huomiot.some(function(h) { return h.indexOf('⚠️') === 0; });
+    el.className = 'kk-yhteenveto ' + (varoitus ? 'kk-yht-varoitus' : 'kk-yht-ok');
+    el.innerHTML = '<b>🚚 ' + esc(a.yhteenveto) + '</b>' + a.huomiot.map(function(h) { return '<div>' + esc(h) + '</div>'; }).join('');
+  } catch (e) {
+    el.textContent = 'Kuormakirjojen yhteenvetoa ei voitu laskea: ' + e.message;
+  }
+}
+
 // ── Valun kuormakirjat (Firestore: kuormakirjat, PDF base64-muodossa) ──
 // Käsin vietynä (Simman ZIP tai PDF:t) nyt; myöhemmin sähköpostiautomaatio täyttää saman rakenteen.
 var KK_MAX_KOKO = 700 * 1024; // Firestoren 1 MiB:n dokumenttiraja base64-koodauksen jälkeen
@@ -2102,12 +2262,13 @@ function lataaValunKuormakirjat(valuId) {
   el.innerHTML = '<div class="detalji-row"><span style="color:#94a3b8;font-size:13px">Ladataan…</span></div>';
   fbDb.collection('kuormakirjat').where('valuId', '==', valuId).get().then(function(snap) {
     var lista = [];
-    snap.forEach(function(d) { var x = d.data(); lista.push({ id: d.id, nimi: x.nimi || d.id, koko: x.koko || 0, lahde: x.lahde || '' }); });
+    snap.forEach(function(d) { var x = d.data(); lista.push({ id: d.id, nimi: x.nimi || d.id, koko: x.koko || 0, lahde: x.lahde || '', pdf: x.pdfBase64 || '' }); });
     lista.sort(function(a, b) { return a.nimi.localeCompare(b.nimi, 'fi', { numeric: true }); });
     var otsikko = document.getElementById('valuKuormakirjatOtsikko');
     if (otsikko) otsikko.textContent = 'Kuormakirjat (' + lista.length + ')';
     var h = '';
     if (!lista.length) h += '<div class="detalji-row"><span style="color:#94a3b8;font-size:13px">Ei kuormakirjoja. Lisää Simman ZIP tai PDF:t, niin betonointipöytäkirja hakee ne automaattisesti.</span></div>';
+    else h += '<div id="valuKkYhteenveto" class="kk-yhteenveto">⏳ Lasketaan kuormakirjojen yhteenvetoa…</div>';
     lista.forEach(function(k) {
       h += '<div class="pk-rivi"><span class="pk-lisa" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">📄 ' + esc(k.nimi) + '</span>' +
         '<span class="pk-lisa">' + Math.round(k.koko / 1024) + ' kt' + (k.lahde === 'sahkoposti' ? ' · sähköposti' : '') + '</span>' +
@@ -2117,6 +2278,8 @@ function lataaValunKuormakirjat(valuId) {
     h += '<div style="padding:10px 14px"><button type="button" class="pk-mini" data-act="lisaaKK" data-valu="' + esc(valuId) + '">' + ICON_PLUS + ' Lisää kuormakirjoja (ZIP tai PDF)</button>' +
       '<input type="file" id="kkInput" accept=".pdf,.zip" multiple hidden data-valu="' + esc(valuId) + '"></div>';
     el.innerHTML = h;
+    var yhtEl = document.getElementById('valuKkYhteenveto');
+    if (yhtEl) analysoiValunKuormakirjat(yhtEl, lista.map(function(k) { return k.pdf; }));
   }).catch(function(e) {
     el.innerHTML = '<div class="detalji-row"><span style="color:#dc2626;font-size:13px">Virhe: ' + esc(e.message) + '</span></div>';
   });
