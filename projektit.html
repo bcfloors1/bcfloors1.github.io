@@ -181,6 +181,24 @@ button:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid
 .pk-menu-sep{height:1px;background:#e2e8f0;margin:4px 6px;}
 .pk-body{border-top:1px solid #e2e8f0;background:#fafcfe;padding:4px 18px 18px;border-radius:0 0 12px 12px;}
 .pk-sec{margin-top:14px;}
+.pk-tabs{display:flex;gap:2px;overflow-x:auto;margin:10px 0 0;border-bottom:1px solid #e2e8f0;scrollbar-width:none;-webkit-overflow-scrolling:touch;}
+.pk-tabs::-webkit-scrollbar{display:none;}
+.pk-tab{flex:none;display:inline-flex;align-items:center;gap:6px;background:none;border:none;border-bottom:3px solid transparent;margin-bottom:-1px;padding:10px 12px 9px;font-family:inherit;font-size:13px;font-weight:600;color:#475569;cursor:pointer;white-space:nowrap;}
+.pk-tab:hover{color:#0b5189;}
+.pk-tab.on{color:#006CB1;border-bottom-color:#006CB1;}
+.pk-tab-n{min-width:20px;padding:1px 7px;border-radius:999px;background:#eef2f6;font-size:11px;font-weight:700;color:#475569;text-align:center;}
+.pk-tab.on .pk-tab-n{background:#dbeafe;color:#0b4a8f;}
+.pk-tab-n:empty{display:none;}
+.pk-lisaa{display:block;width:100%;padding:11px;border:none;border-top:1px solid #eef2f6;background:#f8fafc;color:#0b5189;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;}
+.pk-lisaa:hover{background:#eef4fa;}
+.pk-chip[data-act]{cursor:pointer;}
+@media (max-width:560px){
+  .pk-tabs{flex-wrap:wrap;gap:6px;border-bottom:none;overflow:visible;margin-top:12px;}
+  .pk-tab{border:1px solid #cbd5e1;border-radius:999px;margin:0;padding:7px 11px;background:white;font-size:12.5px;}
+  .pk-tab.on{background:#006CB1;border-color:#006CB1;color:white;}
+  .pk-tab.on .pk-tab-n{background:rgba(255,255,255,.22);color:white;}
+}
+.pk-chip[data-act]:hover{filter:brightness(.95);}
 .pk-sec-head{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
 .pk-sec-head h3{flex:1;font-size:12px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:#34485c;}
 .pk-mini{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 11px;border:1px solid #b9c7d6;background:white;border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;color:#0b5189;cursor:pointer;}
@@ -1223,6 +1241,41 @@ window._pkSuodatin = 'kaikki';
 // ── Lataa projektit ──
 var viimeisinProjektiSnap = null;
 
+// ── Projektikortin välilehdet ja lyhennetyt listat ──
+var PK_LYHYT = 5;            // näin monta riviä näytetään ennen "Näytä kaikki"
+var pkKaikki = {};           // 'projektiId:lista' -> true, kun koko lista on avattu
+var pkValilehdet = (function() { try { return JSON.parse(localStorage.getItem('bc_pk_valilehdet') || '{}') || {}; } catch (e) { return {}; } })();
+function pkValilehti(id, p) {
+  var t = pkValilehdet[id] || 'valut';
+  if (t === 'hinnat' && !(p && p.tarjousHinnat && p.tarjousHinnat.length)) t = 'valut';
+  return t;
+}
+function vaihdaValilehti(id, tab) {
+  var kortti = document.getElementById('proj-' + id);
+  if (!kortti) return;
+  if (!kortti.querySelector('[data-paneeli="' + tab + '"]')) tab = 'valut';
+  pkValilehdet[id] = tab;
+  try { localStorage.setItem('bc_pk_valilehdet', JSON.stringify(pkValilehdet)); } catch (e) {}
+  kortti.querySelectorAll('.pk-tab').forEach(function(b) {
+    var on = b.dataset.tab === tab;
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+  kortti.querySelectorAll('.pk-paneeli').forEach(function(pn) { pn.hidden = pn.dataset.paneeli !== tab; });
+}
+// Rivien HTML: uusimmat PK_LYHYT ja "Näytä kaikki", jos rivejä on enemmän
+function pkLyhyt(id, lista, rivit, tyhja) {
+  if (!rivit.length) return '<div class="pk-tyhja">' + tyhja + '</div>';
+  var kaikki = !!pkKaikki[id + ':' + lista];
+  if (rivit.length <= PK_LYHYT + 1) return rivit.join('');
+  if (kaikki) return rivit.join('') + '<button type="button" class="pk-lisaa" data-act="naytaKaikki" data-id="' + id + '" data-lista="' + lista + '" data-kaikki="0">Näytä vain uusimmat ' + PK_LYHYT + '</button>';
+  return rivit.slice(0, PK_LYHYT).join('') + '<button type="button" class="pk-lisaa" data-act="naytaKaikki" data-id="' + id + '" data-lista="' + lista + '" data-kaikki="1">Näytä kaikki (' + rivit.length + ')</button>';
+}
+function pkTabLuku(kortti, t, n) {
+  var el = kortti.querySelector('[data-tabn="' + t + '"]');
+  if (el) el.textContent = n;
+}
+
 function korttiHtml(id, p) {
   var nimi = p.tyomaa || '(nimetön projekti)';
   var auki = !!avoimetKortit[id];
@@ -1243,12 +1296,12 @@ function korttiHtml(id, p) {
   // Tilamerkit
   h += '<div class="pk-chips">';
   h += p.pdfBase64 ? '<span class="pk-chip pk-chip-ok">Tarjous ✓</span>' : '<span class="pk-chip pk-chip-none">Ei tarjousta</span>';
-  h += '<span class="pk-chip" data-chip="mk">Mittakirjat …</span>';
-  h += '<span class="pk-chip" data-chip="tark">Tarkastukset …</span>';
-  h += '<span class="pk-chip" data-chip="dok">Dokumentit …</span>';
-  h += '<span class="pk-chip" data-chip="valu">Valut …</span>';
-  h += '<span class="pk-chip pk-chip-wait" data-chip="wait" hidden>Odottaa allekirjoitusta</span>';
-  h += '<span class="pk-chip pk-chip-draft" data-chip="draft" hidden>Luonnos</span>';
+  h += '<span class="pk-chip" data-chip="mk" data-act="avaaTab" data-id="' + id + '" data-tab="mk">Mittakirjat …</span>';
+  h += '<span class="pk-chip" data-chip="tark" data-act="avaaTab" data-id="' + id + '" data-tab="tark">Tarkastukset …</span>';
+  h += '<span class="pk-chip" data-chip="dok" data-act="avaaTab" data-id="' + id + '" data-tab="dok">Dokumentit …</span>';
+  h += '<span class="pk-chip" data-chip="valu" data-act="avaaTab" data-id="' + id + '" data-tab="valut">Valut …</span>';
+  h += '<span class="pk-chip pk-chip-wait" data-chip="wait" data-act="avaaTab" data-id="' + id + '" data-tab="mk" hidden>Odottaa allekirjoitusta</span>';
+  h += '<span class="pk-chip pk-chip-draft" data-chip="draft" data-act="avaaTab" data-id="' + id + '" data-tab="mk" hidden>Luonnos</span>';
   h += '</div>';
 
   // Päätoiminnot
@@ -1280,22 +1333,33 @@ function korttiHtml(id, p) {
 
   // Avattava sisältö
   h += '<div class="pk-body" id="pk-body-' + id + '"' + (auki ? '' : ' hidden') + '>';
-  if (p.tarjousHinnat && p.tarjousHinnat.length > 0) {
-    h += '<details class="pk-sec pk-hinnat"><summary>Tarjoushinnat (' + p.tarjousHinnat.length + ')</summary>';
-    p.tarjousHinnat.forEach(function(x) {
-      h += '<div class="hinta-rivi"><span class="hinta-nimi">' + esc(x.nimi) + '</span>';
-      h += '<span><span class="hinta-arvo">' + Number(x.hinta).toFixed(2) + ' €</span><span class="hinta-yksikko">/ ' + esc(x.yksikko || 'm²') + '</span></span></div>';
-    });
-    h += '</details>';
+  var tab = pkValilehti(id, p);
+  function nappi(t, nimi, n) {
+    return '<button type="button" class="pk-tab' + (tab === t ? ' on' : '') + '" role="tab" aria-selected="' + (tab === t) + '" data-act="tab" data-id="' + id + '" data-tab="' + t + '">' + nimi + '<span class="pk-tab-n" data-tabn="' + t + '">' + (n == null ? '' : n) + '</span></button>';
   }
-  h += '<div class="pk-sec"><div class="pk-sec-head"><h3>Mittakirjat</h3><button type="button" class="pk-mini" data-act="uusiMk" data-id="' + id + '">' + ICON_PLUS + ' Uusi mittakirja</button></div>';
-  h += '<div class="pk-list" id="mk-lista-' + id + '"><div class="pk-tyhja">Ladataan…</div></div></div>';
-  h += '<div class="pk-sec"><div class="pk-sec-head"><h3>Tarkastukset</h3><button type="button" class="pk-mini" data-act="uusiTark" data-id="' + id + '">' + ICON_PLUS + ' Uusi tarkastus</button></div>';
-  h += '<div class="pk-list" id="tarkastukset-' + id + '"><div class="pk-tyhja">Ladataan…</div></div></div>';
-  h += '<div class="pk-sec"><div class="pk-sec-head"><h3>Valut ja kuittaukset</h3><button type="button" class="pk-mini" data-act="uusiValu" data-id="' + id + '">' + ICON_PLUS + ' Uusi valu</button></div>';
-  h += '<div class="pk-list" id="valut-' + id + '"><div class="pk-tyhja">Ladataan…</div></div></div>';
-  h += '<div class="pk-sec"><div class="pk-sec-head"><h3>Dokumentit</h3></div>';
-  h += '<div class="pk-list" id="dokumentit-' + id + '"><div class="pk-tyhja">Ladataan…</div></div></div>';
+  function paneeli(t, sisalto) {
+    return '<div class="pk-paneeli" data-paneeli="' + t + '"' + (tab === t ? '' : ' hidden') + '>' + sisalto + '</div>';
+  }
+  var hinnat = p.tarjousHinnat && p.tarjousHinnat.length > 0;
+  h += '<div class="pk-tabs" role="tablist">' +
+    nappi('valut', 'Valut') + nappi('mk', 'Mittakirjat') + nappi('tark', 'Tarkastukset') + nappi('dok', 'Dokumentit') +
+    (hinnat ? nappi('hinnat', 'Tarjoushinnat', p.tarjousHinnat.length) : '') + '</div>';
+  h += paneeli('valut', '<div class="pk-sec"><div class="pk-sec-head"><h3>Valut ja kuittaukset</h3><button type="button" class="pk-mini" data-act="uusiValu" data-id="' + id + '">' + ICON_PLUS + ' Uusi valu</button></div>' +
+    '<div class="pk-list" id="valut-' + id + '"><div class="pk-tyhja">Ladataan…</div></div></div>');
+  h += paneeli('mk', '<div class="pk-sec"><div class="pk-sec-head"><h3>Mittakirjat</h3><button type="button" class="pk-mini" data-act="uusiMk" data-id="' + id + '">' + ICON_PLUS + ' Uusi mittakirja</button></div>' +
+    '<div class="pk-list" id="mk-lista-' + id + '"><div class="pk-tyhja">Ladataan…</div></div></div>');
+  h += paneeli('tark', '<div class="pk-sec"><div class="pk-sec-head"><h3>Tarkastukset</h3><button type="button" class="pk-mini" data-act="uusiTark" data-id="' + id + '">' + ICON_PLUS + ' Uusi tarkastus</button></div>' +
+    '<div class="pk-list" id="tarkastukset-' + id + '"><div class="pk-tyhja">Ladataan…</div></div></div>');
+  h += paneeli('dok', '<div class="pk-sec"><div class="pk-sec-head"><h3>Dokumentit</h3></div>' +
+    '<div class="pk-list" id="dokumentit-' + id + '"><div class="pk-tyhja">Ladataan…</div></div></div>');
+  if (hinnat) {
+    var hh = '';
+    p.tarjousHinnat.forEach(function(x) {
+      hh += '<div class="hinta-rivi"><span class="hinta-nimi">' + esc(x.nimi) + '</span>';
+      hh += '<span><span class="hinta-arvo">' + Number(x.hinta).toFixed(2) + ' €</span><span class="hinta-yksikko">/ ' + esc(x.yksikko || 'm²') + '</span></span></div>';
+    });
+    h += paneeli('hinnat', '<div class="pk-sec pk-hinnat">' + hh + '</div>');
+  }
   h += '</div>'; // pk-body
   h += '</div>'; // proj-card
   return h;
@@ -1358,14 +1422,16 @@ function paivitaKortti(id) {
     chip('wait').hidden = !odottaa;
     chip('draft').hidden = !luonnos;
     kortti.dataset.odottaa = odottaa ? '1' : '0';
-    if (mkEl) mkEl.innerHTML = mk.length ? mk.map(function(m) { return mkRiviHtml(id, m); }).join('') : '<div class="pk-tyhja">Ei mittakirjoja vielä.</div>';
+    pkTabLuku(kortti, 'mk', mk.length);
+    if (mkEl) mkEl.innerHTML = pkLyhyt(id, 'mk', mk.map(function(m) { return mkRiviHtml(id, m); }), 'Ei mittakirjoja vielä.');
   }
 
   // Tarkastukset
   var tEl = document.getElementById('tarkastukset-' + id);
   if (Array.isArray(tark)) {
     chip('tark').textContent = 'Tarkastukset ' + tark.length;
-    if (tEl) tEl.innerHTML = tark.length ? tark.map(function(d) { return tarkastusRiviHtml(d, id); }).join('') : '<div class="pk-tyhja">Ei tarkastuksia vielä.</div>';
+    pkTabLuku(kortti, 'tark', tark.length);
+    if (tEl) tEl.innerHTML = pkLyhyt(id, 'tark', tark.map(function(d) { return tarkastusRiviHtml(d, id); }), 'Ei tarkastuksia vielä.');
   } else if (tark && tark.virhe) {
     chip('tark').textContent = 'Tarkastukset ?';
     if (tEl) tEl.innerHTML = '<div class="pk-tyhja" style="color:#dc2626">Virhe: ' + esc(tark.virhe) + '</div>';
@@ -1375,8 +1441,9 @@ function paivitaKortti(id) {
   var dEl = document.getElementById('dokumentit-' + id);
   if (Array.isArray(dok)) {
     chip('dok').textContent = 'Dokumentit ' + dok.length;
+    pkTabLuku(kortti, 'dok', dok.length);
     if (dEl) {
-      dEl.innerHTML = dok.length ? dok.map(function(x) {
+      dEl.innerHTML = pkLyhyt(id, 'dok', dok.map(function(x) {
         var napit;
         var roskis = '<button type="button" class="mk-btn mk-btn-danger mk-btn-icon" aria-label="Poista dokumentti" title="Poista" data-act="poistaDok" data-id="' + id + '" data-dok="' + esc(x._id) + '"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button>';
         if (x.pdfBase64) {
@@ -1388,7 +1455,7 @@ function paivitaKortti(id) {
         return '<div class="pk-rivi"><span class="pk-pvm">' + fiPvm(x.luotu) + '</span>' +
           '<span class="pk-rivi-nimi">' + esc(x.nimi || 'dokumentti') + '</span>' + (x.pdfBase64 ? '' : '<span class="pk-lisa">vanha ZIP-rivi</span>') + '<span class="pk-grow"></span>' +
           '<div class="pk-rivi-napit">' + napit + '</div></div>';
-      }).join('') : '<div class="pk-tyhja">Ei dokumentteja vielä.</div>';
+      }), 'Ei dokumentteja vielä.');
     }
   } else if (dok && dok.virhe) {
     chip('dok').textContent = 'Dokumentit ?';
@@ -1399,7 +1466,8 @@ function paivitaKortti(id) {
   var vEl = document.getElementById('valut-' + id);
   if (Array.isArray(valut)) {
     chip('valu').textContent = 'Valut ' + valut.length;
-    if (vEl) vEl.innerHTML = valut.length ? valut.map(function(v) { return valuRiviHtml(id, v); }).join('') : '<div class="pk-tyhja">Ei valuja vielä. Luo valu ja jaa kuittauslinkki alihankkijalle.</div>';
+    pkTabLuku(kortti, 'valut', valut.length);
+    if (vEl) vEl.innerHTML = pkLyhyt(id, 'valut', valut.map(function(v) { return valuRiviHtml(id, v); }), 'Ei valuja vielä. Luo valu ja jaa kuittauslinkki alihankkijalle.');
   } else if (valut && valut.virhe) {
     chip('valu').textContent = 'Valut ?';
     if (vEl) vEl.innerHTML = '<div class="pk-tyhja" style="color:#dc2626">Virhe: ' + esc(valut.virhe) + '</div>';
@@ -1468,6 +1536,9 @@ document.addEventListener('click', function(e) {
   }
   suljeValikot();
   if (act === 'toggle') toggleKortti(id);
+  else if (act === 'tab') vaihdaValilehti(id, el.dataset.tab);
+  else if (act === 'avaaTab') { toggleKortti(id, true); vaihdaValilehti(id, el.dataset.tab); }
+  else if (act === 'naytaKaikki') { pkKaikki[id + ':' + el.dataset.lista] = el.dataset.kaikki === '1'; paivitaKortti(id); }
   else if (act === 'avaaPdf') avaaPdf(id);
   else if (act === 'lataaPdf') avaaLataaPdf(id, nimi);
   else if (act === 'uusiMk') avaaLomake(id);
@@ -1478,7 +1549,7 @@ document.addEventListener('click', function(e) {
   else if (act === 'poista') poistaProjekti(id, nimi);
   else if (act === 'avaaDok') avaaDokumentti(id, el.dataset.dok);
   else if (act === 'poistaDok') poistaDokumentti(id, el.dataset.dok);
-  else if (act === 'uusiValu') avaaUusiValu(id);
+  else if (act === 'uusiValu') { vaihdaValilehti(id, 'valut'); avaaUusiValu(id); }
   else if (act === 'jaaValu') jaaValu(el.dataset.valu);
   else if (act === 'kopioiValu') kopioiValuLinkki(el.dataset.valu);
   else if (act === 'avaaValu') avaaValu(el.dataset.valu);
@@ -1548,6 +1619,7 @@ function kohdistaProjektiin() {
   if (!kortti) return; // projekti ei vielä renderöity — yritetään seuraavalla onSnapshot-päivityksellä
   avaaKohdistusTehty = true;
   toggleKortti(avaaId, true);
+  vaihdaValilehti(avaaId, 'mk');
   kortti.scrollIntoView({ behavior: 'smooth', block: 'center' });
   kortti.style.transition = 'box-shadow 0.4s, border-color 0.4s';
   kortti.style.boxShadow = '0 0 0 3px #006CB1';
