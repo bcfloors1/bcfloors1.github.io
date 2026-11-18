@@ -1606,7 +1606,36 @@ function analysoiSchwenk(kuormat, pumput) {
     t.kuormia++; t.summa += k.m3;
     if (k.kum > t.toimitettu) t.toimitettu = k.kum;
     if (k.lastaus && (!t.ensimmainen || k.lastaus < t.ensimmainen)) t.ensimmainen = k.lastaus;
+    // Kumulatiivinen määrä ennen ryhmän ensimmäistä kuormaa (uusi tilaus alkaa nollasta)
+    var ennen = pyor(k.kum - k.m3);
+    if (t.alkuKum === undefined || ennen < t.alkuKum) t.alkuKum = ennen;
   });
+  // Schwenk päivittää tilatun määrän, jos tilausta muutetaan kesken valun (esim. 10 → 11 m³).
+  // Silloin saman tilauksen kuormilla on eri "tilattu", mutta "toimitettu yht." jatkuu edellisestä.
+  // Yhdistetään ryhmä aiempaan saman tuotteen ryhmään, jos sen toimitettu yht. jatkuu siitä
+  // (uusi erillinen tilaus alkaisi nollasta).
+  var muutokset = [];
+  tilaukset.sort(function(a, b) { return a.alkuKum - b.alkuKum; });
+  tilaukset = tilaukset.filter(function(t, i) {
+    if (!(t.alkuKum > 0.01)) return true;
+    var edellinen = null;
+    for (var j = 0; j < i; j++) {
+      var a = tilaukset[j];
+      if (a._yhdistetty || a.tuote !== t.tuote || a.toimitettu > t.alkuKum + 0.01) continue;
+      if (!edellinen || a.toimitettu > edellinen.toimitettu) edellinen = a;
+    }
+    if (!edellinen) return true;
+    muutokset.push({ tuote: t.tuote, vanha: edellinen.tilattu, uusi: t.tilattu });
+    edellinen.kuormia += t.kuormia; edellinen.summa += t.summa;
+    if (t.toimitettu > edellinen.toimitettu) { edellinen.toimitettu = t.toimitettu; edellinen.tilattu = t.tilattu; }
+    if (t.ensimmainen && (!edellinen.ensimmainen || t.ensimmainen < edellinen.ensimmainen)) edellinen.ensimmainen = t.ensimmainen;
+    ['tuotenimi', 'lujuus', 'notkeus', 'raekoko'].forEach(function(x) { if (!edellinen[x] && t[x]) edellinen[x] = t[x]; });
+    t.rasitus.forEach(function(x) { if (edellinen.rasitus.indexOf(x) < 0) edellinen.rasitus.push(x); });
+    t.kayttoika.forEach(function(x) { if (edellinen.kayttoika.indexOf(x) < 0) edellinen.kayttoika.push(x); });
+    t._yhdistetty = true;
+    return false;
+  });
+  tilaukset.forEach(function(t) { delete t.alkuKum; });
   tilaukset.forEach(function(t) {
     t.summa = pyor(t.summa); t.toimitettu = pyor(t.toimitettu);
     t.puuttuu = pyor(t.toimitettu - t.summa);
@@ -1625,6 +1654,7 @@ function analysoiSchwenk(kuormat, pumput) {
   tilaukset.forEach(function(t) {
     if (t.puuttuu > 0.001) huomiot.push('⚠️ Tilaus ' + fi(t.tilattu) + ' m³: kuormakirjoja puuttuu välistä (' + fi(t.puuttuu) + ' m³).');
   });
+  muutokset.forEach(function(m) { huomiot.push('ℹ️ Tilausta muutettu kesken valun: ' + fi(m.vanha) + ' → ' + fi(m.uusi) + ' m³ (tuote ' + m.tuote + ').'); });
   var vajaat = tilaukset.filter(function(t) { return !t.taysi; });
   if (!valmis) {
     var syyt = vajaat.map(function(t) { return 'tilaus ' + fi(t.tilattu) + ' m³, toimitettu ' + fi(t.toimitettu) + ' m³'; });

@@ -410,6 +410,10 @@ function tarkastusRiviHtml(doc, projektinId) {
   html += '<div class="' + tulosClass + '">' + tulosTxt + '</div></div>';
   html += '<div style="display:flex;gap:4px">';
   html += '<button class="tark-pdf-btn" onclick="lataaVanhaPDF(&quot;' + doc.id + '&quot;)">PDF</button>';
+  if (projektinId) {
+    var spT = t.sharepoint && t.sharepoint.tallennettu;
+    html += '<button class="tark-pdf-btn" title="' + (spT ? 'Tallennettu SharePointiin ' + new Date(t.sharepoint.tallennettu).toLocaleDateString('fi-FI') + ' – tallenna uudelleen' : 'Tallenna PDF SharePointiin (Projektipankin PDF on ilman valokuvia)') + '" onclick="tarkastusSharePointiin(&quot;' + doc.id + '&quot;, &quot;' + projektinId + '&quot;, this)"' + (spT ? ' style="background:#16a34a"' : '') + '>☁️' + (spT ? ' ✓' : '') + '</button>';
+  }
   html += '<button class="tark-pdf-btn" onclick="poistaTarkastus(&quot;' + doc.id + '&quot;, &quot;' + (projektinId || '') + '&quot;)" style="background:#ef4444">🗑</button>';
   html += '</div></div>';
   if (!projektinId) {
@@ -519,8 +523,14 @@ function generoimPDF(t) {
 }
 
 function _generoimPDF(t) {
+  var pdf = _luoTarkastusPDF(t);
+  pdf.doc.save(pdf.fn);
+}
+
+// Palauttaa {doc, fn} (jsPDF-dokumentti ja tiedostonimi)
+function _luoTarkastusPDF(t) {
   var jsPDF = window.jspdf.jsPDF;
-  var doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+  var doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4', compress:true });
   var PW=210, PH=297, ML=14, MR=14, CW=PW-ML-MR;
   var BLUE=[0,108,177], BLUE2=[46,109,164], GRAY=[242,245,248], GBORDER=[200,208,216];
   var WHITE=[255,255,255], TEXT=[26,26,26], TEXT2=[107,114,128];
@@ -696,7 +706,34 @@ function _generoimPDF(t) {
   doc.text('Luotu: ' + new Date().toLocaleDateString('fi-FI') + '  —  Sivu 1 / 1', PW-MR, PH-3.5, {align:'right'});
 
   var fn = 'Valunaloituspoytakirja_' + (t.projekti||'').replace(/\s+/g,'_') + '_' + pvm + '.pdf';
-  doc.save(fn);
+  return { doc: doc, fn: fn };
+}
+
+// ── Raudoitustarkastus SharePointiin (5 Raudoitustarkastukset) ──
+function tarkastusSharePointiin(tarkastusId, projektinId, btn) {
+  var ref = db.collection('raudoitustarkastukset').doc(tarkastusId);
+  var vanhaTeksti = btn ? btn.textContent : '';
+  function palauta() { if (btn) { btn.textContent = vanhaTeksti; btn.disabled = false; } }
+  if (btn) { btn.textContent = '⏳'; btn.disabled = true; }
+  ref.get().then(function(doc) {
+    if (!doc.exists) { palauta(); alert('Tarkastusta ei löydy.'); return; }
+    var t = doc.data();
+    if (!t.projektiId) { palauta(); alert('Tarkastus ei kuulu projektille. Siirrä se ensin projektille.'); return; }
+    if (t.sharepoint && t.sharepoint.tallennettu && !confirm('Tarkastus on jo tallennettu SharePointiin ' + new Date(t.sharepoint.tallennettu).toLocaleString('fi-FI') + '. Tallennetaanko uudelleen? (Uusi tiedosto saa nimen perään numeron.)')) { palauta(); return; }
+    if (!window.jspdf) { palauta(); alert('PDF-kirjasto ei latautunut. Lataa sivu uudelleen.'); return; }
+    var pdf = _luoTarkastusPDF(t);
+    var nimi = spTiedostonimi(pdf.fn);
+    return tallennaPdfSharePointiin(t.projektiId, '5 Raudoitustarkastukset', nimi, pdf.doc).then(function(r) {
+      return ref.update({ sharepoint: { tallennettu: new Date().toISOString(), tiedosto: nimi, kansio: r.kansio || '' } }).then(function() {
+        naytaToast('☁️ Tarkastus tallennettu SharePointiin' + (r.kansio ? ': ' + r.kansio : ''));
+        lataaProjektinTarkastukset(projektinId || t.projektiId);
+      });
+    });
+  }).catch(function(err) {
+    palauta();
+    console.error('SharePoint-tallennus:', err);
+    alert('SharePoint-tallennus epäonnistui: ' + (err.message || err));
+  });
 }
 
 
@@ -1615,6 +1652,7 @@ function mkRiviHtml(projektinId, mk) {
       '<button type="button" class="mk-btn mk-btn-outline" onclick="window.open(\'' + baseUrl + '/mitta-view.html?id=' + mkId + '\')">Näytä</button>' +
       '<button type="button" class="mk-btn mk-btn-green" onclick="window.open(\'' + baseUrl + '/mitta-view.html?id=' + mkId + '\')">PDF</button>' +
       '<button type="button" class="mk-btn mk-btn-outline" onclick="avaaLomake(\'' + pid + '\',\'' + mkId + '\')">Käytä pohjana</button>' +
+      (pid ? mkSpNappi(mk) : '') +
       trash;
   } else if (mk.tila === 'lahetetty') {
     var linkki = baseUrl + '/mitta-view.html?id=' + mkId;
@@ -2012,6 +2050,281 @@ function waLinkki(v) {
   return 'https://wa.me/' + (num ? num : '') + '?text=' + encodeURIComponent(valuViesti(v));
 }
 
+// ── SharePoint: mittakirjat (3 Mittakirjat) ja raudoitustarkastukset (5 Raudoitustarkastukset) ──
+// Palvelinfunktio tallennaSharePointiin etsii tai luo projektin kansion (Työmaat / <tarjousnro kohde>).
+// Asiakkaan allekirjoittama mittakirja tallennetaan automaattisesti, kun Projektipankki on auki
+// (allekirjoitusten seuranta). Tätä päivää aiemmin allekirjoitetut tallennetaan vain napista.
+var SP_MITTAKIRJA_ALKAEN = '2026-11-17';
+var spMkYritetty = {};
+
+function spTiedostonimi(n) {
+  return String(n || '').replace(/[\\/:*?"<>|#%]+/g, '_').replace(/\s+/g, ' ').trim();
+}
+
+function tallennaPdfSharePointiin(projektiId, alikansio, nimi, pdfDoc) {
+  if (!firebase.functions) return Promise.reject(new Error('Firebase Functions -kirjasto puuttuu'));
+  var base64 = pdfDoc.output('datauristring').split(',')[1];
+  return firebase.app().functions('europe-west1').httpsCallable('tallennaSharePointiin')({
+    projektiId: projektiId, alikansio: alikansio, tiedostot: [{ nimi: nimi, base64: base64 }]
+  }).then(function(r) { return (r && r.data) || {}; });
+}
+
+function mkSpNappi(mk) {
+  var sp = mk.sharepoint && mk.sharepoint.tallennettu;
+  var title = sp ? 'Tallennettu SharePointiin ' + new Date(mk.sharepoint.tallennettu).toLocaleDateString('fi-FI') + ' – tallenna uudelleen'
+    : (mk.sharepointVirhe ? 'Edellinen tallennus epäonnistui: ' + mk.sharepointVirhe : 'Tallenna PDF SharePointiin');
+  return '<button type="button" class="mk-btn mk-btn-outline" title="' + esc(title) + '" onclick="mittakirjaSharePointiin(\'' + mk._id + '\', this)"' +
+    (sp ? ' style="color:#15803d;border-color:#86efac"' : (mk.sharepointVirhe ? ' style="color:#b91c1c;border-color:#fca5a5"' : '')) + '>' +
+    (sp ? '☁️ ✓' : '☁️ SharePoint') + '</button>';
+}
+
+function paivitaMkValimuisti(pid, mkId, muutos) {
+  var lista = mkCache[pid];
+  if (!Array.isArray(lista)) return;
+  lista.forEach(function(m) { if (m._id === mkId) Object.keys(muutos).forEach(function(k) { m[k] = muutos[k]; }); });
+  paivitaKortti(pid);
+}
+
+function tallennaUudetMittakirjatSharePointiin(kaikki) {
+  kaikki.forEach(function(d) {
+    if (!d.projektiId || (d.sharepoint && d.sharepoint.tallennettu) || spMkYritetty[d._id]) return;
+    if (String(d.allekirjoitettuAika || '') < SP_MITTAKIRJA_ALKAEN) return;
+    spMkYritetty[d._id] = true;
+    mittakirjaSharePointiin(d._id, null);
+  });
+}
+
+// btn = null → automaattinen tallennus (varataan transaktiolla, ettei kaksi selainta tallenna samaa)
+function mittakirjaSharePointiin(mkId, btn) {
+  var auto = !btn;
+  var ref = fbDb.collection('mittakirjat').doc(mkId);
+  var vanhaTeksti = btn ? btn.textContent : '';
+  var varattu = false;
+  function palauta() { if (btn) { btn.textContent = vanhaTeksti; btn.disabled = false; } }
+  if (btn) { btn.textContent = '⏳'; btn.disabled = true; }
+
+  var haku = auto
+    ? fbDb.runTransaction(function(tx) {
+        return tx.get(ref).then(function(s) {
+          if (!s.exists) return null;
+          var x = s.data();
+          if (x.tila !== 'allekirjoitettu' || !x.projektiId || (x.sharepoint && x.sharepoint.tallennettu)) return null;
+          if (x.sharepointKaynnissa && Date.now() - new Date(x.sharepointKaynnissa).getTime() < 10 * 60000) return null;
+          tx.update(ref, { sharepointKaynnissa: new Date().toISOString() });
+          return x;
+        });
+      })
+    : ref.get().then(function(s) { return s.exists ? s.data() : null; });
+
+  haku.then(function(x) {
+    if (!x) { palauta(); if (!auto) alert('Mittakirjaa ei löydy.'); return; }
+    varattu = auto;
+    if (!auto) {
+      if (!x.projektiId) { palauta(); alert('Mittakirja ei kuulu projektille.'); return; }
+      if (x.sharepoint && x.sharepoint.tallennettu && !confirm('Mittakirja on jo tallennettu SharePointiin ' + new Date(x.sharepoint.tallennettu).toLocaleString('fi-FI') + '. Tallennetaanko uudelleen? (Uusi tiedosto saa nimen perään numeron.)')) { palauta(); return; }
+    }
+    if (!window.jspdf) throw new Error('PDF-kirjasto ei latautunut');
+    var pdf = luoMittakirjaPDF(x);
+    return tallennaPdfSharePointiin(x.projektiId, '3 Mittakirjat', pdf.fn, pdf.doc).then(function(r) {
+      var tieto = { tallennettu: new Date().toISOString(), tiedosto: pdf.fn, kansio: r.kansio || '' };
+      return ref.update({
+        sharepoint: tieto,
+        sharepointKaynnissa: firebase.firestore.FieldValue.delete(),
+        sharepointVirhe: firebase.firestore.FieldValue.delete()
+      }).then(function() {
+        paivitaMkValimuisti(x.projektiId, mkId, { sharepoint: tieto, sharepointVirhe: null });
+        naytaToast('☁️ Mittakirja (' + (x.tyomaa || x.tilaaja || '') + ') tallennettu SharePointiin' + (r.kansio ? ': ' + r.kansio : ''));
+      });
+    });
+  }).catch(function(err) {
+    palauta();
+    var viesti = (err && err.message) || String(err);
+    console.error('Mittakirjan SharePoint-tallennus:', err);
+    var muutos = { sharepointVirhe: viesti };
+    if (varattu) muutos.sharepointKaynnissa = firebase.firestore.FieldValue.delete();
+    ref.update(muutos).catch(function() {});
+    if (auto) naytaToast('❌ Mittakirjan SharePoint-tallennus epäonnistui: ' + viesti);
+    else alert('SharePoint-tallennus epäonnistui: ' + viesti);
+  });
+}
+
+// ── Mittakirjan PDF (jsPDF) – sama sisältö kuin asiakkaan näkymässä + allekirjoitus ──
+function luoMittakirjaPDF(d) {
+  var jsPDF = window.jspdf.jsPDF;
+  var doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
+  var PW = 210, PH = 297, ML = 14, MR = 14, CW = PW - ML - MR, ALA = PH - 16;
+  var BLUE = [0, 108, 177], BLUE2 = [46, 109, 164], GOLD = [232, 160, 32], GRAY = [242, 245, 248], GBORDER = [200, 208, 216];
+  var WHITE = [255, 255, 255], TEXT = [26, 26, 26], TEXT2 = [107, 114, 128], OK = [22, 163, 74];
+  var y = 0;
+
+  function pvmFi(v) { v = String(v || '').trim(); var m = v.match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? m[3] + '.' + m[2] + '.' + m[1] : v; }
+  function luku(v) { var n = parseFloat(String(v == null ? '' : v).replace(/\s/g, '').replace(',', '.')); return isFinite(n) ? n : 0; }
+  function eur(n) {
+    return n.toLocaleString('fi-FI', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      .replace(/[\u00a0\u202f]/g, ' ').replace(/\u2212/g, '-') + ' €';
+  }
+
+  function otsikko() {
+    doc.setFillColor.apply(doc, BLUE); doc.rect(0, 0, PW, 24, 'F');
+    doc.setFillColor.apply(doc, GOLD); doc.rect(0, 24, PW, 1.2, 'F');
+    doc.setTextColor.apply(doc, WHITE); doc.setFont('helvetica', 'bold'); doc.setFontSize(14);
+    doc.text('BC Floors', ML + 2, 15);
+    doc.setFontSize(13); doc.text('MITTAPÖYTÄKIRJA', PW - MR, 11, { align: 'right' });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(200, 228, 245);
+    doc.text('Asiakkaan hyväksymä', PW - MR, 17, { align: 'right' });
+    y = 31;
+  }
+  function uusiSivu() { doc.addPage(); otsikko(); }
+  function osioOtsikko(t) {
+    doc.setFillColor.apply(doc, BLUE2); doc.rect(ML, y, CW, 6.5, 'F');
+    doc.setTextColor.apply(doc, WHITE); doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5);
+    doc.text(t.toUpperCase(), ML + 3, y + 4.5);
+    y += 6.5;
+  }
+
+  otsikko();
+
+  // Perustiedot
+  var tiedot = [
+    { label: 'Tilaaja', value: d.tilaaja || d.tilaaja_txt || '—', w: 52 },
+    { label: 'Työmaa / Kohde', value: d.tyomaa || '—', w: 70 },
+    { label: 'Työ nro', value: d.tyonro || '—', w: 28 },
+    { label: 'Päiväys', value: pvmFi(d.pvm) || '—', w: 32 }
+  ];
+  osioOtsikko('Perustiedot');
+  var x = ML, maxRivit = 1;
+  tiedot.forEach(function(p) {
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
+    p.rivit = doc.splitTextToSize(String(p.value), p.w - 4).slice(0, 3);
+    maxRivit = Math.max(maxRivit, p.rivit.length);
+  });
+  var arvoK = 3.5 + maxRivit * 4;
+  tiedot.forEach(function(p) {
+    doc.setFillColor.apply(doc, GRAY); doc.setDrawColor.apply(doc, GBORDER); doc.rect(x, y, p.w, 5, 'FD');
+    doc.setTextColor.apply(doc, BLUE2); doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5);
+    doc.text(p.label.toUpperCase(), x + 2, y + 3.5);
+    doc.setFillColor.apply(doc, WHITE); doc.rect(x, y + 5, p.w, arvoK, 'FD');
+    doc.setTextColor.apply(doc, TEXT); doc.setFontSize(9);
+    doc.text(p.rivit, x + 2, y + 9.5);
+    x += p.w;
+  });
+  y += 5 + arvoK + 5;
+
+  // Viesti asiakkaalle
+  if (d.lahetysViesti) {
+    osioOtsikko('Viesti');
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor.apply(doc, TEXT);
+    var vr = doc.splitTextToSize(String(d.lahetysViesti), CW - 6);
+    var vk = vr.length * 3.8 + 4;
+    doc.setDrawColor.apply(doc, GBORDER); doc.rect(ML, y, CW, vk, 'S');
+    doc.text(vr, ML + 3, y + 5);
+    y += vk + 5;
+  }
+
+  // Rivit
+  var sar = [
+    { t: 'Pvm', w: 20 }, { t: 'Kuvaus', w: 80 }, { t: 'Määrä', w: 18, r: true },
+    { t: 'Yks', w: 14 }, { t: '€/yks', w: 22, r: true }, { t: 'Yhteensä', w: 28, r: true }
+  ];
+  function rivitOtsikko() {
+    var xx = ML;
+    doc.setFillColor.apply(doc, GRAY); doc.setDrawColor.apply(doc, GBORDER); doc.rect(ML, y, CW, 6, 'FD');
+    doc.setTextColor.apply(doc, BLUE2); doc.setFont('helvetica', 'bold'); doc.setFontSize(7);
+    sar.forEach(function(c) {
+      doc.text(c.t.toUpperCase(), c.r ? xx + c.w - 2 : xx + 2, y + 4, c.r ? { align: 'right' } : undefined);
+      xx += c.w;
+    });
+    y += 6;
+  }
+  osioOtsikko('Rivit');
+  rivitOtsikko();
+  var yhteensa = 0;
+  (d.rivit || []).forEach(function(r) {
+    var kuvaus = String(r.kuvaus || '').replace(/—\s*Valitse\s*—/g, '').trim();
+    if (!kuvaus && !r.maara) return;
+    var summa = luku(r.maara) * luku(r.hinta);
+    yhteensa += summa;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
+    var kr = doc.splitTextToSize(kuvaus || '—', sar[1].w - 4);
+    doc.setFontSize(7.5);
+    var sr = r.selite ? doc.splitTextToSize(String(r.selite), sar[1].w - 4) : [];
+    var korkeus = Math.max(7, 3 + kr.length * 3.8 + (sr.length ? 0.8 + sr.length * 3.3 : 0) + 1.5);
+    if (y + korkeus > ALA) { uusiSivu(); osioOtsikko('Rivit (jatkuu)'); rivitOtsikko(); }
+    doc.setDrawColor.apply(doc, GBORDER); doc.line(ML, y + korkeus, ML + CW, y + korkeus);
+    var xx = ML, ty = y + 4.6;
+    doc.setTextColor.apply(doc, TEXT); doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
+    doc.text(pvmFi(r.pvm), xx + 2, ty); xx += sar[0].w;
+    doc.text(kr, xx + 2, ty);
+    if (sr.length) { doc.setFontSize(7.5); doc.setTextColor.apply(doc, TEXT2); doc.text(sr, xx + 2, ty + kr.length * 3.8 + 0.6); doc.setFontSize(8.5); doc.setTextColor.apply(doc, TEXT); }
+    xx += sar[1].w;
+    doc.text(String(r.maara == null ? '' : r.maara), xx + sar[2].w - 2, ty, { align: 'right' }); xx += sar[2].w;
+    doc.text(String(r.yksikko || ''), xx + 2, ty); xx += sar[3].w;
+    doc.text(r.hinta !== '' && r.hinta != null ? eur(luku(r.hinta)) : '', xx + sar[4].w - 2, ty, { align: 'right' }); xx += sar[4].w;
+    doc.setFont('helvetica', 'bold');
+    doc.text(summa !== 0 ? eur(summa) : '—', xx + sar[5].w - 2, ty, { align: 'right' });
+    y += korkeus;
+  });
+  if (y + 8 > ALA) uusiSivu();
+  doc.setFillColor.apply(doc, GRAY); doc.rect(ML, y, CW, 8, 'F');
+  doc.setTextColor.apply(doc, TEXT); doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
+  doc.text('YHTEENSÄ', ML + CW - sar[5].w - 3, y + 5.5, { align: 'right' });
+  doc.text(eur(yhteensa), ML + CW - 2, y + 5.5, { align: 'right' });
+  y += 14;
+
+  // Hyväksyntä
+  var kom = d.allekirjoittajaKommentti ? (doc.setFont('helvetica', 'normal'), doc.setFontSize(8.5), doc.splitTextToSize(String(d.allekirjoittajaKommentti), CW - 6)) : [];
+  var tarve = 6.5 + 42 + (kom.length ? kom.length * 3.8 + 8 : 0);
+  if (y + tarve > ALA) uusiSivu();
+  osioOtsikko('Asiakkaan hyväksyntä');
+  var at = d.allekirjoitettuAika ? new Date(d.allekirjoitettuAika) : null;
+  var aikaTxt = at && !isNaN(at) ? pvmFi(at.getFullYear() + '-' + ('0' + (at.getMonth() + 1)).slice(-2) + '-' + ('0' + at.getDate()).slice(-2)) + ' klo ' + ('0' + at.getHours()).slice(-2) + '.' + ('0' + at.getMinutes()).slice(-2) : '';
+  doc.setDrawColor.apply(doc, GBORDER); doc.rect(ML, y, CW, 40, 'S');
+  doc.setTextColor.apply(doc, OK); doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5);
+  doc.text('Hyväksytty ja allekirjoitettu sähköisesti', ML + 3, y + 6);
+  doc.setTextColor.apply(doc, TEXT2); doc.setFont('helvetica', 'normal'); doc.setFontSize(7);
+  ['Allekirjoittaja', 'Asema', 'Aika'].forEach(function(l, i) { doc.text(l.toUpperCase(), ML + 3, y + 13 + i * 8); });
+  doc.setTextColor.apply(doc, TEXT); doc.setFontSize(9.5);
+  doc.text(String(d.allekirjoittajaNimi || '—'), ML + 3, y + 17);
+  doc.text(String(d.allekirjoittajaAsema || '—'), ML + 3, y + 25);
+  doc.text(aikaTxt || '—', ML + 3, y + 33);
+  // Allekirjoituskuva oikealle (90 × 30 mm laatikkoon, mittasuhteet säilyttäen)
+  var bx = ML + 82, bw = CW - 85, bh = 30, by = y + 4;
+  if (d.allekirjoitusKuva) {
+    try {
+      var ip = doc.getImageProperties(d.allekirjoitusKuva);
+      var s = Math.min(bw / ip.width, bh / ip.height);
+      var iw = ip.width * s, ih = ip.height * s;
+      doc.addImage(d.allekirjoitusKuva, 'PNG', bx + (bw - iw) / 2, by + (bh - ih) / 2, iw, ih);
+    } catch (e) { console.warn('Allekirjoituskuva:', e.message); }
+  }
+  doc.setDrawColor.apply(doc, GBORDER); doc.line(bx, by + bh + 1.5, bx + bw, by + bh + 1.5);
+  doc.setTextColor.apply(doc, TEXT2); doc.setFontSize(6.5);
+  doc.text('ALLEKIRJOITUS', bx, by + bh + 4.5);
+  y += 40;
+  if (kom.length) {
+    y += 3;
+    doc.setTextColor.apply(doc, TEXT2); doc.setFont('helvetica', 'bold'); doc.setFontSize(7);
+    doc.text('ASIAKKAAN KOMMENTTI', ML, y + 3);
+    doc.setTextColor.apply(doc, TEXT); doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
+    doc.text(kom, ML, y + 7.5);
+    y += 7.5 + kom.length * 3.8;
+  }
+
+  // Alatunniste kaikille sivuille
+  var sivuja = doc.getNumberOfPages();
+  for (var i = 1; i <= sivuja; i++) {
+    doc.setPage(i);
+    doc.setFillColor.apply(doc, BLUE2); doc.rect(0, PH - 8, PW, 8, 'F');
+    doc.setTextColor.apply(doc, WHITE); doc.setFont('helvetica', 'normal'); doc.setFontSize(7);
+    doc.text('BC Floors Oy  |  Mittapöytäkirja' + (d.tyomaa ? '  |  ' + d.tyomaa : ''), ML, PH - 3.5);
+    doc.text('Luotu: ' + new Date().toLocaleDateString('fi-FI') + '  —  Sivu ' + i + ' / ' + sivuja, PW - MR, PH - 3.5, { align: 'right' });
+  }
+
+  var nimiPvm = pvmFi(d.pvm) || (d.allekirjoitettuAika ? pvmFi(String(d.allekirjoitettuAika).slice(0, 10)) : '');
+  var fn = spTiedostonimi('Mittakirja ' + (d.tyomaa || d.tilaaja || 'mittakirja') + (nimiPvm ? ' ' + nimiPvm : '') + '.pdf');
+  return { doc: doc, fn: fn };
+}
+
 // ── Pokaali: uudet asiakkaan allekirjoittamat mittakirjat ──
 // Näytetään kerran per selain jokaisesta uudesta allekirjoituksesta (myös kesken käytön).
 // Ensimmäisellä kerralla olemassa olevat merkitään nähdyiksi ilman juhlintaa.
@@ -2041,6 +2354,7 @@ function seuraaAllekirjoituksia() {
     var nahdyt = pokaaliNahdyt();
     var kaikki = [];
     snap.forEach(function(doc) { var d = doc.data(); d._id = doc.id; kaikki.push(d); });
+    tallennaUudetMittakirjatSharePointiin(kaikki);
     if (nahdyt === null) { pokaaliMerkitse(kaikki.map(function(d) { return d._id; })); return; }
     var uudet = kaikki.filter(function(d) { return nahdyt.indexOf(d._id) === -1 && !pokaaliJono.some(function(j) { return j._id === d._id; }); });
     uudet.sort(function(a, b) { return String(a.allekirjoitettuAika || '').localeCompare(String(b.allekirjoitettuAika || '')); });
@@ -2211,7 +2525,36 @@ function analysoiSchwenk(kuormat, pumput) {
     t.kuormia++; t.summa += k.m3;
     if (k.kum > t.toimitettu) t.toimitettu = k.kum;
     if (k.lastaus && (!t.ensimmainen || k.lastaus < t.ensimmainen)) t.ensimmainen = k.lastaus;
+    // Kumulatiivinen määrä ennen ryhmän ensimmäistä kuormaa (uusi tilaus alkaa nollasta)
+    var ennen = pyor(k.kum - k.m3);
+    if (t.alkuKum === undefined || ennen < t.alkuKum) t.alkuKum = ennen;
   });
+  // Schwenk päivittää tilatun määrän, jos tilausta muutetaan kesken valun (esim. 10 → 11 m³).
+  // Silloin saman tilauksen kuormilla on eri "tilattu", mutta "toimitettu yht." jatkuu edellisestä.
+  // Yhdistetään ryhmä aiempaan saman tuotteen ryhmään, jos sen toimitettu yht. jatkuu siitä
+  // (uusi erillinen tilaus alkaisi nollasta).
+  var muutokset = [];
+  tilaukset.sort(function(a, b) { return a.alkuKum - b.alkuKum; });
+  tilaukset = tilaukset.filter(function(t, i) {
+    if (!(t.alkuKum > 0.01)) return true;
+    var edellinen = null;
+    for (var j = 0; j < i; j++) {
+      var a = tilaukset[j];
+      if (a._yhdistetty || a.tuote !== t.tuote || a.toimitettu > t.alkuKum + 0.01) continue;
+      if (!edellinen || a.toimitettu > edellinen.toimitettu) edellinen = a;
+    }
+    if (!edellinen) return true;
+    muutokset.push({ tuote: t.tuote, vanha: edellinen.tilattu, uusi: t.tilattu });
+    edellinen.kuormia += t.kuormia; edellinen.summa += t.summa;
+    if (t.toimitettu > edellinen.toimitettu) { edellinen.toimitettu = t.toimitettu; edellinen.tilattu = t.tilattu; }
+    if (t.ensimmainen && (!edellinen.ensimmainen || t.ensimmainen < edellinen.ensimmainen)) edellinen.ensimmainen = t.ensimmainen;
+    ['tuotenimi', 'lujuus', 'notkeus', 'raekoko'].forEach(function(x) { if (!edellinen[x] && t[x]) edellinen[x] = t[x]; });
+    t.rasitus.forEach(function(x) { if (edellinen.rasitus.indexOf(x) < 0) edellinen.rasitus.push(x); });
+    t.kayttoika.forEach(function(x) { if (edellinen.kayttoika.indexOf(x) < 0) edellinen.kayttoika.push(x); });
+    t._yhdistetty = true;
+    return false;
+  });
+  tilaukset.forEach(function(t) { delete t.alkuKum; });
   tilaukset.forEach(function(t) {
     t.summa = pyor(t.summa); t.toimitettu = pyor(t.toimitettu);
     t.puuttuu = pyor(t.toimitettu - t.summa);
@@ -2230,6 +2573,7 @@ function analysoiSchwenk(kuormat, pumput) {
   tilaukset.forEach(function(t) {
     if (t.puuttuu > 0.001) huomiot.push('⚠️ Tilaus ' + fi(t.tilattu) + ' m³: kuormakirjoja puuttuu välistä (' + fi(t.puuttuu) + ' m³).');
   });
+  muutokset.forEach(function(m) { huomiot.push('ℹ️ Tilausta muutettu kesken valun: ' + fi(m.vanha) + ' → ' + fi(m.uusi) + ' m³ (tuote ' + m.tuote + ').'); });
   var vajaat = tilaukset.filter(function(t) { return !t.taysi; });
   if (!valmis) {
     var syyt = vajaat.map(function(t) { return 'tilaus ' + fi(t.tilattu) + ' m³, toimitettu ' + fi(t.toimitettu) + ' m³'; });
