@@ -189,6 +189,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-functions-compat.js"></script>
 <script src="auth.js"></script>
 <script>
 // Logo base64 (sininen tausta - valkoinen logo)
@@ -490,7 +491,7 @@ async function generatePDF() {
   showLoading(true,'Luodaan PDF...');
 
   const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+  const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4', compress:true });
   const PW=210, PH=297, ML=14, MR=14, CW=PW-ML-MR;
   const BLUE=[0,108,177], BLUE2=[46,109,164], BLUE_LIGHT=[227,239,250];
   const WHITE=[255,255,255], GRAY=[242,245,248], GBORDER=[200,208,216];
@@ -767,6 +768,39 @@ async function generatePDF() {
   const fn = `Valunaloituspoytakirja_${projekti.replace(/\s+/g,'_')}_${paivamaara}.pdf`;
   doc.save(fn);
   showToast('PDF luotu!','success');
+  return { doc, fn };
+}
+
+// ── SharePoint: PDF projektin kansioon Työmaat / <tarjousnro kohde> / 5 Raudoitustarkastukset ──
+async function tallennaTarkastusSharePointiin(pdf, tarkastusId) {
+  const projektiId = document.getElementById('projektiSelect').value;
+  if (!projektiId || projektiId === '__muu__') {
+    showToast('PDF luotu. SharePointiin ei tallennettu: projektia ei ole valittu listasta.', 'error', 6000);
+    return;
+  }
+  if (!firebase.functions) return;
+  showLoading(true, 'Tallennetaan SharePointiin...');
+  try {
+    const nimi = pdf.fn.replace(/[\\/:*?"<>|#%]+/g, '_');
+    const base64 = pdf.doc.output('datauristring').split(',')[1];
+    const r = await firebase.app().functions('europe-west1').httpsCallable('tallennaSharePointiin')({
+      projektiId, alikansio: '5 Raudoitustarkastukset', tiedostot: [{ nimi, base64 }]
+    });
+    const t = (r && r.data) || {};
+    if (tarkastusId) {
+      try {
+        await db.collection('raudoitustarkastukset').doc(tarkastusId).update({
+          sharepoint: { tallennettu: new Date().toISOString(), tiedosto: nimi, kansio: t.kansio || '' }
+        });
+      } catch (e) { console.warn('SharePoint-merkinnän tallennus:', e.message); }
+    }
+    showLoading(false);
+    showToast('☁️ PDF tallennettu SharePointiin' + (t.kansio ? ': ' + t.kansio : '') + (t.kansioLuotu ? ' (kansio luotiin)' : ''), 'success', 5000);
+  } catch (e) {
+    showLoading(false);
+    console.error('SharePoint-tallennus epäonnistui:', e);
+    showToast('❌ SharePoint-tallennus epäonnistui: ' + (e.message || e) + ' – PDF on ladattu laitteelle.', 'error', 8000);
+  }
 }
 
 
@@ -776,15 +810,17 @@ async function tallennaJaPDF() {
   if (!nimi) { showToast('Valitse tai kirjoita projekti', 'error'); return; }
   if (!selectedResult) { showToast('Valitse tarkastuksen tulos', 'error'); return; }
   // Tallenna ensin
+  let tarkastusId = null;
   try {
-    await submitForm(true);
+    tarkastusId = await submitForm(true);
   } catch(e) {
     console.error('Tallennus epäonnistui:', e);
     showToast('Tallennus epäonnistui — luodaan silti PDF', 'error');
   }
-  // Generoi PDF aina
+  // Generoi PDF aina ja tallenna se SharePointiin
   showLoading(false);
-  await generatePDF();
+  const pdf = await generatePDF();
+  if (pdf) await tallennaTarkastusSharePointiin(pdf, tarkastusId);
 }
 
 // Tallenna
@@ -833,6 +869,7 @@ async function submitForm(silent = false) {
     if (!silent) {
       setTimeout(()=>{if(confirm('Tallennettu! Aloitetaanko uusi tarkastus?'))location.reload();},1200);
     }
+    return docRef.id;
   } catch(err){
     showLoading(false);
     showToast('Virhe: '+err.message,'error');
@@ -841,10 +878,12 @@ async function submitForm(silent = false) {
   }
 }
 
-function showToast(msg,type){
+let toastAjastin=null;
+function showToast(msg,type,ms){
   const t=document.getElementById('toast');
   t.textContent=msg;t.className='toast show '+(type||'');
-  setTimeout(()=>t.className='toast',3000);
+  clearTimeout(toastAjastin);
+  toastAjastin=setTimeout(()=>t.className='toast',ms||3000);
 }
 function showLoading(show,txt){
   document.getElementById('loadingOverlay').className='loading-overlay'+(show?' show':'');
