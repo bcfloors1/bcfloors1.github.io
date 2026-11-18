@@ -1245,7 +1245,7 @@ var fbConfig2 = {
 if (!firebase.apps.length) firebase.initializeApp(fbConfig2);
 var fbDb2 = firebase.firestore();
 
-bcKirjaudu(function() {
+// Projektivalikon apufunktiot ovat globaaleja: myös sivun avaus ?projekti=… käyttää niitä
 var arkistoidutProjektit = {};
 function projektiOptio(id, p) {
   var opt = document.createElement('option');
@@ -1265,6 +1265,7 @@ function lisaaArkistoituValikkoon(id) {
   sel.appendChild(projektiOptio(id, arkistoidutProjektit[id]));
 }
 
+bcKirjaudu(function() {
 fbDb2.collection('projects').orderBy('tyomaa').onSnapshot(function(snap) {
   var sel = document.getElementById('projektiValinta');
   var edellinenValinta = sel.value || aktiivinenProjektiId || '';
