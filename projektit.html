@@ -122,6 +122,9 @@ button:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid
 /* Valut ja alihankkijan kuittaukset */
 .valu-badge{display:inline-flex;align-items:center;font-size:11px;font-weight:600;padding:3px 9px;border-radius:12px;}
 .valu-odottaa{background:#f1f5f9;color:#475569;}
+.valu-varattu{background:#e0f2fe;color:#075985;}
+.valu-alustava{background:#fff;color:#075985;border:1px dashed #38bdf8;}
+.pk-alaotsikko{padding:9px 14px 5px;font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#64748b;background:#f8fafc;border-top:1px solid #eef2f6;}
 .valu-kaynnissa{background:#dbeafe;color:#0b4a8f;}
 .valu-kuitattu{background:#dcfce7;color:#14602d;}
 .valu-kesken{background:#fff4dc;color:#7a4b00;}
@@ -1467,7 +1470,11 @@ function paivitaKortti(id) {
   if (Array.isArray(valut)) {
     chip('valu').textContent = 'Valut ' + valut.length;
     pkTabLuku(kortti, 'valut', valut.length);
-    if (vEl) vEl.innerHTML = pkLyhyt(id, 'valut', valut.map(function(v) { return valuRiviHtml(id, v); }), 'Ei valuja vielä. Luo valu ja jaa kuittauslinkki alihankkijalle.');
+    // Tehdyt ja tämän päivän valut ensin (uusin ensin), tulevat varaukset omana ryhmänään (lähin ensin)
+    var tehdyt = valut.filter(function(v) { return !valuTuleva(v); });
+    var tulevat = valut.filter(valuTuleva).sort(function(a, b) { return (a.pvm || '').localeCompare(b.pvm || ''); });
+    if (vEl) vEl.innerHTML = (tehdyt.length || !tulevat.length ? pkLyhyt(id, 'valut', tehdyt.map(function(v) { return valuRiviHtml(id, v); }), 'Ei valuja vielä. Luo valu ja jaa kuittauslinkki alihankkijalle.') : '') +
+      (tulevat.length ? '<div class="pk-alaotsikko">Tulevat varaukset (' + tulevat.length + ')</div>' + pkLyhyt(id, 'tulevat', tulevat.map(function(v) { return valuRiviHtml(id, v); }), '') : '');
   } else if (valut && valut.virhe) {
     chip('valu').textContent = 'Valut ?';
     if (vEl) vEl.innerHTML = '<div class="pk-tyhja" style="color:#dc2626">Virhe: ' + esc(valut.virhe) + '</div>';
@@ -1619,7 +1626,8 @@ function kohdistaProjektiin() {
   if (!kortti) return; // projekti ei vielä renderöity — yritetään seuraavalla onSnapshot-päivityksellä
   avaaKohdistusTehty = true;
   toggleKortti(avaaId, true);
-  vaihdaValilehti(avaaId, 'mk');
+  var avaaTab = new URLSearchParams(window.location.search).get('tab');
+  vaihdaValilehti(avaaId, ['valut', 'mk', 'tark', 'dok', 'hinnat'].indexOf(avaaTab) >= 0 ? avaaTab : 'mk');
   kortti.scrollIntoView({ behavior: 'smooth', block: 'center' });
   kortti.style.transition = 'box-shadow 0.4s, border-color 0.4s';
   kortti.style.boxShadow = '0 0 0 3px #006CB1';
@@ -3009,8 +3017,12 @@ function valuTila(v) {
   if (k.tallennettu && k.pintaPaattyi) return { luokka: 'valu-kuitattu', teksti: 'Kuitattu' };
   if (k.pintaAlkoi && !k.pintaPaattyi) return { luokka: 'valu-kaynnissa', teksti: 'Pintatyö käynnissä' };
   if (k.tallennettu) return { luokka: 'valu-kaynnissa', teksti: 'Osittain kuitattu' };
+  if (valuTuleva(v)) return v.varaus && v.varaus.alustava ? { luokka: 'valu-alustava', teksti: 'Alustava varaus' } : { luokka: 'valu-varattu', teksti: 'Varattu' };
   return { luokka: 'valu-odottaa', teksti: 'Odottaa kuittausta' };
 }
+// Tuleva valu = valupäivä on tämän päivän jälkeen (varattu kalenterista tai etukäteen)
+function valuTanaan() { var d = new Date(); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+function valuTuleva(v) { return !!(v && v.pvm && v.pvm > valuTanaan()); }
 
 function lataaProjektinValut(projektinId) {
   return fbDb.collection('valut').where('projektiId', '==', projektinId).get()
@@ -3032,7 +3044,9 @@ function valuRiviHtml(projektinId, v) {
   var k = v.kuittaus || {};
   var lisa = [];
   if (v.valualue) lisa.push(esc(v.valualue));
+  if (v.m2 == null && v.m2Arvio) lisa.push(esc(v.m2Arvio) + ' m²');
   if (v.alihankkija && v.alihankkija.nimi) lisa.push(esc(v.alihankkija.nimi));
+  else if (valuTuleva(v)) lisa.push('<span style="color:#b45309">alihankkija puuttuu</span>');
   if (k.pintaAlkoi) lisa.push('pinta ' + valuAika(k.pintaAlkoi) + '–' + valuAika(k.pintaPaattyi));
   if (k.kuvat && k.kuvat.length) lisa.push(k.kuvat.length + ' kuvaa');
   var tk = valunTarkastus(projektinId, v._id);

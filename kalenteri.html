@@ -100,6 +100,37 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f8fafc;color:var(--
 .nb{flex:1;padding:10px;border-radius:10px;border:none;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;}
 .nb.p{background:var(--blue);color:white;}
 .nb.s{background:var(--gray);color:var(--text);}
+.nb.l{background:#e0f2fe;color:#075985;}
+.month-dot.alustava,.cal-alustava{outline:1px dashed currentColor;outline-offset:-1px;}
+.ff textarea{width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:14px;color:var(--text);background:white;outline:none;resize:vertical;}
+.ff-check{display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:12px;cursor:pointer;}
+.ff-check input{width:18px;height:18px;}
+.vl-info{font-size:12px;color:var(--muted);margin:-4px 0 12px;line-height:1.4;}
+.btn-sec{width:100%;padding:11px;border-radius:10px;border:1.5px solid #bfdbfe;background:white;color:var(--blue);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;margin-top:8px;}
+.sheet.leveä{max-width:760px;}
+.li-ohje{font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:12px;}
+.li-ohje b{color:var(--text);}
+.li-pudotus{border:2px dashed #93c5fd;border-radius:12px;padding:16px;text-align:center;background:#f0f7ff;margin-bottom:10px;font-size:13px;color:#1e40af;}
+.li-pudotus label{display:inline-block;margin-top:8px;padding:8px 14px;border-radius:8px;background:white;border:1.5px solid #bfdbfe;font-weight:700;cursor:pointer;}
+.li-kuvat{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
+.li-kuva{position:relative;width:96px;height:96px;border-radius:8px;overflow:hidden;border:1px solid var(--border);}
+.li-kuva img{width:100%;height:100%;object-fit:cover;object-position:top;}
+.li-kuva button{position:absolute;top:3px;right:3px;width:22px;height:22px;border-radius:50%;border:none;background:rgba(0,0,0,.6);color:white;font-size:12px;cursor:pointer;}
+.li-tila{font-size:13px;color:#b91c1c;margin-top:8px;}
+.li-rivi{border:1px solid var(--border);border-radius:10px;padding:8px 10px;margin-bottom:8px;background:white;}
+.li-rivi.pois{opacity:.5;}
+.li-rivi.tarkista{border-color:#fbbf24;background:#fffbeb;}
+.li-top{display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer;margin-bottom:6px;}
+.li-top input{width:18px;height:18px;}
+.li-merkki{font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;background:#f1f5f9;color:#475569;}
+.li-merkki.keltainen{background:#fef3c7;color:#92400e;}
+.li-kentat{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;}
+.li-kentat input,.li-kentat select{width:100%;padding:7px 8px;border:1.5px solid var(--border);border-radius:7px;font-family:inherit;font-size:12.5px;background:white;color:var(--text);min-width:0;}
+.li-alustava{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);}
+.li-kentat input[type=checkbox]{width:16px;height:16px;padding:0;flex:none;}
+.li-huomiot{font-size:12.5px;color:#334155;background:#f8fafc;border-radius:8px;padding:10px;margin:4px 0 10px;line-height:1.5;}
+.li-tyhja{color:var(--muted);font-size:13px;margin-bottom:12px;}
+@media (max-width:560px){.li-kentat{grid-template-columns:1fr 1fr;}}
 </style>
 <!-- Firebase compat SDK - toimii kaikissa selaimissa -->
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -126,6 +157,22 @@ bcKirjaudu(function() {
     });
     if (window.render) window.render();
   });
+  db.collection('valut').onSnapshot(function(snap) {
+    valut = [];
+    snap.forEach(function(d) { var x = d.data(); x._id = d.id; valut.push(x); });
+    if (window.render) window.render();
+  }, function(e) { console.error('Valut:', e); });
+  db.collection('projects').get().then(function(snap) {
+    projektit = [];
+    snap.forEach(function(d) { var x = d.data(); x._id = d.id; projektit.push({ _id: d.id, tyomaa: x.tyomaa || '', tilaaja: x.tilaaja || '', tyonro: x.tyonro || '', osoite: x.osoite || '', arkistoitu: !!x.arkistoitu }); });
+    projektit.sort(function(a, b) { return a.tyomaa.localeCompare(b.tyomaa, 'fi'); });
+  }).catch(function(e) { console.error('Projektit:', e); });
+  db.collection('alihankkijat').get().then(function(snap) {
+    alihankkijat = [];
+    snap.forEach(function(d) { var x = d.data(); x._id = d.id; alihankkijat.push(x); });
+    alihankkijat.sort(function(a, b) { return String(a.nimi || '').localeCompare(String(b.nimi || ''), 'fi'); });
+  }).catch(function(e) { console.error('Alihankkijat:', e); });
+  db.collection('asetukset').doc('api').get().then(function(d) { apiAvain = (d.exists && d.data().avain) || ''; }).catch(function() {});
 });
 </script>
 </head>
@@ -147,12 +194,13 @@ bcKirjaudu(function() {
 <div class="stats-bar" id="statsBar"></div>
 <div class="legend">
   <div class="legend-item"><div class="legend-dot" style="background:#006CB1"></div>Betolatt Group</div>
-  <div class="legend-item"><div class="legend-dot" style="background:#e8390e"></div>Betonas Oy</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#e8390e"></div>ABC Project (Betonas)</div>
+  <div class="legend-item"><span style="outline:1px dashed #64748b;border-radius:3px;padding:0 5px;font-size:11px;">valu</span>&nbsp;Alustava varaus</div>
   <div class="legend-item"><div class="legend-dot" style="background:#22c55e"></div>Tehty</div>
   <div class="legend-item"><div class="legend-dot" style="background:#fbbf24"></div>Tuleva</div>
   <div class="legend-item"><span style="color:#22c55e;font-weight:900;font-size:13px;">✓</span>&nbsp;Betoni varattu</div>
   <div class="legend-item"><span style="color:#ef4444;font-weight:900;font-size:13px;">✗</span>&nbsp;Betoni ei varattu</div>
-  <div class="legend-item"><span style="background:#1e293b;color:white;border-radius:3px;padding:1px 5px;font-size:11px;font-weight:700;">BC Floors</span>&nbsp;<span style="color:#ef4444;font-weight:900;">!!!</span>&nbsp;Tekijä puuttuu</div>
+  <div class="legend-item"><span style="background:#1e293b;color:white;border-radius:3px;padding:1px 5px;font-size:11px;font-weight:700;">BC Floors</span>&nbsp;<span style="color:#ef4444;font-weight:900;">!!!</span>&nbsp;Alihankkija puuttuu</div>
 </div>
 <div id="loadingBar" style="text-align:center;padding:20px;color:#006CB1;font-weight:600;">
   Ladataan... ⏳
@@ -160,7 +208,8 @@ bcKirjaudu(function() {
 <div class="week-view" id="weekView"></div>
 <div class="month-view" id="monthView" style="display:none"></div>
 <div class="bottom-nav">
-  <button class="nb p" onclick="openAdd(null)">+ Lisää kohde</button>
+  <button class="nb p" onclick="openAdd(null)">+ Lisää valu</button>
+  <button class="nb l" onclick="avaaLiita()">📋 Liitä varaukset</button>
   <button class="nb s" onclick="goToday()">&#128197; Tänään</button>
 </div>
 
@@ -170,7 +219,7 @@ bcKirjaudu(function() {
     <button class="sheet-close" onclick="closeDetail()">&#10005;</button>
     <div class="sheet-title" id="detailTitle"></div>
     <div id="detailContent"></div>
-    <button class="btn-day-add" id="detailAddBtn">+ Lisää tälle päivälle</button>
+    <button class="btn-day-add" id="detailAddBtn">+ Lisää valu tälle päivälle</button>
   </div>
 </div>
 
@@ -189,7 +238,7 @@ bcKirjaudu(function() {
         <select id="f-sub">
           <option value="">— Ei —</option>
           <option value="BET">Betolatt Group</option>
-          <option value="BLG">Betonas Oy</option>
+          <option value="BLG">ABC Project (Betonas)</option>
         </select>
       </div>
       <div class="ff"><label>Tila</label>
@@ -220,6 +269,60 @@ bcKirjaudu(function() {
     <div class="ff"><label>Lisätietoja</label><input type="text" id="f-note" placeholder="Vapaa teksti..."></div>
     <button class="btn-save" onclick="saveJob()">Tallenna</button>
     <button class="btn-del" id="deleteBtn" onclick="deleteJob()" style="display:none">Poista kohde</button>
+  </div>
+</div>
+
+<!-- VALU (lisäys / muokkaus) -->
+<div class="overlay" id="valuOverlay">
+  <div class="sheet">
+    <button class="sheet-close" onclick="suljeValuLomake()">&#10005;</button>
+    <div class="sheet-title" id="vl-title">Lisää valu</div>
+    <div class="vl-info" id="vl-info"></div>
+    <div class="ff"><label>Projekti</label><select id="vl-projekti"></select></div>
+    <div class="fr">
+      <div class="ff"><label>Päivämäärä</label><input type="date" id="vl-pvm"></div>
+      <div class="ff"><label>Neliöt m²</label><input type="text" id="vl-m2" placeholder="esim. 850 tai 500–900"></div>
+    </div>
+    <div class="fr">
+      <div class="ff"><label>Alihankkija</label><select id="vl-ah"></select></div>
+      <div class="ff"><label>Valualue</label><input type="text" id="vl-alue" placeholder="esim. Lohko A"></div>
+    </div>
+    <div class="fr">
+      <div class="ff"><label>Valumenetelmä</label><select id="vl-menetelma"><option value="">— Valitse —</option><option>Käsinvalu</option><option>Konevalu</option></select></div>
+      <div class="ff"><label>Sirote</label><select id="vl-sirote"><option value="">— Valitse —</option><option value="1">Kyllä</option><option value="0">Ei</option></select></div>
+    </div>
+    <div class="ff"><label>Betoni tilattu</label><select id="vl-betoni"><option value="0">Ei</option><option value="1">Kyllä</option></select></div>
+    <label class="ff-check"><input type="checkbox" id="vl-alustava"> Alustava varaus (tiedot tarkentuvat)</label>
+    <div class="ff"><label>Lisätietoja</label><input type="text" id="vl-huom" placeholder="Vapaa teksti..."></div>
+    <button class="btn-save" onclick="tallennaValu()">Tallenna</button>
+    <button class="btn-sec" id="vl-avaa" onclick="avaaProjektipankissa()">Avaa Projektipankissa</button>
+    <button class="btn-del" id="vl-poista" onclick="poistaValu()">Poista valu</button>
+  </div>
+</div>
+
+<!-- LIITÄ VARAUKSET -->
+<div class="overlay" id="liitaOverlay">
+  <div class="sheet leveä">
+    <button class="sheet-close" onclick="suljeLiita()">&#10005;</button>
+    <div class="sheet-title">Liitä varaukset WhatsAppista</div>
+    <div id="li-vaihe1">
+      <div class="li-ohje">Ota kuvakaappaus keskustelusta, jossa päivät sovittiin (<b>Win + Shift + S</b>), ja liitä se tähän <b>Ctrl + V</b>:llä. Puhelimessa valitse kuva galleriasta. Voit liittää useita kuvia tai kopioida viestien tekstin.</div>
+      <div class="li-pudotus">Liitä kuvakaappaus: Ctrl + V<br><label>📷 Valitse kuva<input type="file" accept="image/*" multiple style="display:none" onchange="for(var i=0;i<this.files.length;i++)lisaaKuva(this.files[i]);this.value=''"></label></div>
+      <div class="li-kuvat" id="li-kuvat"></div>
+      <div class="ff"><label>Tai viestien teksti</label><textarea id="li-teksti" rows="3" placeholder="Liitä tähän kopioitu teksti (valinnainen)"></textarea></div>
+      <div class="fr">
+        <div class="ff"><label>Projekti</label><select id="li-projekti"></select></div>
+        <div class="ff"><label>Alihankkija</label><select id="li-ah"></select></div>
+      </div>
+      <button class="btn-save" id="li-lue" onclick="lueVaraukset()">Lue varaukset</button>
+      <div class="li-tila" id="li-tila"></div>
+    </div>
+    <div id="li-vaihe2" style="display:none">
+      <div class="li-ohje">Tarkista sovitut päivät. Poista ruksi riveiltä, joita ei tallenneta.</div>
+      <div id="li-lista"></div>
+      <button class="btn-save" id="li-tallenna" onclick="tallennaVaraukset()">Tallenna</button>
+      <button class="btn-sec" onclick="document.getElementById('li-vaihe1').style.display='block';document.getElementById('li-vaihe2').style.display='none'">‹ Takaisin</button>
+    </div>
   </div>
 </div>
 
@@ -280,7 +383,7 @@ function stats(jj){
   var blg=jj.filter(function(j){return j.sub==='BLG';}).length;
   var h=statHtml(m+' m2','Yhteensä')+statHtml(jj.length+' kpl','Kohteet')+statHtml(done+'/'+jj.length,'Tehty');
   if(bet)h+=statHtml(bet,'Betolatt');
-  if(blg)h+=statHtml(blg,'Betonas');
+  if(blg)h+=statHtml(blg,'ABC Project');
   document.getElementById('statsBar').innerHTML=h;
 }
 
@@ -351,7 +454,7 @@ function renderWeek(){
   var label='Vk '+wkNum(weeks[0][0])+' – '+wkNum(weeks[2][0]);
   document.getElementById('navLabel').textContent=label;
   document.getElementById('navSub').textContent=fmt(weeks[0][0])+' – '+fmt(weeks[2][4])+' '+weeks[2][4].getFullYear();
-  var wj=jobs.filter(function(j){return days.some(function(d){return iso(d)===j.date;});});
+  var wj=merkinnat().filter(function(j){return days.some(function(d){return iso(d)===j.date;});});
   stats(wj);
   var holidays=getFinnishHolidays(weeks[0][0].getFullYear());
   var DN=['Maanantai','Tiistai','Keskiviikko','Torstai','Perjantai'];
@@ -379,7 +482,7 @@ function renderWeek(){
     weeks.forEach(function(week){
       var d=week[day];
       var di=iso(d);
-      var dj=jobs.filter(function(j){return j.date===di;});
+      var dj=merkinnat().filter(function(j){return j.date===di;});
       var todayBg=isToday(d)?'background:#dbeafe;':'';
       var hname=holidays[di]||'';
       var hbg=hname?'background:#fff5f5;':'';
@@ -393,7 +496,7 @@ function renderWeek(){
         var col2=j.sub==='BET'?'var(--bet)':j.sub==='BLG'?'var(--blg)':j.status==='done'?'#166534':isOwn?'white':'#92400e';
         var bdot=j.betoni==='kyllä'?'<span style="color:#22c55e;font-weight:900;"> ✓</span>':'<span style="color:#ef4444;font-weight:900;"> ✗</span>';
         var ownMark=isOwn?'<span style="color:#ef4444;font-weight:900;"> !!!</span>':'';
-        h+='<div data-id="'+j.id+'" onclick="openEdit(this.dataset.id)" style="background:'+bg2+';color:'+col2+';font-size:10px;padding:3px 5px;border-radius:4px;margin-top:3px;cursor:pointer;line-height:1.3;">'+j.name.substring(0,16)+(j.m2?' '+j.m2+'m²':'')+(isOwn?ownMark:bdot)+'</div>';
+        h+='<div data-id="'+j.id+'" onclick="openEdit(this.dataset.id)" style="background:'+bg2+';color:'+col2+';font-size:10px;padding:3px 5px;border-radius:4px;margin-top:3px;cursor:pointer;line-height:1.3;'+(j.alustava?'outline:1px dashed currentColor;outline-offset:-1px;':'')+'">'+j.name.substring(0,16)+(j.m2?' '+j.m2+'m²':'')+(isOwn?ownMark:bdot)+'</div>';
       });
       h+='<div data-di="'+di+'" onclick="openAdd(this.dataset.di)" style="font-size:13px;color:var(--blue);text-align:center;padding:2px;cursor:pointer;opacity:0.4;margin-top:2px;">+</div>';
       h+='</td>';
@@ -408,7 +511,7 @@ function renderMonth(){
   while(mo>11){mo-=12;y++;}while(mo<0){mo+=12;y--;}
   document.getElementById('navLabel').textContent=MN[mo]+' '+y;
   document.getElementById('navSub').textContent='';
-  var mj=jobs.filter(function(j){return j.date&&j.date.startsWith(y+'-'+String(mo+1).padStart(2,'0'));});
+  var mj=merkinnat().filter(function(j){return j.date&&j.date.startsWith(y+'-'+String(mo+1).padStart(2,'0'));});
   stats(mj);
   var fd=new Date(y,mo,1), ld=new Date(y,mo+1,0);
   // Only Mon-Fri: sdow = offset from Monday (0=Mon, 4=Fri, skip weekends)
@@ -422,13 +525,13 @@ function renderMonth(){
   h+='<div class="month-wn">'+wkNum(firstDay)+'</div>';
   for(var i=0;i<sdow;i++){
     var pd=new Date(y,mo,-sdow+i+1), pdi=iso(pd);
-    var pdj=jobs.filter(function(j){return j.date===pdi;});
+    var pdj=merkinnat().filter(function(j){return j.date===pdi;});
     h+='<div class="month-cell other-month" data-di="'+pdi+'" onclick="openDay(this.dataset.di)"><div class="month-num">'+pd.getDate()+'</div>';
     pdj.forEach(function(j){
       var cls=j.status==='done'?'done':j.sub==='BET'?'bet':j.sub==='BLG'?'blg':(!j.sub||j.sub==='')?'own':'todo';
       var bdot=j.betoni==='kyllä'?'<span style="color:#22c55e;font-weight:900;font-size:10px;">✓</span>':j.betoni==='ei'?'<span style="color:#ef4444;font-weight:900;font-size:10px;">✗</span>':'';
       var ownDot=(!j.sub||j.sub==='')?'<span style="color:#ef4444;font-weight:900;">!!!</span>':bdot;
-      h+='<div class="month-dot '+cls+'" style="display:flex;align-items:center;justify-content:space-between;">'+j.name.substring(0,12)+ownDot+'</div>';
+      h+='<div class="month-dot '+cls+(j.alustava?' alustava':'')+'" style="display:flex;align-items:center;justify-content:space-between;">'+j.name.substring(0,12)+ownDot+'</div>';
     });
     h+='</div>';
   }
@@ -437,7 +540,7 @@ function renderMonth(){
   for(var d=1;d<=ld.getDate();d++){
     var dt=new Date(y,mo,d), dow=dt.getDay();
     if(dow===0||dow===6) continue; // skip weekends
-    var di=iso(dt), dj=jobs.filter(function(j){return j.date===di;}), tc=isToday(dt)?' today-cell':'';
+    var di=iso(dt), dj=merkinnat().filter(function(j){return j.date===di;}), tc=isToday(dt)?' today-cell':'';
     // Add week number before each Monday
     if(dow===1){
       if(!firstWkAdded){
@@ -456,7 +559,7 @@ function renderMonth(){
       var cls=j.status==='done'?'done':j.sub==='BET'?'bet':j.sub==='BLG'?'blg':(!j.sub||j.sub==='')?'own':'todo';
       var bdot=j.betoni==='kyllä'?'<span style="color:#22c55e;font-weight:900;font-size:10px;">✓</span>':j.betoni==='ei'?'<span style="color:#ef4444;font-weight:900;font-size:10px;">✗</span>':'';
       var ownDot=(!j.sub||j.sub==='')?'<span style="color:#ef4444;font-weight:900;">!!!</span>':bdot;
-      h+='<div class="month-dot '+cls+'" style="display:flex;align-items:center;justify-content:space-between;">'+j.name.substring(0,12)+ownDot+'</div>';
+      h+='<div class="month-dot '+cls+(j.alustava?' alustava':'')+'" style="display:flex;align-items:center;justify-content:space-between;">'+j.name.substring(0,12)+ownDot+'</div>';
       shown++;
     });
     if(dj.length>2)h+='<div class="month-more">+'+(dj.length-2)+' lisää</div>';
@@ -468,12 +571,12 @@ function renderMonth(){
   if(rem>0){
     for(var i=1;i<=rem;i++){
       var nd=new Date(y,mo+1,i), ndi=iso(nd);
-      var ndj=jobs.filter(function(j){return j.date===ndi;});
+      var ndj=merkinnat().filter(function(j){return j.date===ndi;});
       h+='<div class="month-cell other-month" data-di="'+ndi+'" onclick="openDay(this.dataset.di)"><div class="month-num">'+nd.getDate()+'</div>';
       ndj.forEach(function(j){
         var cls=j.status==='done'?'done':j.sub==='BET'?'bet':j.sub==='BLG'?'blg':(!j.sub||j.sub==='')?'own':'todo';
         var bdot=j.betoni==='kyllä'?'<span style="color:#22c55e;font-weight:900;font-size:10px;">✓</span>':j.betoni==='ei'?'<span style="color:#ef4444;font-weight:900;font-size:10px;">✗</span>':'';
-        h+='<div class="month-dot '+cls+'" style="display:flex;align-items:center;justify-content:space-between;">'+nd.getDate()+bdot+'</div>';
+        h+='<div class="month-dot '+cls+(j.alustava?' alustava':'')+'" style="display:flex;align-items:center;justify-content:space-between;">'+nd.getDate()+bdot+'</div>';
       });
       h+='</div>';
     }
@@ -496,10 +599,14 @@ function openDay(di){
   detDate=di;
   var d=new Date(di+'T12:00:00');
   document.getElementById('detailTitle').textContent=DL[d.getDay()]+' '+fmt(d)+d.getFullYear();
-  var dj=jobs.filter(function(j){return j.date===di;}), h='';
+  var dj=merkinnat().filter(function(j){return j.date===di;}), h='';
   if(!dj.length)h='<p style="color:var(--muted);font-size:13px;margin-bottom:12px;">Ei kohteita</p>';
   else dj.forEach(function(j){
-    var s=j.sub==='BET'?'Betolatt Group':j.sub==='BLG'?'Betonas Oy':'';
+    var s=j.subNimi||(j.sub==='BET'?'Betolatt Group':j.sub==='BLG'?'ABC Project (Betonas)':'');
+    if(j._valu){
+      h+='<div class="dj" data-id="'+j.id+'" onclick="closeDetail();openEdit(this.dataset.id)"><div class="dj-name">'+j.name+(j.m2?' - '+j.m2+' m²':'')+'</div><div class="dj-meta">'+(s?esc(s):'<span style="color:#dc2626;font-weight:700">alihankkija puuttuu</span>')+' · '+(j.status==='done'?'tehty':j.alustava?'alustava varaus':'varattu')+' · betoni '+(j.betoni==='kyllä'?'tilattu':'ei tilattu')+(j.method?' · '+esc(j.method):'')+(j.note?' · '+esc(j.note):'')+'</div></div>';
+      return;
+    }
     h+='<div class="dj" data-id="'+j.id+'" onclick="closeDetail();openEdit(this.dataset.id)"><div class="dj-name">'+j.name+(j.m2?' - '+j.m2+' m2':'')+'</div><div class="dj-meta">'+(s?s+' · ':'')+j.status+(j.betoni?' · Betoni: '+j.betoni:'')+(j.method?' · '+j.method:'')+'</div></div>';
   });
   document.getElementById('detailContent').innerHTML=h;
@@ -509,6 +616,7 @@ function openDay(di){
 function closeDetail(){document.getElementById('detailOverlay').classList.remove('open');}
 
 function openAdd(date){
+  avaaValuLomake(null, date); return;
   editId=null;
   document.getElementById('editTitle').textContent='Lisää kohde';
   document.getElementById('f-name').value='';
@@ -527,6 +635,7 @@ function openAdd(date){
   document.getElementById('editOverlay').classList.add('open');
 }
 function openEdit(id){
+  if(String(id).indexOf('v:')===0){avaaValuLomake(String(id).slice(2));return;}
   var j=jobs.find(function(x){return x.id===id;});
   if(!j)return;
   editId=id;
@@ -551,7 +660,7 @@ function saveJob(){
   var j={id:editId||String(Date.now()),name:nm,date:dt,m2:document.getElementById('f-m2').value,sub:document.getElementById('f-sub').value,status:document.getElementById('f-status').value,betoni:document.getElementById('f-betoni').value,method:document.getElementById('f-method').value,note:document.getElementById('f-note').value};
   var jd=new Date(dt+'T12:00:00'), n=new Date(), dd=n.getDay(), m2=new Date(n);
   m2.setDate(n.getDate()+(dd===0?-6:1-dd)); m2.setHours(0,0,0,0);
-  if(view==='week') wOff=Math.floor((jd-m2)/(7*86400000));
+  if(view==='week') wOff=Math.floor(Math.floor((jd-m2)/(7*86400000))/3);
   else mOff=(jd.getFullYear()-n.getFullYear())*12+jd.getMonth()-n.getMonth();
   if(editId){
     var ex=jobs.find(function(x){return x.id===editId;});
@@ -577,6 +686,318 @@ function deleteJob(){
 document.getElementById('editOverlay').addEventListener('click',function(e){if(e.target===this)closeEdit();});
 document.getElementById('detailOverlay').addEventListener('click',function(e){if(e.target===this)closeDetail();});
 // Firebase will call render() when data loads
+</script>
+<script>
+// ══ VALUT KALENTERISSA ══════════════════════════════════════════════
+// Kalenteri näyttää Projektipankin valut (kaikki projektit) ja vanhat kalenterimerkinnät (jobs).
+// Uudet varaukset tallennetaan valuiksi. "Liitä varaukset" lukee WhatsApp-kuvakaappauksen tai -tekstin AI:llä.
+var valut = window.valut || [], projektit = window.projektit || [], alihankkijat = window.alihankkijat || [], apiAvain = window.apiAvain || '';
+// WhatsApp-ryhmän nimi → alihankkijarekisterin nimen osa (ryhmän nimi voi poiketa yrityksen nimestä)
+var RYHMAT = [{ ryhma: 'Betonas', alihankkija: 'ABC Project' }, { ryhma: 'Betolatt', alihankkija: 'Betolatt' }];
+var KAL_MALLI = 'claude-sonnet-5-5';
+
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function(c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+function siisti(s) { return String(s == null ? '' : s).replace(/[<>&"]/g, ''); }
+function tanaanIso() { return iso(new Date()); }
+function fiPvm(p) { var m = String(p || '').match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? (+m[3]) + '.' + (+m[2]) + '.' + m[1] : (p || ''); }
+function subAvain(nimi) {
+  var n = String(nimi || '').toLowerCase();
+  if (!n) return '';
+  if (n.indexOf('betolatt') >= 0) return 'BET';
+  if (n.indexOf('abc') >= 0 || n.indexOf('betonas') >= 0) return 'BLG';
+  return 'MUU';
+}
+function valuTehty(v) {
+  var k = v.kuittaus || {};
+  return !!(v.lukittu || k.tallennettu || (v.pvm && v.pvm < tanaanIso()));
+}
+// Valu kalenterimerkinnän muotoon, jotta näkymät toimivat sekä valuille että vanhoille merkinnöille
+function valuMerkinnaksi(v) {
+  var ah = v.alihankkija && v.alihankkija.nimi ? v.alihankkija.nimi : '';
+  var m2 = v.m2 != null && v.m2 !== '' ? String(v.m2) : (v.m2Arvio || '');
+  return {
+    id: 'v:' + v._id, _valu: v, date: v.pvm || '',
+    name: siisti((v.tyomaa || 'Valu') + (v.valualue ? ' ' + v.valualue : '')),
+    m2: siisti(m2), sub: subAvain(ah), subNimi: ah,
+    status: valuTehty(v) ? 'done' : 'todo',
+    betoni: v.betoniTilattu ? 'kyllä' : 'ei',
+    method: v.valumenetelma || '', note: v.kalenteriHuom || '',
+    alustava: !!(v.varaus && v.varaus.alustava) && !valuTehty(v)
+  };
+}
+function merkinnat() {
+  return jobs.concat(valut.map(valuMerkinnaksi));
+}
+
+// ── Valun lisäys ja muokkaus ───────────────────────────────────────────
+var valuEditId = null;
+function projektiValinnat(valittu) {
+  var h = '<option value="">— Valitse projekti —</option>';
+  projektit.forEach(function(p) {
+    if (p.arkistoitu && p._id !== valittu) return;
+    h += '<option value="' + esc(p._id) + '"' + (p._id === valittu ? ' selected' : '') + '>' + esc(p.tyomaa || '?') + (p.tilaaja ? ' – ' + esc(p.tilaaja) : '') + (p.arkistoitu ? ' (arkistoitu)' : '') + '</option>';
+  });
+  return h;
+}
+function ahValinnat(valittu) {
+  var h = '<option value="">— Ei vielä —</option>';
+  alihankkijat.forEach(function(a) { h += '<option value="' + esc(a._id) + '"' + (a._id === valittu ? ' selected' : '') + '>' + esc(a.nimi || '?') + '</option>'; });
+  return h;
+}
+function avaaValuLomake(valuId, pvm) {
+  var v = valuId ? valut.filter(function(x) { return x._id === valuId; })[0] : null;
+  valuEditId = v ? v._id : null;
+  document.getElementById('vl-title').textContent = v ? 'Muokkaa valua' : 'Lisää valu';
+  document.getElementById('vl-projekti').innerHTML = projektiValinnat(v ? v.projektiId : '');
+  document.getElementById('vl-pvm').value = v ? (v.pvm || '') : (pvm || tanaanIso());
+  document.getElementById('vl-m2').value = v ? (v.m2 != null ? v.m2 : (v.m2Arvio || '')) : '';
+  document.getElementById('vl-alue').value = v ? (v.valualue || '') : '';
+  document.getElementById('vl-ah').innerHTML = ahValinnat(v && v.alihankkija ? v.alihankkija.id : '');
+  document.getElementById('vl-menetelma').value = v ? (v.valumenetelma || '') : '';
+  document.getElementById('vl-sirote').value = v ? (v.sirote === true ? '1' : v.sirote === false ? '0' : '') : '';
+  document.getElementById('vl-betoni').value = v && v.betoniTilattu ? '1' : '0';
+  document.getElementById('vl-alustava').checked = v ? !!(v.varaus && v.varaus.alustava) : false;
+  document.getElementById('vl-huom').value = v ? (v.kalenteriHuom || '') : '';
+  var tehty = v && valuTehty(v);
+  document.getElementById('vl-info').innerHTML = v ? (tehty ? 'Valu on tehty tai kuitattu. Kuittausta ja pöytäkirjaa muokataan Projektipankissa.' : '') : 'Valu tallentuu Projektipankkiin projektin valuihin. Valupäivänä sen kuittauslinkki jaetaan alihankkijalle tavalliseen tapaan.';
+  document.getElementById('vl-avaa').style.display = v ? 'block' : 'none';
+  document.getElementById('vl-poista').style.display = v && !v.lukittu && !(v.kuittaus && v.kuittaus.tallennettu) ? 'block' : 'none';
+  document.getElementById('valuOverlay').classList.add('open');
+}
+function suljeValuLomake() { document.getElementById('valuOverlay').classList.remove('open'); valuEditId = null; }
+function m2Kentista(teksti) {
+  var t = String(teksti || '').trim().replace(/\s*m²?\s*$/i, '').replace(/m2$/i, '').trim();
+  if (!t) return { m2: null, m2Arvio: null };
+  var n = Number(t.replace(',', '.'));
+  if (isFinite(n) && /^[\d\s.,]+$/.test(t)) return { m2: n, m2Arvio: null };
+  return { m2: null, m2Arvio: t.replace(/\s*-\s*/, '–') };
+}
+function ahKopio(id) {
+  var a = alihankkijat.filter(function(x) { return x._id === id; })[0];
+  return a ? { id: a._id, nimi: a.nimi || '', tyonjohtaja: a.tyonjohtaja || '', puhelin: a.puhelin || '' } : null;
+}
+function siirryPaivaan(pvm) {
+  var jd = new Date(pvm + 'T12:00:00'), n = new Date(), dd = n.getDay(), ma = new Date(n);
+  ma.setDate(n.getDate() + (dd === 0 ? -6 : 1 - dd)); ma.setHours(0, 0, 0, 0);
+  if (view === 'week') wOff = Math.floor(Math.floor((jd - ma) / (7 * 86400000)) / 3);
+  else mOff = (jd.getFullYear() - n.getFullYear()) * 12 + jd.getMonth() - n.getMonth();
+}
+function tallennaValu() {
+  var pid = document.getElementById('vl-projekti').value, pvm = document.getElementById('vl-pvm').value;
+  if (!pid || !pvm) { alert('Valitse projekti ja päivämäärä.'); return; }
+  var p = projektit.filter(function(x) { return x._id === pid; })[0] || {};
+  var m = m2Kentista(document.getElementById('vl-m2').value);
+  var siroteArvo = document.getElementById('vl-sirote').value;
+  var data = {
+    projektiId: pid, tyomaa: p.tyomaa || '', tilaaja: p.tilaaja || '', tyonro: p.tyonro || '',
+    pvm: pvm, m2: m.m2, m2Arvio: m.m2Arvio,
+    valualue: document.getElementById('vl-alue').value.trim(),
+    alihankkija: ahKopio(document.getElementById('vl-ah').value),
+    valumenetelma: document.getElementById('vl-menetelma').value,
+    sirote: siroteArvo === '' ? null : siroteArvo === '1',
+    betoniTilattu: document.getElementById('vl-betoni').value === '1',
+    kalenteriHuom: document.getElementById('vl-huom').value.trim()
+  };
+  var alustava = document.getElementById('vl-alustava').checked;
+  var tyo;
+  if (valuEditId) {
+    var vanha = valut.filter(function(x) { return x._id === valuEditId; })[0] || {};
+    data['varaus.alustava'] = alustava;
+    data.muokkaukset = firebase.firestore.FieldValue.arrayUnion({ kuka: (window.bcKayttaja && window.bcKayttaja.email) || '', aika: new Date().toISOString(), lahde: 'kalenteri' });
+    if (!vanha.varaus) { delete data['varaus.alustava']; data.varaus = { alustava: alustava, lahde: 'kalenteri', luotu: new Date().toISOString() }; }
+    tyo = db.collection('valut').doc(valuEditId).update(data);
+  } else {
+    data.varaus = { alustava: alustava, lahde: 'kalenteri', luotu: new Date().toISOString() };
+    data.rakennetyyppi = null; data.kerros = '';
+    data.luotu = new Date().toISOString(); data.luoja = (window.bcKayttaja && window.bcKayttaja.email) || '';
+    data.lukittu = false; data.kuittaus = {};
+    tyo = db.collection('valut').doc().set(data);
+  }
+  siirryPaivaan(pvm);
+  suljeValuLomake();
+  tyo.catch(function(e) { alert('Tallennus epäonnistui: ' + e.message); });
+}
+function poistaValu() {
+  var id = valuEditId; if (!id) return;
+  var v = valut.filter(function(x) { return x._id === id; })[0];
+  if (!v || v.lukittu || (v.kuittaus && v.kuittaus.tallennettu)) { alert('Kuitattua tai lukittua valua ei voi poistaa kalenterista.'); return; }
+  db.collection('kuormakirjat').where('valuId', '==', id).limit(1).get().then(function(s) {
+    if (!s.empty) { alert('Valulla on kuormakirjoja – poista tai siirrä ne ensin Projektipankissa.'); return; }
+    if (!confirm('Poistetaanko valu ' + (v.tyomaa || '') + ' ' + fiPvm(v.pvm) + '?')) return;
+    return db.collection('valut').doc(id).delete().then(suljeValuLomake);
+  }).catch(function(e) { alert('Poisto epäonnistui: ' + e.message); });
+}
+function avaaProjektipankissa() {
+  var v = valut.filter(function(x) { return x._id === valuEditId; })[0];
+  if (v) window.location.href = 'projektit.html?avaa=' + encodeURIComponent(v.projektiId) + '&tab=valut';
+}
+
+// ── Liitä varaukset (WhatsApp-kuvakaappaus tai teksti → AI) ─────────────
+var liitaKuvat = [], liitaRivit = [], liitaHuomiot = [];
+function avaaLiita() {
+  liitaKuvat = []; liitaRivit = []; liitaHuomiot = [];
+  document.getElementById('li-teksti').value = '';
+  document.getElementById('li-projekti').innerHTML = projektiValinnat('').replace('— Valitse projekti —', 'AI päättelee');
+  document.getElementById('li-ah').innerHTML = ahValinnat('').replace('— Ei vielä —', 'AI päättelee');
+  naytaLiitaKuvat();
+  document.getElementById('li-vaihe1').style.display = 'block';
+  document.getElementById('li-vaihe2').style.display = 'none';
+  document.getElementById('li-tila').textContent = '';
+  document.getElementById('liitaOverlay').classList.add('open');
+}
+function suljeLiita() { document.getElementById('liitaOverlay').classList.remove('open'); }
+function naytaLiitaKuvat() {
+  var el = document.getElementById('li-kuvat');
+  el.innerHTML = liitaKuvat.map(function(k, i) {
+    return '<div class="li-kuva"><img src="data:image/jpeg;base64,' + k + '" alt=""><button type="button" onclick="liitaKuvat.splice(' + i + ',1);naytaLiitaKuvat()">✕</button></div>';
+  }).join('');
+}
+function lisaaKuva(tiedosto) {
+  if (!tiedosto || !/^image\//.test(tiedosto.type)) return;
+  var url = URL.createObjectURL(tiedosto), img = new Image();
+  img.onload = function() {
+    var max = 1568, s = Math.min(1, max / Math.max(img.width, img.height));
+    var c = document.createElement('canvas'); c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    liitaKuvat.push(c.toDataURL('image/jpeg', 0.85).split(',')[1]);
+    URL.revokeObjectURL(url);
+    naytaLiitaKuvat();
+  };
+  img.src = url;
+}
+document.addEventListener('paste', function(e) {
+  if (!document.getElementById('liitaOverlay').classList.contains('open')) return;
+  var items = (e.clipboardData && e.clipboardData.items) || [];
+  var kuvia = 0;
+  for (var i = 0; i < items.length; i++) {
+    if (items[i].kind === 'file' && /^image\//.test(items[i].type)) { lisaaKuva(items[i].getAsFile()); kuvia++; }
+  }
+  if (kuvia) e.preventDefault();
+});
+function ryhmaVihje() {
+  return RYHMAT.map(function(r) {
+    var a = alihankkijat.filter(function(x) { return String(x.nimi || '').toLowerCase().indexOf(r.alihankkija.toLowerCase()) >= 0; })[0];
+    return a ? '- WhatsApp-ryhmä "' + r.ryhma + '" = alihankkija ' + a._id + ' (' + a.nimi + ')' : '';
+  }).filter(Boolean).join('\n');
+}
+function lueVaraukset() {
+  var teksti = document.getElementById('li-teksti').value.trim();
+  if (!liitaKuvat.length && !teksti) { alert('Liitä kuvakaappaus (Ctrl+V) tai kirjoita / liitä viestin teksti.'); return; }
+  if (!apiAvain) { alert('API-avain puuttuu. Aseta se Projektipankin API-napista.'); return; }
+  var pVal = document.getElementById('li-projekti').value, aVal = document.getElementById('li-ah').value;
+  var pLista = projektit.filter(function(p) { return !p.arkistoitu; }).map(function(p) { return { id: p._id, tyomaa: p.tyomaa || '', tilaaja: p.tilaaja || '', osoite: p.osoite || '' }; });
+  var aLista = alihankkijat.map(function(a) { return { id: a._id, nimi: a.nimi || '' }; });
+  var ohje = 'Olet BC Floors Oy:n (betonilattiaurakoitsija) tuotantokalenterin avustaja. Kuvissa ja/tai tekstissä on WhatsApp-keskustelu, jossa BC Floors (Lari Knuuttila, Harri Aalto) varaa alihankkijalta valupäiviä.\n' +
+    'Tänään on ' + tanaanIso() + '. Päättele vuosi keskustelun päivämäärärivien (esim. "17.9.2026") ja viikkonumeroiden avulla. Viikonpäivän ja päivämäärän pitää täsmätä.\n' +
+    'Poimi VAIN valupäivät, jotka keskustelussa on sovittu tai varattu (esim. alihankkija ehdottaa päiviä ja BC Floors vastaa "varaa", "ok", "sopii", tai alihankkija vahvistaa BC Floorsin ehdottaman päivän). Älä poimi päiviä, jotka hylättiin ("ei käy", "noup") tai jäivät vain kysymykseksi – mainitse ne huomioissa.\n' +
+    'Projektit: ' + JSON.stringify(pLista) + '\n' +
+    'Alihankkijat: ' + JSON.stringify(aLista) + '\n' + ryhmaVihje() + '\n' +
+    (pVal ? 'Käyttäjä valitsi projektiksi: ' + pVal + '\n' : 'Päättele projekti paikkakunnan, kohteen tai tilaajan nimestä (esim. "Riihimäki", "Valio"). Jos et ole varma, projektiId = null.\n') +
+    (aVal ? 'Käyttäjä valitsi alihankkijaksi: ' + aVal + '\n' : 'Päättele alihankkija ryhmän nimestä tai keskustelijoista. Jos et ole varma, alihankkijaId = null.\n') +
+    'Vastaa VAIN JSON-muodossa ilman muuta tekstiä:\n' +
+    '{"varaukset":[{"pvm":"vvvv-kk-pp","projektiId":"id tai null","alihankkijaId":"id tai null","m2":"esim. 850 tai 500–900 tai tyhjä","valumenetelma":"Konevalu|Käsinvalu|","sirote":true|false|null,"valualue":"","huom":"lyhyt lisätieto, esim. maanvarainen laatta, osa koneella osa käsin","alustava":true|false,"varmuus":"varma|tarkista"}],"huomiot":["lyhyitä huomioita suomeksi, esim. hylätyt päivät tai epäselvyydet"]}\n' +
+    'alustava = true, jos varaus sanottiin alustavaksi tai neliöt ovat vielä auki (väli tai puuttuu). varmuus = "tarkista", jos päivä, projekti tai alihankkija on epävarma.';
+  var sisalto = liitaKuvat.map(function(k) { return { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: k } }; });
+  sisalto.push({ type: 'text', text: ohje + (teksti ? '\n\nKeskustelun teksti:\n' + teksti : '') });
+  var nappi = document.getElementById('li-lue');
+  nappi.disabled = true; nappi.textContent = 'Luetaan… ⏳';
+  document.getElementById('li-tila').textContent = '';
+  fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-api-key': apiAvain, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+    body: JSON.stringify({ model: KAL_MALLI, max_tokens: 8000, messages: [{ role: 'user', content: sisalto }] })
+  }).then(function(r) { return r.json().then(function(j) { if (!r.ok) throw new Error((j.error && j.error.message) || ('HTTP ' + r.status)); return j; }); })
+    .then(function(j) {
+      if (j.stop_reason === 'max_tokens') throw new Error('AI:n vastaus katkesi – liitä vähemmän kuvia kerralla.');
+      var t = ((j.content || []).filter(function(b) { return b.type === 'text'; })[0] || {}).text || '';
+      t = t.replace(/```json|```/g, '').trim();
+      var a = t.indexOf('{'), b = t.lastIndexOf('}');
+      var tulos = JSON.parse(t.slice(a, b + 1));
+      liitaHuomiot = tulos.huomiot || [];
+      liitaRivit = (tulos.varaukset || []).filter(function(r) { return /^\d{4}-\d{2}-\d{2}$/.test(r.pvm || ''); }).map(function(r) {
+        var pid = pVal || (projektit.some(function(p) { return p._id === r.projektiId; }) ? r.projektiId : '');
+        var aid = aVal || (alihankkijat.some(function(x) { return x._id === r.alihankkijaId; }) ? r.alihankkijaId : '');
+        return { mukana: true, pvm: r.pvm, projektiId: pid, alihankkijaId: aid, m2: r.m2 == null ? '' : String(r.m2), valumenetelma: /^(Konevalu|Käsinvalu)$/.test(r.valumenetelma) ? r.valumenetelma : '', sirote: r.sirote === true ? '1' : r.sirote === false ? '0' : '', valualue: r.valualue || '', huom: r.huom || '', alustava: !!r.alustava, tarkista: r.varmuus === 'tarkista' };
+      }).sort(function(x, y) { return x.pvm.localeCompare(y.pvm); });
+      merkitseTuplat();
+      naytaEsikatselu();
+    })
+    .catch(function(e) { document.getElementById('li-tila').textContent = '❌ ' + e.message; })
+    .then(function() { nappi.disabled = false; nappi.textContent = 'Lue varaukset'; });
+}
+function merkitseTuplat() {
+  liitaRivit.forEach(function(r) {
+    r.tupla = !!r.projektiId && valut.some(function(v) { return v.projektiId === r.projektiId && v.pvm === r.pvm; });
+    if (r.tupla) r.mukana = false;
+  });
+}
+function naytaEsikatselu() {
+  document.getElementById('li-vaihe1').style.display = 'none';
+  document.getElementById('li-vaihe2').style.display = 'block';
+  var viikonpv = ['su', 'ma', 'ti', 'ke', 'to', 'pe', 'la'];
+  var h = '';
+  if (!liitaRivit.length) h += '<p class="li-tyhja">Kuvista ei löytynyt sovittuja valupäiviä.</p>';
+  liitaRivit.forEach(function(r, i) {
+    var d = new Date(r.pvm + 'T12:00:00');
+    h += '<div class="li-rivi' + (r.mukana ? '' : ' pois') + (r.tarkista ? ' tarkista' : '') + '">' +
+      '<label class="li-top"><input type="checkbox" data-i="' + i + '" data-k="mukana"' + (r.mukana ? ' checked' : '') + '> <b>' + viikonpv[d.getDay()] + ' ' + fiPvm(r.pvm) + '</b>' +
+      (r.tupla ? ' <span class="li-merkki">on jo kalenterissa</span>' : '') + (r.tarkista ? ' <span class="li-merkki keltainen">tarkista</span>' : '') + '</label>' +
+      '<div class="li-kentat">' +
+      '<input type="date" data-i="' + i + '" data-k="pvm" value="' + esc(r.pvm) + '">' +
+      '<select data-i="' + i + '" data-k="projektiId">' + projektiValinnat(r.projektiId) + '</select>' +
+      '<select data-i="' + i + '" data-k="alihankkijaId">' + ahValinnat(r.alihankkijaId) + '</select>' +
+      '<input type="text" data-i="' + i + '" data-k="m2" value="' + esc(r.m2) + '" placeholder="m²">' +
+      '<select data-i="' + i + '" data-k="valumenetelma"><option value="">Menetelmä –</option><option' + (r.valumenetelma === 'Konevalu' ? ' selected' : '') + '>Konevalu</option><option' + (r.valumenetelma === 'Käsinvalu' ? ' selected' : '') + '>Käsinvalu</option></select>' +
+      '<select data-i="' + i + '" data-k="sirote"><option value="">Sirote –</option><option value="1"' + (r.sirote === '1' ? ' selected' : '') + '>Sirote kyllä</option><option value="0"' + (r.sirote === '0' ? ' selected' : '') + '>Sirote ei</option></select>' +
+      '<input type="text" data-i="' + i + '" data-k="huom" value="' + esc(r.huom) + '" placeholder="Lisätieto">' +
+      '<label class="li-alustava"><input type="checkbox" data-i="' + i + '" data-k="alustava"' + (r.alustava ? ' checked' : '') + '> alustava</label>' +
+      '</div></div>';
+  });
+  if (liitaHuomiot.length) h += '<div class="li-huomiot">' + liitaHuomiot.map(function(x) { return 'ℹ️ ' + esc(x); }).join('<br>') + '</div>';
+  document.getElementById('li-lista').innerHTML = h;
+  paivitaTallennaNappi();
+}
+document.addEventListener('change', function(e) {
+  var el = e.target; if (!el.dataset || el.dataset.i == null || !el.closest('#li-lista')) return;
+  var r = liitaRivit[+el.dataset.i], k = el.dataset.k; if (!r) return;
+  r[k] = el.type === 'checkbox' ? el.checked : el.value;
+  if (k === 'pvm' || k === 'projektiId') { var oliTupla = r.tupla; merkitseTuplat(); if (oliTupla && !r.tupla) r.mukana = true; naytaEsikatselu(); return; }
+  if (k === 'mukana') el.closest('.li-rivi').classList.toggle('pois', !el.checked);
+  paivitaTallennaNappi();
+});
+function paivitaTallennaNappi() {
+  var n = liitaRivit.filter(function(r) { return r.mukana; }).length;
+  var b = document.getElementById('li-tallenna');
+  b.textContent = n ? 'Tallenna ' + n + ' valu' + (n === 1 ? '' : 'a') + ' kalenteriin' : 'Ei tallennettavaa';
+  b.disabled = !n;
+}
+function tallennaVaraukset() {
+  var rivit = liitaRivit.filter(function(r) { return r.mukana; });
+  var puuttuu = rivit.filter(function(r) { return !r.projektiId; });
+  if (puuttuu.length) { alert('Valitse projekti kaikille tallennettaville riveille (' + puuttuu.length + ' puuttuu).'); return; }
+  var batch = db.batch(), nyt = new Date().toISOString(), kuka = (window.bcKayttaja && window.bcKayttaja.email) || '';
+  rivit.forEach(function(r) {
+    var p = projektit.filter(function(x) { return x._id === r.projektiId; })[0] || {};
+    var m = m2Kentista(r.m2);
+    batch.set(db.collection('valut').doc(), {
+      projektiId: r.projektiId, tyomaa: p.tyomaa || '', tilaaja: p.tilaaja || '', tyonro: p.tyonro || '',
+      pvm: r.pvm, valualue: r.valualue || '', m2: m.m2, m2Arvio: m.m2Arvio, kerros: '',
+      valumenetelma: r.valumenetelma || '', sirote: r.sirote === '' ? null : r.sirote === '1',
+      rakennetyyppi: null, alihankkija: ahKopio(r.alihankkijaId),
+      betoniTilattu: false, kalenteriHuom: r.huom || '',
+      varaus: { alustava: !!r.alustava, lahde: 'whatsapp', luotu: nyt },
+      luotu: nyt, luoja: kuka, lukittu: false, kuittaus: {}
+    });
+  });
+  var b = document.getElementById('li-tallenna'); b.disabled = true; b.textContent = 'Tallennetaan…';
+  batch.commit().then(function() {
+    if (rivit.length) siirryPaivaan(rivit[0].pvm);
+    suljeLiita(); render();
+  }).catch(function(e) { alert('Tallennus epäonnistui: ' + e.message); paivitaTallennaNappi(); });
+}
+document.getElementById('valuOverlay').addEventListener('click', function(e) { if (e.target === this) suljeValuLomake(); });
+document.getElementById('liitaOverlay').addEventListener('click', function(e) { if (e.target === this) suljeLiita(); });
+
 </script>
 </body>
 </html>
