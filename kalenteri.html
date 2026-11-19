@@ -338,7 +338,8 @@ bcKirjaudu(function() {
     <button class="sheet-close" onclick="suljeValuLomake()">&#10005;</button>
     <div class="sheet-title" id="vl-title">Lisää valu</div>
     <div class="vl-info" id="vl-info"></div>
-    <div class="ff"><label>Projekti</label><select id="vl-projekti"></select></div>
+    <div class="ff"><label>Projekti</label><select id="vl-projekti" onchange="paivitaKohdeKentta()"></select></div>
+    <div class="ff" id="vl-kohde-rivi"><label>Kohde / paikkakunta</label><input type="text" id="vl-kohde" placeholder="esim. Pihatto, Hyvinkää"></div>
     <div class="fr">
       <div class="ff"><label>Päivämäärä</label><input type="date" id="vl-pvm"></div>
       <div class="ff"><label>Neliöt m²</label><input type="text" id="vl-m2" placeholder="esim. 850 tai 500–900"></div>
@@ -558,6 +559,7 @@ function openAdd(date){
 }
 function openEdit(id){
   if(String(id).indexOf('v:')===0){avaaValuLomake(String(id).slice(2));return;}
+  avaaValuLomake(null,null,id);return;
   var j=jobs.find(function(x){return x.id===id;});
   if(!j)return;
   editId=id;
@@ -775,13 +777,20 @@ function valuMerkinnaksi(v) {
   };
 }
 function merkinnat() {
-  return jobs.concat(valut.map(valuMerkinnaksi));
+  var t = tanaanIso();
+  return jobs.map(function(j) {
+    var x = Object.assign({}, j);
+    x.name = siisti(j.name || ''); x.m2 = siisti(j.m2 || ''); x.subNimi = j.subNimi || '';
+    x.status = j.status === 'done' || (j.date && j.date < t) ? 'done' : 'todo';
+    x.alustava = !!j.alustava && x.status !== 'done';
+    return x;
+  }).concat(valut.map(valuMerkinnaksi));
 }
 
 // ── Valun lisäys ja muokkaus ───────────────────────────────────────────
 var valuEditId = null;
 function projektiValinnat(valittu) {
-  var h = '<option value="">— Valitse projekti —</option>';
+  var h = '<option value="">— Ei projektia —</option>';
   projektit.forEach(function(p) {
     if (p.arkistoitu && p._id !== valittu) return;
     h += '<option value="' + esc(p._id) + '"' + (p._id === valittu ? ' selected' : '') + '>' + esc(p.tyomaa || '?') + (p.tilaaja ? ' – ' + esc(p.tilaaja) : '') + (p.arkistoitu ? ' (arkistoitu)' : '') + '</option>';
@@ -793,27 +802,54 @@ function ahValinnat(valittu) {
   alihankkijat.forEach(function(a) { h += '<option value="' + esc(a._id) + '"' + (a._id === valittu ? ' selected' : '') + '>' + esc(a.nimi || '?') + '</option>'; });
   return h;
 }
-function avaaValuLomake(valuId, pvm) {
+var jobEditId = null;
+// Kalenterimerkinnän (ei projektia) vanhat koodit BET/BLG → alihankkijarekisteri
+function jobAlihankkija(j) {
+  if (j.alihankkijaId && alihankkijat.some(function(a) { return a._id === j.alihankkijaId; })) return j.alihankkijaId;
+  var osa = j.sub === 'BET' ? 'betolatt' : j.sub === 'BLG' ? 'abc' : '';
+  var a = osa ? alihankkijat.filter(function(x) { return String(x.nimi || '').toLowerCase().indexOf(osa) >= 0; })[0] : null;
+  return a ? a._id : '';
+}
+function paivitaKohdeKentta() {
+  var ilman = !document.getElementById('vl-projekti').value;
+  document.getElementById('vl-kohde-rivi').style.display = ilman ? 'block' : 'none';
+  var info = document.getElementById('vl-info');
+  if (info.dataset.kiintea) return;
+  info.innerHTML = ilman
+    ? 'Ilman projektia valu tallentuu pelkkänä kalenterimerkintänä (pienet työt tai projekti ei vielä perustettu). Kun projekti on perustettu, valitse se tähän, niin merkinnästä tulee projektin valu.'
+    : (jobEditId ? 'Tallennus siirtää merkinnän valitun projektin valuksi Projektipankkiin.' : 'Valu tallentuu Projektipankkiin projektin valuihin. Valupäivänä sen kuittauslinkki jaetaan alihankkijalle tavalliseen tapaan.');
+}
+function avaaValuLomake(valuId, pvm, jobId) {
   var v = valuId ? valut.filter(function(x) { return x._id === valuId; })[0] : null;
+  var j = !v && jobId ? jobs.filter(function(x) { return x.id === jobId; })[0] : null;
   valuEditId = v ? v._id : null;
-  document.getElementById('vl-title').textContent = v ? 'Muokkaa valua' : 'Lisää valu';
+  jobEditId = j ? j.id : null;
+  document.getElementById('vl-title').textContent = v ? 'Muokkaa valua' : j ? 'Muokkaa kalenterimerkintää' : 'Lisää valu';
   document.getElementById('vl-projekti').innerHTML = projektiValinnat(v ? v.projektiId : '');
-  document.getElementById('vl-pvm').value = v ? (v.pvm || '') : (pvm || tanaanIso());
-  document.getElementById('vl-m2').value = v ? (v.m2 != null ? v.m2 : (v.m2Arvio || '')) : '';
-  document.getElementById('vl-alue').value = v ? (v.valualue || '') : '';
-  document.getElementById('vl-ah').innerHTML = ahValinnat(v && v.alihankkija ? v.alihankkija.id : '');
-  document.getElementById('vl-menetelma').value = v ? (v.valumenetelma || '') : '';
-  document.getElementById('vl-sirote').value = v ? (v.sirote === true ? '1' : v.sirote === false ? '0' : '') : '';
-  document.getElementById('vl-betoni').value = v && v.betoniTilattu ? '1' : '0';
-  document.getElementById('vl-alustava').checked = v ? !!(v.varaus && v.varaus.alustava) : false;
-  document.getElementById('vl-huom').value = v ? (v.kalenteriHuom || '') : '';
+  document.getElementById('vl-kohde').value = j ? (j.name || '') : '';
+  document.getElementById('vl-pvm').value = v ? (v.pvm || '') : j ? (j.date || '') : (pvm || tanaanIso());
+  document.getElementById('vl-m2').value = v ? (v.m2 != null ? v.m2 : (v.m2Arvio || '')) : j ? (j.m2 || '') : '';
+  document.getElementById('vl-alue').value = v ? (v.valualue || '') : j ? (j.valualue || '') : '';
+  document.getElementById('vl-ah').innerHTML = ahValinnat(v && v.alihankkija ? v.alihankkija.id : j ? jobAlihankkija(j) : '');
+  var jm = j ? String(j.method || '') : '';
+  document.getElementById('vl-menetelma').value = v ? (v.valumenetelma || '') : /^Konevalu/i.test(jm) ? 'Konevalu' : /Käsinvalu/i.test(jm) ? 'Käsinvalu' : '';
+  document.getElementById('vl-sirote').value = v ? (v.sirote === true ? '1' : v.sirote === false ? '0' : '') : j ? (j.sirote === true || /sirote/i.test(jm) ? '1' : j.sirote === false || /liippi|harja/i.test(jm) ? '0' : '') : '';
+  document.getElementById('vl-betoni').value = (v && v.betoniTilattu) || (j && j.betoni === 'kyllä') ? '1' : '0';
+  document.getElementById('vl-alustava').checked = v ? !!(v.varaus && v.varaus.alustava) : j ? !!j.alustava : false;
+  document.getElementById('vl-huom').value = v ? (v.kalenteriHuom || '') : j ? (j.note || '') : '';
   var tehty = v && valuTehty(v);
-  document.getElementById('vl-info').innerHTML = v ? (tehty ? 'Valu on tehty tai kuitattu. Kuittausta ja pöytäkirjaa muokataan Projektipankissa.' : '') : 'Valu tallentuu Projektipankkiin projektin valuihin. Valupäivänä sen kuittauslinkki jaetaan alihankkijalle tavalliseen tapaan.';
+  var info = document.getElementById('vl-info');
+  info.innerHTML = tehty ? 'Valu on tehty tai kuitattu. Kuittausta ja pöytäkirjaa muokataan Projektipankissa.' : '';
+  if (tehty) info.dataset.kiintea = '1'; else delete info.dataset.kiintea;
+  if (v && !tehty) { info.dataset.kiintea = '1'; info.innerHTML = ''; }
+  paivitaKohdeKentta();
+  if (v) document.getElementById('vl-kohde-rivi').style.display = 'none';
   document.getElementById('vl-avaa').style.display = v ? 'block' : 'none';
-  document.getElementById('vl-poista').style.display = v && !v.lukittu && !(v.kuittaus && v.kuittaus.tallennettu) ? 'block' : 'none';
+  document.getElementById('vl-poista').style.display = j || (v && !v.lukittu && !(v.kuittaus && v.kuittaus.tallennettu)) ? 'block' : 'none';
+  document.getElementById('vl-poista').textContent = j ? 'Poista merkintä' : 'Poista valu';
   document.getElementById('valuOverlay').classList.add('open');
 }
-function suljeValuLomake() { document.getElementById('valuOverlay').classList.remove('open'); valuEditId = null; }
+function suljeValuLomake() { document.getElementById('valuOverlay').classList.remove('open'); valuEditId = null; jobEditId = null; }
 function m2Kentista(teksti) {
   var t = String(teksti || '').trim().replace(/\s*m²?\s*$/i, '').replace(/m2$/i, '').trim();
   if (!t) return { m2: null, m2Arvio: null };
@@ -831,9 +867,33 @@ function siirryPaivaan(pvm) {
   if (view === 'week') wOff = Math.floor(Math.floor((jd - ma) / (7 * 86400000)) / vkMaara());
   else mOff = (jd.getFullYear() - n.getFullYear()) * 12 + jd.getMonth() - n.getMonth();
 }
+function tallennaMerkinta(pvm) {
+  var nimi = document.getElementById('vl-kohde').value.trim();
+  if (!nimi) { alert('Kirjoita kohde tai valitse projekti.'); return; }
+  var ahId = document.getElementById('vl-ah').value, ah = ahKopio(ahId);
+  var men = document.getElementById('vl-menetelma').value, sir = document.getElementById('vl-sirote').value;
+  var data = {
+    name: nimi, date: pvm, m2: document.getElementById('vl-m2').value.trim(),
+    sub: ah ? (subAvain(ah.nimi) === 'MUU' ? '' : subAvain(ah.nimi)) : '', subNimi: ah ? ah.nimi : '', alihankkijaId: ahId || '',
+    valualue: document.getElementById('vl-alue').value.trim(),
+    method: men, sirote: sir === '' ? null : sir === '1',
+    betoni: document.getElementById('vl-betoni').value === '1' ? 'kyllä' : 'ei',
+    alustava: document.getElementById('vl-alustava').checked,
+    note: document.getElementById('vl-huom').value.trim(), status: 'todo'
+  };
+  var tyo;
+  var vanha = jobEditId ? jobs.filter(function(x) { return x.id === jobEditId; })[0] : null;
+  if (vanha && vanha._fbId) tyo = db.collection('jobs').doc(vanha._fbId).update(data);
+  else { data.id = String(Date.now()); data.luotu = new Date().toISOString(); tyo = db.collection('jobs').add(data); }
+  siirryPaivaan(pvm);
+  suljeValuLomake();
+  tyo.catch(function(e) { alert('Tallennus epäonnistui: ' + e.message); });
+}
 function tallennaValu() {
   var pid = document.getElementById('vl-projekti').value, pvm = document.getElementById('vl-pvm').value;
-  if (!pid || !pvm) { alert('Valitse projekti ja päivämäärä.'); return; }
+  if (!pvm) { alert('Valitse päivämäärä.'); return; }
+  if (!pid) { tallennaMerkinta(pvm); return; }
+  var muunnettava = jobEditId ? jobs.filter(function(x) { return x.id === jobEditId; })[0] : null;
   var p = projektit.filter(function(x) { return x._id === pid; })[0] || {};
   var m = m2Kentista(document.getElementById('vl-m2').value);
   var siroteArvo = document.getElementById('vl-sirote').value;
@@ -861,12 +921,20 @@ function tallennaValu() {
     data.luotu = new Date().toISOString(); data.luoja = (window.bcKayttaja && window.bcKayttaja.email) || '';
     data.lukittu = false; data.kuittaus = {};
     tyo = db.collection('valut').doc().set(data);
+    // Kalenterimerkintä muutettiin projektin valuksi → merkintä poistetaan
+    if (muunnettava && muunnettava._fbId) tyo = tyo.then(function() { return db.collection('jobs').doc(muunnettava._fbId).delete(); });
   }
   siirryPaivaan(pvm);
   suljeValuLomake();
   tyo.catch(function(e) { alert('Tallennus epäonnistui: ' + e.message); });
 }
 function poistaValu() {
+  if (jobEditId) {
+    var jj = jobs.filter(function(x) { return x.id === jobEditId; })[0];
+    if (!jj || !confirm('Poistetaanko merkintä ' + (jj.name || '') + ' ' + fiPvm(jj.date) + '?')) return;
+    db.collection('jobs').doc(jj._fbId).delete().then(suljeValuLomake).catch(function(e) { alert('Poisto epäonnistui: ' + e.message); });
+    return;
+  }
   var id = valuEditId; if (!id) return;
   var v = valut.filter(function(x) { return x._id === id; })[0];
   if (!v || v.lukittu || (v.kuittaus && v.kuittaus.tallennettu)) { alert('Kuitattua tai lukittua valua ei voi poistaa kalenterista.'); return; }
@@ -941,10 +1009,10 @@ function lueVaraukset() {
     'Poimi VAIN valupäivät, jotka keskustelussa on sovittu tai varattu (esim. alihankkija ehdottaa päiviä ja BC Floors vastaa "varaa", "ok", "sopii", tai alihankkija vahvistaa BC Floorsin ehdottaman päivän). Älä poimi päiviä, jotka hylättiin ("ei käy", "noup") tai jäivät vain kysymykseksi – mainitse ne huomioissa.\n' +
     'Projektit: ' + JSON.stringify(pLista) + '\n' +
     'Alihankkijat: ' + JSON.stringify(aLista) + '\n' + ryhmaVihje() + '\n' +
-    (pVal ? 'Käyttäjä valitsi projektiksi: ' + pVal + '\n' : 'Päättele projekti paikkakunnan, kohteen tai tilaajan nimestä (esim. "Riihimäki", "Valio"). Jos et ole varma, projektiId = null.\n') +
+    (pVal ? 'Käyttäjä valitsi projektiksi: ' + pVal + '\n' : 'Päättele projekti paikkakunnan, kohteen tai tilaajan nimestä (esim. "Riihimäki", "Valio"). Jos et ole varma tai kohdetta ei ole projektilistalla (pienet työt, projektia ei vielä perustettu), projektiId = null ja kohde-kenttään kohteen nimi.\n') +
     (aVal ? 'Käyttäjä valitsi alihankkijaksi: ' + aVal + '\n' : 'Päättele alihankkija ryhmän nimestä tai keskustelijoista. Jos et ole varma, alihankkijaId = null.\n') +
     'Vastaa VAIN JSON-muodossa ilman muuta tekstiä:\n' +
-    '{"varaukset":[{"pvm":"vvvv-kk-pp","projektiId":"id tai null","alihankkijaId":"id tai null","m2":"esim. 850 tai 500–900 tai tyhjä","valumenetelma":"Konevalu|Käsinvalu|","sirote":true|false|null,"valualue":"","huom":"lyhyt lisätieto, esim. maanvarainen laatta, osa koneella osa käsin","alustava":true|false,"varmuus":"varma|tarkista"}],"huomiot":["lyhyitä huomioita suomeksi, esim. hylätyt päivät tai epäselvyydet"]}\n' +
+    '{"varaukset":[{"pvm":"vvvv-kk-pp","projektiId":"id tai null","kohde":"kohteen nimi / paikkakunta keskustelusta (aina, myös kun projekti löytyy)","alihankkijaId":"id tai null","m2":"esim. 850 tai 500–900 tai tyhjä","valumenetelma":"Konevalu|Käsinvalu|","sirote":true|false|null,"valualue":"","huom":"lyhyt lisätieto, esim. maanvarainen laatta, osa koneella osa käsin","alustava":true|false,"varmuus":"varma|tarkista"}],"huomiot":["lyhyitä huomioita suomeksi, esim. hylätyt päivät tai epäselvyydet"]}\n' +
     'alustava = true, jos varaus sanottiin alustavaksi tai neliöt ovat vielä auki (väli tai puuttuu). varmuus = "tarkista", jos päivä, projekti tai alihankkija on epävarma.';
   var sisalto = liitaKuvat.map(function(k) { return { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: k } }; });
   sisalto.push({ type: 'text', text: ohje + (teksti ? '\n\nKeskustelun teksti:\n' + teksti : '') });
@@ -966,7 +1034,7 @@ function lueVaraukset() {
       liitaRivit = (tulos.varaukset || []).filter(function(r) { return /^\d{4}-\d{2}-\d{2}$/.test(r.pvm || ''); }).map(function(r) {
         var pid = pVal || (projektit.some(function(p) { return p._id === r.projektiId; }) ? r.projektiId : '');
         var aid = aVal || (alihankkijat.some(function(x) { return x._id === r.alihankkijaId; }) ? r.alihankkijaId : '');
-        return { mukana: true, pvm: r.pvm, projektiId: pid, alihankkijaId: aid, m2: r.m2 == null ? '' : String(r.m2), valumenetelma: /^(Konevalu|Käsinvalu)$/.test(r.valumenetelma) ? r.valumenetelma : '', sirote: r.sirote === true ? '1' : r.sirote === false ? '0' : '', valualue: r.valualue || '', huom: r.huom || '', alustava: !!r.alustava, tarkista: r.varmuus === 'tarkista' };
+        return { mukana: true, pvm: r.pvm, projektiId: pid, kohde: r.kohde || '', alihankkijaId: aid, m2: r.m2 == null ? '' : String(r.m2), valumenetelma: /^(Konevalu|Käsinvalu)$/.test(r.valumenetelma) ? r.valumenetelma : '', sirote: r.sirote === true ? '1' : r.sirote === false ? '0' : '', valualue: r.valualue || '', huom: r.huom || '', alustava: !!r.alustava, tarkista: r.varmuus === 'tarkista' };
       }).sort(function(x, y) { return x.pvm.localeCompare(y.pvm); });
       merkitseTuplat();
       naytaEsikatselu();
@@ -994,6 +1062,7 @@ function naytaEsikatselu() {
       '<div class="li-kentat">' +
       '<input type="date" data-i="' + i + '" data-k="pvm" value="' + esc(r.pvm) + '">' +
       '<select data-i="' + i + '" data-k="projektiId">' + projektiValinnat(r.projektiId) + '</select>' +
+      (r.projektiId ? '' : '<input type="text" data-i="' + i + '" data-k="kohde" value="' + esc(r.kohde) + '" placeholder="Kohde (ei projektia)">') +
       '<select data-i="' + i + '" data-k="alihankkijaId">' + ahValinnat(r.alihankkijaId) + '</select>' +
       '<input type="text" data-i="' + i + '" data-k="m2" value="' + esc(r.m2) + '" placeholder="m²">' +
       '<select data-i="' + i + '" data-k="valumenetelma"><option value="">Menetelmä –</option><option' + (r.valumenetelma === 'Konevalu' ? ' selected' : '') + '>Konevalu</option><option' + (r.valumenetelma === 'Käsinvalu' ? ' selected' : '') + '>Käsinvalu</option></select>' +
@@ -1022,10 +1091,20 @@ function paivitaTallennaNappi() {
 }
 function tallennaVaraukset() {
   var rivit = liitaRivit.filter(function(r) { return r.mukana; });
-  var puuttuu = rivit.filter(function(r) { return !r.projektiId; });
-  if (puuttuu.length) { alert('Valitse projekti kaikille tallennettaville riveille (' + puuttuu.length + ' puuttuu).'); return; }
+  var ilman = rivit.filter(function(r) { return !r.projektiId; });
+  if (ilman.some(function(r) { return !String(r.kohde || '').trim(); })) { alert('Kirjoita kohde riveille, joilla ei ole projektia (tai valitse projekti).'); return; }
   var batch = db.batch(), nyt = new Date().toISOString(), kuka = (window.bcKayttaja && window.bcKayttaja.email) || '';
-  rivit.forEach(function(r) {
+  rivit.forEach(function(r, i) {
+    if (!r.projektiId) {
+      var ah = ahKopio(r.alihankkijaId);
+      batch.set(db.collection('jobs').doc(), {
+        id: String(Date.now()) + '_' + i, name: String(r.kohde).trim(), date: r.pvm, m2: r.m2 || '',
+        sub: ah ? (subAvain(ah.nimi) === 'MUU' ? '' : subAvain(ah.nimi)) : '', subNimi: ah ? ah.nimi : '', alihankkijaId: r.alihankkijaId || '',
+        valualue: r.valualue || '', method: r.valumenetelma || '', sirote: r.sirote === '' ? null : r.sirote === '1',
+        betoni: 'ei', alustava: !!r.alustava, note: r.huom || '', status: 'todo', luotu: nyt, lahde: 'whatsapp'
+      });
+      return;
+    }
     var p = projektit.filter(function(x) { return x._id === r.projektiId; })[0] || {};
     var m = m2Kentista(r.m2);
     batch.set(db.collection('valut').doc(), {
