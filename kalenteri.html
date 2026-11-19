@@ -411,10 +411,10 @@ function wkNum(d) {
 }
 function weekDays(off) {
   var n=new Date(), dd=n.getDay(), m=new Date(n);
-  m.setDate(n.getDate()+(dd===0?-6:1-dd)+off*3*7); m.setHours(0,0,0,0);
+  var vk=vkMaara(); m.setDate(n.getDate()+(dd===0?-6:1-dd)+off*vk*7); m.setHours(0,0,0,0);
   // Return 3 weeks Mon-Fri only
   var r=[];
-  for(var w=0;w<3;w++){
+  for(var w=0;w<vk;w++){
     for(var i=0;i<5;i++){
       var x=new Date(m);
       x.setDate(m.getDate()+w*7+i);
@@ -582,7 +582,7 @@ function saveJob(){
   var j={id:editId||String(Date.now()),name:nm,date:dt,m2:document.getElementById('f-m2').value,sub:document.getElementById('f-sub').value,status:document.getElementById('f-status').value,betoni:document.getElementById('f-betoni').value,method:document.getElementById('f-method').value,note:document.getElementById('f-note').value};
   var jd=new Date(dt+'T12:00:00'), n=new Date(), dd=n.getDay(), m2=new Date(n);
   m2.setDate(n.getDate()+(dd===0?-6:1-dd)); m2.setHours(0,0,0,0);
-  if(view==='week') wOff=Math.floor(Math.floor((jd-m2)/(7*86400000))/3);
+  if(view==='week') wOff=Math.floor(Math.floor((jd-m2)/(7*86400000))/vkMaara());
   else mOff=(jd.getFullYear()-n.getFullYear())*12+jd.getMonth()-n.getMonth();
   if(editId){
     var ex=jobs.find(function(x){return x.id===editId;});
@@ -614,6 +614,8 @@ document.getElementById('detailOverlay').addEventListener('click',function(e){if
 var DN = ['Maanantai', 'Tiistai', 'Keskiviikko', 'Torstai', 'Perjantai'];
 var DS2 = ['Ma', 'Ti', 'Ke', 'To', 'Pe'];
 function onPuhelin() { return window.innerWidth <= 640; }
+// Viikkonäkymän viikkojen määrä: puhelimen listassa 4, tietokoneen taulukossa 3
+function vkMaara() { return onPuhelin() ? 4 : 3; }
 function subLyhenne(j) {
   if (j.sub === 'BET') return 'BET';
   if (j.sub === 'BLG') return 'ABC';
@@ -657,13 +659,15 @@ function stats(jj) {
 }
 function renderWeek() {
   var days = weekDays(wOff);
-  var weeks = [days.slice(0, 5), days.slice(5, 10), days.slice(10, 15)];
-  document.getElementById('navLabel').textContent = 'Vk ' + wkNum(weeks[0][0]) + ' – ' + wkNum(weeks[2][0]);
-  document.getElementById('navSub').textContent = fmt(weeks[0][0]) + ' – ' + fmt(weeks[2][4]) + ' ' + weeks[2][4].getFullYear();
+  var weeks = [];
+  for (var w = 0; w * 5 < days.length; w++) weeks.push(days.slice(w * 5, w * 5 + 5));
+  var viim = weeks[weeks.length - 1];
+  document.getElementById('navLabel').textContent = 'Vk ' + wkNum(weeks[0][0]) + ' – ' + wkNum(viim[0]);
+  document.getElementById('navSub').textContent = fmt(weeks[0][0]) + ' – ' + fmt(viim[4]) + ' ' + viim[4].getFullYear();
   var kaikki = merkinnat();
   stats(kaikki.filter(function(j) { return days.some(function(d) { return iso(d) === j.date; }); }));
   var holidays = getFinnishHolidays(weeks[0][0].getFullYear());
-  if (weeks[2][4].getFullYear() !== weeks[0][0].getFullYear()) { var h2 = getFinnishHolidays(weeks[2][4].getFullYear()); Object.keys(h2).forEach(function(k) { holidays[k] = h2[k]; }); }
+  if (viim[4].getFullYear() !== weeks[0][0].getFullYear()) { var h2 = getFinnishHolidays(viim[4].getFullYear()); Object.keys(h2).forEach(function(k) { holidays[k] = h2[k]; }); }
   function paivan(di) { return kaikki.filter(function(j) { return j.date === di; }).sort(function(a, b) { return a.name.localeCompare(b.name, 'fi'); }); }
   var h = '';
   if (onPuhelin()) {
@@ -730,7 +734,7 @@ function renderMonth() {
 var kokoAjastin = null, oliPuhelin = onPuhelin();
 window.addEventListener('resize', function() {
   clearTimeout(kokoAjastin);
-  kokoAjastin = setTimeout(function() { if (onPuhelin() !== oliPuhelin) { oliPuhelin = onPuhelin(); render(); } }, 150);
+  kokoAjastin = setTimeout(function() { if (onPuhelin() !== oliPuhelin) { oliPuhelin = onPuhelin(); wOff = 0; render(); } }, 150);
 });
 
 // ══ VALUT KALENTERISSA ══════════════════════════════════════════════
@@ -824,7 +828,7 @@ function ahKopio(id) {
 function siirryPaivaan(pvm) {
   var jd = new Date(pvm + 'T12:00:00'), n = new Date(), dd = n.getDay(), ma = new Date(n);
   ma.setDate(n.getDate() + (dd === 0 ? -6 : 1 - dd)); ma.setHours(0, 0, 0, 0);
-  if (view === 'week') wOff = Math.floor(Math.floor((jd - ma) / (7 * 86400000)) / 3);
+  if (view === 'week') wOff = Math.floor(Math.floor((jd - ma) / (7 * 86400000)) / vkMaara());
   else mOff = (jd.getFullYear() - n.getFullYear()) * 12 + jd.getMonth() - n.getMonth();
 }
 function tallennaValu() {
