@@ -80,8 +80,9 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f8fafc;color:#1e293
 .detalji-row:last-child{border-bottom:none;}
 .detalji-label{color:#64748b;min-width:120px;font-size:12px;}
 .detalji-val{color:#1e293b;font-weight:500;flex:1;}
-.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#1e293b;color:white;padding:10px 20px;border-radius:20px;font-size:13px;font-weight:600;z-index:999;opacity:0;transition:opacity .3s;}
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#1e293b;color:white;padding:10px 20px;border-radius:20px;font-size:13px;font-weight:600;z-index:999;opacity:0;transition:opacity .3s;pointer-events:none;}
 .toast.show{opacity:1;}
+@media (max-width:480px){.ah-teksti{display:none;}}
 .mk-section{padding:8px 14px 10px;border-top:1px solid #e2e8f0;background:#f8fafc;}
 .mk-row{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;}
 .mk-label{font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.3px;margin-bottom:4px;}
@@ -265,6 +266,10 @@ button:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid
     <div class="bcf-topbar-sub" style="color:rgba(255,255,255,0.7);font-size:10px;">Projektipankki</div>
   </div>
   <div class="bcf-topbar-right">
+    <button onclick="avaaAlihankkijat()" class="bcf-btn bcf-btn-ghost bcf-btn-sm" title="Alihankkijarekisteri">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      <span class="ah-teksti">Alihankkijat</span>
+    </button>
     <button onclick="asetaApiAvain()" class="bcf-btn bcf-btn-ghost bcf-btn-sm">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
       API
