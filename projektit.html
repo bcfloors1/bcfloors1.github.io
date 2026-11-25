@@ -195,6 +195,18 @@ button:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid
 .pk-lisaa{display:block;width:100%;padding:11px;border:none;border-top:1px solid #eef2f6;background:#f8fafc;color:#0b5189;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;}
 .pk-lisaa:hover{background:#eef4fa;}
 .pk-chip[data-act]{cursor:pointer;}
+.sp-hae-btn{width:100%;padding:11px;margin-bottom:8px;border-radius:10px;border:1.5px solid #bfdbfe;background:#eff6ff;color:#0b4a8f;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;}
+.sp-hae-btn:hover{background:#dbeafe;}
+.sp-haku{width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:inherit;font-size:14px;margin-bottom:8px;box-sizing:border-box;}
+.sp-kaikki{display:flex;align-items:center;gap:8px;font-size:12px;color:#64748b;margin-bottom:10px;cursor:pointer;}
+.sp-ryhma{font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#64748b;margin:12px 2px 6px;}
+.sp-rivi{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:10px 12px;border:1px solid #e2e8f0;border-radius:10px;background:white;margin-bottom:6px;cursor:pointer;font-family:inherit;}
+.sp-rivi:hover{border-color:#93c5fd;background:#f8fbff;}
+.sp-rivi.on-jo{opacity:.55;}
+.sp-ikoni{font-size:20px;flex:none;}
+.sp-nimi{font-size:13.5px;font-weight:600;color:#1e293b;word-break:break-word;}
+.sp-meta{font-size:11px;color:#64748b;margin-top:2px;}
+.sp-merkki{font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;background:#dcfce7;color:#166534;margin-left:6px;}
 @media (max-width:560px){
   .pk-tabs{flex-wrap:wrap;gap:6px;border-bottom:none;overflow:visible;margin-top:12px;}
   .pk-tab{border:1px solid #cbd5e1;border-radius:999px;margin:0;padding:7px 11px;background:white;font-size:12.5px;}
@@ -313,14 +325,26 @@ button:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid
       <input type="text" id="uusiOsoite">
     </div>
     <div class="ff">
-      <label>&#128228; Lataa tarjous PDF (valinnainen)</label>
+      <label>&#128228; Tarjous (valinnainen) – AI täyttää tiedot</label>
+      <button type="button" class="sp-hae-btn" onclick="avaaSpTarjoukset()">☁️ Hae tarjous SharePointista</button>
       <div class="pdf-upload-area" id="uploadArea" onclick="document.getElementById('pdfInput').click()">
-        <div>📄 Klikkaa valitaksesi PDF</div>
+        <div>📄 Tai valitse tiedosto koneelta (PDF, Word, Excel)</div>
         <div style="font-size:11px;margin-top:4px;color:#94a3b8">Tarjous tallentuu projektin yhteyteen</div>
       </div>
-      <input type="file" id="pdfInput" accept=".pdf" onchange="pdfValittu(this)">
+      <input type="file" id="pdfInput" accept=".pdf,.docx,.xlsx" onchange="pdfValittu(this)">
     </div>
     <button class="btn-save" onclick="tallennaProjekti()">💾 Tallenna projekti</button>
+  </div>
+</div>
+
+<!-- Tarjoukset SharePointista -->
+<div class="overlay" id="spTarjousOverlay">
+  <div class="sheet">
+    <button class="sheet-close" onclick="suljeSheet('spTarjousOverlay')">✕</button>
+    <div class="sheet-title">Tarjoukset SharePointista</div>
+    <input type="text" id="spHaku" class="sp-haku" placeholder="Hae nimellä tai numerolla…" oninput="piirraSpTarjoukset()">
+    <label class="sp-kaikki"><input type="checkbox" id="spNaytaKaikki" onchange="piirraSpTarjoukset()"> Näytä myös tarjoukset, joille on jo projekti</label>
+    <div id="spLista"><div class="pk-tyhja">Ladataan…</div></div>
   </div>
 </div>
 
@@ -821,54 +845,146 @@ function suljeSheet(id) {
 
 // ── PDF valittu (uusi projekti) ──
 function pdfValittu(input) {
-  if (!input.files[0]) return;
-  var file = input.files[0];
-  if (file.size > 900000) { alert('PDF on liian suuri (max ~700KB)'); return; }
-  var apiAvain = haeApiAvain();
+  var file = input.files && input.files[0];
+  input.value = '';
+  if (!file) return;
+  var tyyppi = tarjousTyyppi(file.name);
+  if (!tyyppi) { alert('Valitse PDF-, Word- (.docx) tai Excel (.xlsx) -tiedosto.'); return; }
+  if (file.size > 7 * 1024 * 1024) { alert('Tiedosto on liian suuri (enintään 7 Mt).'); return; }
   var reader = new FileReader();
-  reader.onload = function(e) {
-    valittuPdfBase64 = e.target.result.split(',')[1];
-    document.getElementById('uploadArea').innerHTML =
-      '<div>✅ ' + file.name + '</div><div style="font-size:11px;margin-top:4px">(' + Math.round(file.size/1024) + ' KB)</div>';
-    document.getElementById('uploadArea').classList.add('has-file');
-    if (apiAvain) {
-      document.getElementById('uploadArea').innerHTML +=
-        '<div style="font-size:11px;color:#006CB1;margin-top:4px">🤖 AI lukee tietoja...</div>';
-      lueKaikkiTiedotAIlla(valittuPdfBase64)
-        .then(function(tiedot) {
-          if (!tiedot) {
-            document.getElementById('uploadArea').innerHTML =
-              '<div>✅ ' + file.name + '</div><div style="font-size:11px;color:#ef4444;margin-top:4px">AI-lukeminen epäonnistui — täytä käsin<br>' + (viimeisinAiVirhe || '') + '</div>';
-            return;
-          }
-          luetutHinnat = tiedot.hinnat || [];
-          var kentat = [
-            ['uusiTyomaa', tiedot.tyomaa],
-            ['uusiTilaaja', tiedot.tilaaja],
-            ['uusiTyonro', tiedot.tyonro],
-            ['uusiYhteys', tiedot.yhteys],
-            ['uusiOsoite', tiedot.osoite]
-          ];
-          kentat.forEach(function(p) {
-            var el = document.getElementById(p[0]);
-            if (el && p[1]) {
-              var uusi = el.cloneNode(false);
-              uusi.value = p[1];
-              uusi.placeholder = '';
-              el.parentNode.replaceChild(uusi, el);
-            }
-          });
-          document.getElementById('uploadArea').innerHTML = luetutHinnat.length > 0
-            ? '<div>✅ ' + file.name + ' — tiedot luettu, ' + luetutHinnat.length + ' hintaa!</div>'
-            : '<div>✅ ' + file.name + '</div><div style="font-size:11px;color:#ef4444;margin-top:4px">Hintoja ei löytynyt — mittakirjaan ei tule hintavalikkoa</div>';
-        })
-        .catch(function(err) {
-          document.getElementById('uploadArea').innerHTML =
-            '<div>✅ ' + file.name + '</div><div style="font-size:11px;color:#ef4444;margin-top:4px">Virhe: ' + err.message + '</div>';
-        });
-    }
-  };
+  reader.onload = function(e) { kasitteleTarjous({ nimi: file.name, tyyppi: tyyppi, base64: e.target.result.split(',')[1] }); };
   reader.readAsDataURL(file);
+}
+
+// ── Tarjouksen luku: PDF suoraan AI:lle, Word ja Excel tekstiksi selaimessa ──
+var valittuTarjousSP = null, luetutPerustiedot = null;
+function tarjousTyyppi(nimi) { var m = String(nimi || '').toLowerCase().match(/\.(pdf|docx|xlsx)$/); return m ? m[1] : ''; }
+function lataaSkriptiKerran(url, globaali) {
+  if (window[globaali]) return Promise.resolve(window[globaali]);
+  return new Promise(function(ok, virhe) {
+    var sc = document.createElement('script'); sc.src = url;
+    sc.onload = function() { window[globaali] ? ok(window[globaali]) : virhe(new Error('Kirjasto ei latautunut')); };
+    sc.onerror = function() { virhe(new Error('Kirjaston lataus epäonnistui: ' + url)); };
+    document.head.appendChild(sc);
+  });
+}
+function base64Puskuriksi(b64) {
+  var s = atob(b64), u = new Uint8Array(s.length);
+  for (var i = 0; i < s.length; i++) u[i] = s.charCodeAt(i);
+  return u.buffer;
+}
+// Palauttaa AI:lle annettavan lähteen: { pdfBase64 } tai { teksti }
+async function tarjousLahteeksi(t) {
+  if (t.tyyppi === 'pdf') return { pdfBase64: t.base64 };
+  if (t.tyyppi === 'docx') {
+    var mammoth = await lataaSkriptiKerran('https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js', 'mammoth');
+    var r = await mammoth.extractRawText({ arrayBuffer: base64Puskuriksi(t.base64) });
+    return { teksti: (r.value || '').slice(0, 150000) };
+  }
+  var XLSX = await lataaSkriptiKerran('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js', 'XLSX');
+  var wb = XLSX.read(new Uint8Array(base64Puskuriksi(t.base64)), { type: 'array' });
+  var osat = wb.SheetNames.map(function(n) { return '--- Taulukko: ' + n + ' ---\n' + XLSX.utils.sheet_to_csv(wb.Sheets[n], { FS: ';', blankrows: false }); });
+  return { teksti: osat.join('\n\n').slice(0, 150000) };
+}
+function aiLahdeBlokki(lahde) {
+  if (typeof lahde === 'string') lahde = { pdfBase64: lahde };
+  if (lahde.pdfBase64) return { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: lahde.pdfBase64 } };
+  return { type: 'text', text: 'Asiakirjan sisältö (muunnettu tekstiksi Word- tai Excel-tiedostosta):\n\n' + (lahde.teksti || '') };
+}
+function asetaKentta(id, arvo) {
+  var el = document.getElementById(id);
+  if (!el || !arvo) return;
+  var uusi = el.cloneNode(false); uusi.value = arvo; uusi.placeholder = '';
+  el.parentNode.replaceChild(uusi, el);
+}
+async function kasitteleTarjous(t) {
+  var alue = document.getElementById('uploadArea');
+  var ikoni = t.tyyppi === 'pdf' ? '📄' : t.tyyppi === 'docx' ? '📝' : '📊';
+  valittuPdfBase64 = t.tyyppi === 'pdf' && t.base64.length * 0.75 <= 700 * 1024 ? t.base64 : null;
+  valittuTarjousSP = t.webUrl ? { nimi: t.nimi, webUrl: t.webUrl, kansio: t.kansio || '' } : null;
+  luetutHinnat = null; luetutPerustiedot = null;
+  alue.classList.add('has-file');
+  alue.innerHTML = '<div>' + ikoni + ' ' + esc(t.nimi) + '</div><div style="font-size:11px;color:#006CB1;margin-top:4px">🤖 AI lukee tietoja…</div>';
+  if (!haeApiAvain()) { alue.innerHTML = '<div>' + ikoni + ' ' + esc(t.nimi) + '</div><div style="font-size:11px;color:#ef4444;margin-top:4px">API-avain puuttuu – täytä käsin</div>'; return; }
+  try {
+    var lahde = await tarjousLahteeksi(t);
+    var tulokset = await Promise.all([lueKaikkiTiedotAIlla(lahde), aiPerustiedot(lahde).catch(function(e) { console.warn('Perustiedot:', e); return null; })]);
+    var tiedot = tulokset[0], pt2 = tulokset[1];
+    if (!tiedot) throw new Error(viimeisinAiVirhe || 'AI-luku epäonnistui');
+    luetutHinnat = tiedot.hinnat || [];
+    luetutPerustiedot = pt2;
+    var ensim = pt2 && (pt2.yhteyshenkilot || []).filter(function(y) { return y && y.nimi; })[0];
+    asetaKentta('uusiTyomaa', tiedot.tyomaa);
+    asetaKentta('uusiTilaaja', tiedot.tilaaja || (pt2 && pt2.tilaaja));
+    asetaKentta('uusiTyonro', tiedot.tyonro);
+    asetaKentta('uusiYhteys', tiedot.yhteys || (ensim && ensim.nimi));
+    asetaKentta('uusiOsoite', tiedot.osoite || (pt2 && pt2.osoite));
+    var lisat = [];
+    function kpl(n, yks, mon) { return n + ' ' + (n === 1 ? yks : mon); }
+    if (luetutHinnat.length) lisat.push(kpl(luetutHinnat.length, 'hinta', 'hintaa'));
+    if (pt2 && (pt2.yhteyshenkilot || []).length) lisat.push(kpl(pt2.yhteyshenkilot.length, 'yhteyshenkilö', 'yhteyshenkilöä'));
+    if (pt2 && (pt2.rakennetyypit || []).length) lisat.push(kpl(pt2.rakennetyypit.length, 'rakennetyyppi', 'rakennetyyppiä'));
+    alue.innerHTML = '<div>✅ ' + ikoni + ' ' + esc(t.nimi) + '</div><div style="font-size:11px;margin-top:4px;color:' + (luetutHinnat.length ? '#166534' : '#b45309') + '">' +
+      (lisat.length ? 'AI luki: ' + lisat.join(', ') + '. Tarkista ja tallenna.' : 'Hintoja ei löytynyt — mittakirjaan ei tule hintavalikkoa') + '</div>';
+  } catch (e) {
+    console.error('Tarjouksen luku:', e);
+    alue.innerHTML = '<div>' + ikoni + ' ' + esc(t.nimi) + '</div><div style="font-size:11px;color:#ef4444;margin-top:4px">AI-luku epäonnistui — täytä käsin<br>' + esc(e.message) + '</div>';
+  }
+}
+
+// ── Tarjoukset SharePointista (palvelinfunktiot listaaTarjoukset ja haeTarjousTiedosto) ──
+var spTarjoukset = null;
+function avaaSpTarjoukset() {
+  document.getElementById('spTarjousOverlay').classList.add('open');
+  document.getElementById('spHaku').value = '';
+  if (spTarjoukset) { piirraSpTarjoukset(); return; }
+  document.getElementById('spLista').innerHTML = '<div class="pk-tyhja">Haetaan tarjouksia SharePointista…</div>';
+  firebase.app().functions('europe-west1').httpsCallable('listaaTarjoukset')().then(function(r) {
+    spTarjoukset = (r.data && r.data.tiedostot) || [];
+    piirraSpTarjoukset();
+  }).catch(function(e) {
+    document.getElementById('spLista').innerHTML = '<div class="pk-tyhja" style="color:#b91c1c">Haku epäonnistui: ' + esc(e.message) + '</div>';
+  });
+}
+function spTarjousNro(t) {
+  var m = String(t.nimi).match(/^\s*(\d{3,4})\b/) || String(t.kansio).match(/(?:^|\/)(\d{3,4})[ ,]/);
+  return m ? m[1] : '';
+}
+function piirraSpTarjoukset() {
+  if (!spTarjoukset) return;
+  var haku = document.getElementById('spHaku').value.trim().toLowerCase();
+  var kaikki = document.getElementById('spNaytaKaikki').checked;
+  var olemassa = {};
+  if (viimeisinProjektiSnap) viimeisinProjektiSnap.forEach(function(d) { var n = String(d.data().tarjousnro || '').trim(); if (n) olemassa[n] = d.data().tyomaa || true; });
+  var ryhmat = { tarjoukset: [], tyomaat: [] };
+  spTarjoukset.forEach(function(t, i) {
+    var nro = spTarjousNro(t), jo = nro && olemassa[nro];
+    if (jo && !kaikki) return;
+    if (haku && (t.nimi + ' ' + t.kansio).toLowerCase().indexOf(haku) < 0) return;
+    var tyyppi = tarjousTyyppi(t.nimi), ikoni = tyyppi === 'pdf' ? '📄' : tyyppi === 'docx' ? '📝' : '📊';
+    var pvm = t.muokattu ? new Date(t.muokattu).toLocaleDateString('fi-FI') : '';
+    var h = '<button type="button" class="sp-rivi' + (jo ? ' on-jo' : '') + '" onclick="valitseSpTarjous(' + i + ')">' +
+      '<span class="sp-ikoni">' + ikoni + '</span><span><div class="sp-nimi">' + esc(t.nimi) + (jo ? '<span class="sp-merkki">projekti on</span>' : '') + '</div>' +
+      '<div class="sp-meta">' + esc(t.kansio.replace(/^Työmaat\//, '').replace(/\/1 Tarjous ja sopimus$/, '')) + (pvm ? ' · ' + pvm : '') + '</div></span></button>';
+    (t.kansio.indexOf('Työmaat/') === 0 ? ryhmat.tyomaat : ryhmat.tarjoukset).push(h);
+  });
+  var html = '';
+  if (ryhmat.tarjoukset.length) html += '<div class="sp-ryhma">Tarjoukset</div>' + ryhmat.tarjoukset.join('');
+  if (ryhmat.tyomaat.length) html += '<div class="sp-ryhma">Työmaiden kansiot</div>' + ryhmat.tyomaat.join('');
+  document.getElementById('spLista').innerHTML = html || '<div class="pk-tyhja">Ei tarjouksia' + (kaikki ? '' : ', joille ei vielä ole projektia') + (haku ? ' hakuehdolla' : '') + '.</div>';
+}
+function valitseSpTarjous(i) {
+  var t = spTarjoukset[i]; if (!t) return;
+  suljeSheet('spTarjousOverlay');
+  var alue = document.getElementById('uploadArea');
+  alue.classList.add('has-file');
+  alue.innerHTML = '<div>☁️ ' + esc(t.nimi) + '</div><div style="font-size:11px;color:#006CB1;margin-top:4px">Haetaan SharePointista…</div>';
+  firebase.app().functions('europe-west1').httpsCallable('haeTarjousTiedosto')({ id: t.id }).then(function(r) {
+    var d = r.data || {};
+    return kasitteleTarjous({ nimi: d.nimi || t.nimi, tyyppi: tarjousTyyppi(d.nimi || t.nimi), base64: d.base64, webUrl: d.webUrl || t.webUrl, kansio: d.kansio || t.kansio });
+  }).catch(function(e) {
+    alue.innerHTML = '<div>☁️ ' + esc(t.nimi) + '</div><div style="font-size:11px;color:#ef4444;margin-top:4px">Haku epäonnistui: ' + esc(e.message) + '</div>';
+  });
 }
 
 // ── PDF valittu (olemassaoleva projekti) ──
@@ -957,7 +1073,7 @@ function siistiHinnat(arr) {
 
 // ── AI lukee KAIKKI tiedot PDF:stä ──
 var viimeisinAiVirhe = '';
-async function lueKaikkiTiedotAIlla(pdfBase64) {
+async function lueKaikkiTiedotAIlla(lahde) {
   viimeisinAiVirhe = '';
   if (!haeApiAvain()) {
     viimeisinAiVirhe = 'API-avainta ei ole asetettu (asetukset/api).';
@@ -978,10 +1094,7 @@ async function lueKaikkiTiedotAIlla(pdfBase64) {
         messages: [{
           role: 'user',
           content: [
-            {
-              type: 'document',
-              source: { type: 'base64', media_type: 'application/pdf', data: pdfBase64 }
-            },
+            aiLahdeBlokki(lahde),
             {
               type: 'text',
               text: 'Lue tästä betonilattiatarjous-PDF:stä kaikki tiedot. Palauta VAIN JSON-muodossa ilman mitään muuta tekstiä tai markdown-merkkejä:\n{\n  "tyomaa": "kohteen nimi ja paikkakunta",\n  "tilaaja": "tilaajan yritysnimi",\n  "tyonro": "työnumero",\n  "yhteys": "tilaajan yhteyshenkilön nimi",\n  "osoite": "kohteen osoite jos mainittu",\n  "hinnat": [\n    {"nimi": "Pos 1a, AP 2", "hinta": 29.30, "yksikko": "m²"},\n    ...\n  ]\n}\nSisällytä KAIKKI hinnat mukaan lukien lisä- ja muutostöiden yksikköhinnat. Jos jokin tieto puuttuu, jätä kenttä tyhjäksi merkkijonona.'
@@ -1047,6 +1160,23 @@ async function tallennaProjekti() {
   if (luetutHinnat && luetutHinnat.length > 0) {
     projektinTiedot.tarjousHinnat = luetutHinnat;
   }
+  if (valittuTarjousSP) projektinTiedot.tarjousSharePoint = valittuTarjousSP;
+  var lp = luetutPerustiedot || {};
+  ['toimittaja', 'betoniYhteys', 'toimittajaTyomaanro', 'sirote', 'valihoitoaine', 'jalkihoitoaine', 'polynsidonta'].forEach(function(k) {
+    var v = String(lp[k] || '').trim(); if (v) projektinTiedot[k] = v;
+  });
+  var nro = String(lp.tarjousnro || '').trim();
+  if (!nro && valittuTarjousSP) nro = spTarjousNro(valittuTarjousSP);
+  if (nro) projektinTiedot.tarjousnro = nro;
+  var yh = (lp.yhteyshenkilot || []).filter(function(y) { return y && String(y.nimi || '').trim(); }).map(function(y) {
+    return { rooli: String(y.rooli || '').trim(), nimi: String(y.nimi).trim(), puhelin: String(y.puhelin || '').trim(), email: String(y.email || '').trim() };
+  });
+  if (yh.length) projektinTiedot.yhteyshenkilot = yh;
+  var rt = (lp.rakennetyypit || []).filter(function(r) { return r && (String(r.tunnus || '').trim() || String(r.rakenne || '').trim()); }).map(function(r) {
+    var n = parseFloat(String(r.paksuus == null ? '' : r.paksuus).replace(',', '.'));
+    return { tunnus: String(r.tunnus || '').trim(), rakenne: String(r.rakenne || '').trim(), paksuus: isFinite(n) ? n : null };
+  });
+  if (rt.length) projektinTiedot.rakennetyypit = rt;
 
   db.collection('projects').add(projektinTiedot)
     .then(function() {
@@ -1054,10 +1184,10 @@ async function tallennaProjekti() {
       ['uusiTyomaa','uusiTilaaja','uusiTyonro','uusiYhteys','uusiOsoite'].forEach(function(id){
         document.getElementById(id).value = '';
       });
-      document.getElementById('uploadArea').innerHTML = '<div>📄 Klikkaa valitaksesi PDF</div><div style="font-size:11px;margin-top:4px;color:#94a3b8">Tarjous tallentuu projektin yhteyteen</div>';
+      document.getElementById('uploadArea').innerHTML = '<div>📄 Tai valitse tiedosto koneelta (PDF, Word, Excel)</div><div style="font-size:11px;margin-top:4px;color:#94a3b8">Tarjous tallentuu projektin yhteyteen</div>';
       document.getElementById('uploadArea').classList.remove('has-file');
       valittuPdfBase64 = null;
-      luetutHinnat = null;
+      luetutHinnat = null; luetutPerustiedot = null; valittuTarjousSP = null;
       btn.textContent = '💾 Tallenna projekti';
       btn.disabled = false;
       naytaToast('✅ Projekti tallennettu!');
@@ -1311,6 +1441,8 @@ function korttiHtml(id, p) {
   h += '<div class="pk-actions">';
   if (p.pdfBase64) {
     h += '<button type="button" class="pk-btn pk-btn-outline" data-act="avaaPdf" data-id="' + id + '">' + ICON_DOC + ' Avaa tarjous</button>';
+  } else if (p.tarjousSharePoint && p.tarjousSharePoint.webUrl) {
+    h += '<a class="pk-btn pk-btn-outline" href="' + esc(p.tarjousSharePoint.webUrl) + '" target="_blank" rel="noopener" style="text-decoration:none">' + ICON_DOC + ' Avaa tarjous</a>';
   } else {
     h += '<button type="button" class="pk-btn pk-btn-outline" data-act="lataaPdf" data-id="' + id + '" data-nimi="' + esc(p.tyomaa || '') + '">' + ICON_UPLOAD + ' Lataa tarjous</button>';
   }
@@ -1993,6 +2125,28 @@ function ptTallenna() {
   }).catch(function(e) { alert('Tallennus epäonnistui: ' + e.message); });
 }
 
+var PT_AI_OHJE = 'Tämä on betonilattiaurakan tarjous, urakkaohjelma tai muu urakka-asiakirja. Poimi siitä projektin perustiedot. Palauta VAIN JSON ilman muuta tekstiä:\n' +
+            '{"tarjousnro":"","tilaaja":"","osoite":"","yhteyshenkilot":[{"rooli":"","nimi":"","puhelin":"","email":""}],"toimittaja":"","betoniYhteys":"","toimittajaTyomaanro":"",' +
+            '"sirote":"","valihoitoaine":"","jalkihoitoaine":"","polynsidonta":"","rakennetyypit":[{"tunnus":"","rakenne":"","paksuus":null}]}\n' +
+            'Säännöt: tarjousnro = BC Floors Oy:n oma tarjousnumero (esim. "Tarjous 644" -> "644"), ei tilaajan työnumeroa. yhteyshenkilot = tilaajan/pääurakoitsijan henkilöt (rooli esim. Työmaapäällikkö, Vastaava työnjohtaja, Valvoja). toimittaja = betonitoimittajan yritysnimi. ' +
+            'sirote, valihoitoaine, jalkihoitoaine = tuotenimet sellaisinaan, jos mainittu. polynsidonta = pölynsidonta tai muu pintakäsittely, jos mainittu. ' +
+            'rakennetyypit = lattiarakenteet/positiot: tunnus (esim. "AP 1.1" tai "Pos 2"), rakenne (esim. "maanvarainen teräskuitubetonilaatta"), paksuus millimetreinä numerona. ' +
+            'Älä keksi tietoja: jätä tyhjäksi tai tyhjäksi listaksi, jos tietoa ei ole.';
+// Perustiedot (tarjousnro, yhteyshenkilöt, betonitoimittaja, tuotteet, rakennetyypit) uudelle projektille
+async function aiPerustiedot(lahde) {
+  var vastaus = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-api-key': haeApiAvain(), 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+    body: JSON.stringify({ model: 'claude-sonnet-5-5', max_tokens: 8000, messages: [{ role: 'user', content: [aiLahdeBlokki(lahde), { type: 'text', text: PT_AI_OHJE }] }] })
+  });
+  var data = await vastaus.json();
+  if (!vastaus.ok) throw new Error((data.error && data.error.message) || ('HTTP ' + vastaus.status));
+  var osa = (data.content || []).filter(function(b) { return b.type === 'text' && b.text; })[0];
+  if (!osa) throw new Error('tyhjä vastaus');
+  var t = osa.text.replace(/```json|```/g, '').trim();
+  return JSON.parse(t.substring(t.indexOf('{'), t.lastIndexOf('}') + 1));
+}
+
 async function ptLueAIlla(pdfBase64) {
   ptLueLomake();
   if (!haeApiAvain()) { alert('API-avainta ei ole asetettu.'); return; }
@@ -2004,14 +2158,8 @@ async function ptLueAIlla(pdfBase64) {
       body: JSON.stringify({
         model: 'claude-sonnet-5-5', max_tokens: 8000,
         messages: [{ role: 'user', content: [
-          { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: pdfBase64 } },
-          { type: 'text', text: 'Tämä on betonilattiaurakan tarjous, urakkaohjelma tai muu urakka-asiakirja. Poimi siitä projektin perustiedot. Palauta VAIN JSON ilman muuta tekstiä:\n' +
-            '{"tarjousnro":"","tilaaja":"","osoite":"","yhteyshenkilot":[{"rooli":"","nimi":"","puhelin":"","email":""}],"toimittaja":"","betoniYhteys":"","toimittajaTyomaanro":"",' +
-            '"sirote":"","valihoitoaine":"","jalkihoitoaine":"","polynsidonta":"","rakennetyypit":[{"tunnus":"","rakenne":"","paksuus":null}]}\n' +
-            'Säännöt: tarjousnro = BC Floors Oy:n oma tarjousnumero (esim. "Tarjous 644" -> "644"), ei tilaajan työnumeroa. yhteyshenkilot = tilaajan/pääurakoitsijan henkilöt (rooli esim. Työmaapäällikkö, Vastaava työnjohtaja, Valvoja). toimittaja = betonitoimittajan yritysnimi. ' +
-            'sirote, valihoitoaine, jalkihoitoaine = tuotenimet sellaisinaan, jos mainittu. polynsidonta = pölynsidonta tai muu pintakäsittely, jos mainittu. ' +
-            'rakennetyypit = lattiarakenteet/positiot: tunnus (esim. "AP 1.1" tai "Pos 2"), rakenne (esim. "maanvarainen teräskuitubetonilaatta"), paksuus millimetreinä numerona. ' +
-            'Älä keksi tietoja: jätä tyhjäksi tai tyhjäksi listaksi, jos tietoa ei ole.' }
+          aiLahdeBlokki(pdfBase64),
+          { type: 'text', text: PT_AI_OHJE }
         ] }]
       })
     });
