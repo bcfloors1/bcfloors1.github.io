@@ -1685,11 +1685,20 @@ function analysoiSchwenk(kuormat, pumput) {
 }
 
 // ── Kutsu Anthropic API ──
-async function kutsuAI(tekstit) {
+// skannatut = [{nimi, b64}] – PDF:t ilman tekstikerrosta (paperilappujen skannaukset), luetaan kuvina
+async function kutsuAI(tekstit, skannatut) {
+  skannatut = skannatut || [];
   if (!getApiKey()) throw new Error('API-avainta ei ole asetettu. Aseta se yläpalkin "Aseta API-avain" -napista.');
   // Tekoäly tarvitsee vain betonin ominaisuudet — ne ovat samat kaikissa kuormissa.
   // Määrät ja ajat lasketaan koodissa, joten riittää lähettää ensimmäiset kuormakirjat (ei katkaista kesken lapun).
-  var yhdistetty = tekstit.slice(0, 8).join('\n\n--- SEURAAVA KUORMAKIRJA ---\n\n');
+  var yhdistetty = tekstit.filter(function(t) { return t && t.replace(/\s/g, '').length >= 40; }).slice(0, 8).join('\n\n--- SEURAAVA KUORMAKIRJA ---\n\n') || '(ei tekstimuotoisia kuormakirjoja – katso liitetyt skannatut kuormakirjat)';
+  var skannausOhje = skannatut.length ? `
+
+SKANNATUT KUORMAKIRJAT: Liitteenä on ${skannatut.length} skannattua kuormakirja-PDF:ää (paperilappuja, osassa käsin kirjoitettuja aikoja). Lue niistä betonin ominaisuudet sekä jokaisen kuorman tiedot. Koska skannatuista ei voi laskea määriä koodissa, palauta lisäksi:
+  "kuormat": [{"nro": "lähetteen numero", "m3": kuorman koko numerona, "toimitettuYht": toimitettu yhteensä numerona tai null, "tilattu": tilattu määrä numerona tai null, "saapui": "HH:MM tai null", "purkuAlkaa": "HH:MM tai null", "purkuLoppuu": "HH:MM tai null", "lahti": "HH:MM tai null"}],
+  "palautus": jäännösbetonin palautus tehtaalle m³ numerona tai null,
+  "huomiot": ["lyhyitä huomioita suomeksi, esim. tilausta kasvatettu 20 → 28 m³, puuttuvat purkuajat, epäselvä käsiala"]
+Aseta totBetoni = toimitettujen kuormien m³-summa. valuAlkoi = aikaisin purun alku (jos puuttuu, ensimmäisen kuorman saapumisaika), valuPaattyi = viimeisin purun loppu (jos puuttuu, viimeisen kuorman lähtöaika). Lue käsin kirjoitetut kellonajat huolellisesti (esim. "7,49" = 07:49).` : '';
   
   var prompt = `Olet betonointipöytäkirjan täyttöavustaja. Analysoi nämä betonikuormakirjat ja palauta JSON-objekti.
 
@@ -1698,7 +1707,7 @@ Huom: mukana voi olla myös erillinen pumppauksen kuormakirja/lasku (pumppausura
 Kuitumäärä (kuitumaara) on kg/m³: jos kuormakirjassa on "Teräskuidut 200,00 kg" ja kuorman määrä on 8,00 m³, kuitumäärä on 25. Älä käytä kilomäärää sellaisenaan. Toimitetun betonin kokonaismäärää (totBetoni) ei tarvitse laskea — se lasketaan erikseen, palauta null.
 
 KUORMAKIRJAT:
-${yhdistetty}
+${yhdistetty}${skannausOhje}
 
 Palauta VAIN JSON ilman muuta tekstiä:
 {
@@ -1730,7 +1739,7 @@ Palauta VAIN JSON ilman muuta tekstiä:
     body: JSON.stringify({
       model: 'claude-sonnet-5-5',
       max_tokens: 8000,
-      messages: [{ role: 'user', content: prompt }]
+      messages: [{ role: 'user', content: skannatut.length ? skannatut.slice(0, 15).map(function(sk) { return { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: sk.b64 } }; }).concat([{ type: 'text', text: prompt }]) : prompt }]
     })
   });
 
@@ -1738,6 +1747,9 @@ Palauta VAIN JSON ilman muuta tekstiä:
   if (!response.ok || !data.content || !data.content.length) {
     var virhe = (data.error && data.error.message) ? data.error.message : ('HTTP ' + response.status);
     throw new Error('API-virhe (kutsuAI): ' + virhe);
+  }
+  if (data.stop_reason === 'max_tokens') {
+    throw new Error('API-virhe (kutsuAI): vastaus katkesi (max_tokens) – tuo vähemmän kuormakirjoja kerralla');
   }
   // Uudet mallit voivat palauttaa ensin ajatteluosion — otetaan ensimmäinen tekstiosa
   var tekstiOsa = data.content.filter(function(b) { return b.type === 'text' && b.text; })[0];
@@ -1828,9 +1840,14 @@ async function tuoKuormakirjat(input, valmiit) {
       projNimi = (opt.getAttribute('data-tyomaa') || opt.text).replace(/[^a-zA-Z0-9äöåÄÖÅ ]/g,'').trim().replace(/\s+/g,'_');
     }
 
-    naytaStatus('🤖 AI analysoi kuormakirjoja...', 'white');
+    // Skannatut kuormakirjat (ei tekstikerrosta) luetaan AI:lla kuvina
+    var skannatut = [];
+    tekstit.forEach(function(t, i) {
+      if ((t || '').replace(/\s/g, '').length < 40 && kuormakirjaTiedostot[i]) skannatut.push({ nimi: kuormakirjaTiedostot[i].nimi, b64: lueBase64(kuormakirjaTiedostot[i].data) });
+    });
+    naytaStatus(skannatut.length ? '🤖 AI lukee ' + skannatut.length + ' skannattua kuormakirjaa kuvina...' : '🤖 AI analysoi kuormakirjoja...', 'white');
     
-    var tiedot = await kutsuAI(tekstit);
+    var tiedot = await kutsuAI(tekstit, skannatut);
 
     // ── Laske tot.betoni, valu alkoi ja paattyi suoraan tekstista ──
     // Tuetut toimittajat: Rudus (LAT BETONI / "Kuormaus...päättyi") ja Lujabetoni (Toimitettu määrä / Purun aloitusaika / Purun lopetusaika)
@@ -1898,6 +1915,23 @@ async function tuoKuormakirjat(input, valmiit) {
       tuontiHuomio = ' 🚚 Schwenk: ' + swAnalyysi.yhteenveto + (swAnalyysi.huomiot.length ? ' ' + swAnalyysi.huomiot.join(' ') : '');
     } else if (kaikki_m3.length > 0) {
       tiedot.totBetoni = muuM3;
+    }
+    // Skannatut: kuormat, määrä ja ajat AI:n lukemina (koodi ei voi laskea niitä tekstistä)
+    if (skannatut.length && schwenkMaara === 0 && kaikki_m3.length === 0 && Array.isArray(tiedot.kuormat) && tiedot.kuormat.length) {
+      var lukuS = function(v) { var n = parseFloat(String(v == null ? '' : v).replace(',', '.')); return isFinite(n) ? n : null; };
+      var aikaS = function(v) { var m = String(v || '').match(/(\d{1,2})[:.,](\d{2})/); return m ? ('0' + m[1]).slice(-2) + ':' + m[2] : ''; };
+      tiedot.kuormat.forEach(function(k) {
+        var kuorma = { m3: lukuS(k.m3), purkuAlkaa: aikaS(k.purkuAlkaa) || aikaS(k.saapui), purkuLoppuu: aikaS(k.purkuLoppuu) || aikaS(k.lahti), nro: String(k.nro || ''), tuote: '', tilattu: lukuS(k.tilattu), kum: lukuS(k.toimitettuYht) };
+        kuormaLista.push(kuorma);
+        if (kuorma.purkuAlkaa) kaikki_purku.push(kuorma.purkuAlkaa);
+        if (kuorma.purkuLoppuu) kaikki_paattyi.push(kuorma.purkuLoppuu);
+      });
+      var summaS = kuormaLista.reduce(function(a, k) { return a + (k.m3 || 0); }, 0);
+      if (!(lukuS(tiedot.totBetoni) > 0)) tiedot.totBetoni = summaS;
+      var palautusS = lukuS(tiedot.palautus);
+      tuontiHuomio = ' 📷 Skannattu kuormakirja luettu kuvana: ' + kuormaLista.length + ' kuormaa · ' + String(Math.round(summaS * 100) / 100).replace('.', ',') + ' m³' +
+        (palautusS ? ' · palautus tehtaalle ' + String(palautusS).replace('.', ',') + ' m³' : '') + '.' +
+        ((tiedot.huomiot || []).length ? ' ' + tiedot.huomiot.join(' ') : '') + ' ⚠️ Tarkista käsin kirjoitetut ajat ja määrät lapuista.';
     }
     if (tiedot.totBetoni !== null && tiedot.totBetoni !== undefined) tiedot.totBetoni = Math.round(parseFloat(tiedot.totBetoni) * 100) / 100;
     if (kaikki_purku.length > 0) tiedot.valuAlkoi = kaikki_purku.sort()[0];
