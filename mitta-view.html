@@ -210,7 +210,6 @@
 
       /* Näytä allekirjoitettu-banneri */
       .signed-banner { display: block !important; }
-      #signedKommentti { display: block !important; }
 
       /* Tiivis asettelu */
       body { background: white !important; font-size: 11px !important; }
@@ -248,6 +247,24 @@
 
       /* Ei marginaaleja */
       @page { margin: 10mm; }
+
+      /* Tiivis hyväksyntälohko: tiedot vasemmalla, allekirjoitus oikealla – mahtuu rivien alle samalle sivulle */
+      .signed-banner { display: grid !important; grid-template-columns: 1fr 1fr; column-gap: 14px; row-gap: 2px;
+                       text-align: left !important; padding: 8px 12px !important; align-items: start; }
+      .signed-banner .icon, .signed-banner > p { display: none !important; }
+      .signed-banner h2 { grid-column: 1; font-size: 0.85rem !important; margin: 0 !important; }
+      .signed-banner .time { grid-column: 1; font-size: 0.72rem !important; }
+      #signedKommentti { grid-column: 1; margin-top: 4px !important; padding: 6px 8px !important; font-size: 0.75rem !important; }
+      #signedKuvaOsio { grid-column: 2; grid-row: 1 / span 3; margin-top: 0 !important; padding: 6px 8px !important; }
+      #signedKuvaImg { max-height: 55px !important; }
+      #signedKuvaHenk { font-size: 0.72rem !important; }
+      /* Kuvaus-sarake leveämmäksi, jotta rivit eivät veny kolmelle riville */
+      .rivi-table td:nth-child(2), .rivi-table th:nth-child(2) { width: 42%; }
+      .rivi-table td.r, .rivi-table th.r { white-space: nowrap; }
+      /* Pitkä rivilista saa jatkua seuraavalle sivulle (yksittäinen rivi ei katkea) */
+      #riviCard { page-break-inside: auto !important; break-inside: auto !important; }
+      .rivi-table tr { page-break-inside: avoid; break-inside: avoid; }
+      .rivi-table thead { display: table-header-group; }
     }
     /* Kiitos heti allekirjoituksen jälkeen: piirtyvä ruksi */
     .ok-anim { width: 64px; height: 64px; display: block; margin: 0 auto; }
@@ -303,7 +320,7 @@
     </div>
 
     <!-- Rivit -->
-    <div class="card">
+    <div class="card" id="riviCard">
       <h2>📋 Rivit</h2>
       <div style="overflow-x:auto">
         <table class="rivi-table">
