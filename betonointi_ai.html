@@ -1591,6 +1591,21 @@ function lueSchwenkPumppu(teksti) {
   };
 }
 
+// Pumpun ajat pöytäkirjaan: Schwenkin pumppulappu (koodi) tai muun toimittajan pumppulähete (AI). Kaikki kentät valinnaisia.
+function pumppuTiedot(swAnalyysi, tiedot) {
+  var aika = function(v) { var m = String(v || '').match(/(\d{1,2})[:.,](\d{2})/); return m ? ('0' + m[1]).slice(-2) + ':' + m[2] : ''; };
+  if (swAnalyysi && swAnalyysi.pumppu) {
+    var sp = swAnalyysi.pumppu;
+    return { saapui: sp.saapuminen || '', alku: sp.alku || '', loppu: sp.loppu || '', lahti: '', lopullinen: !!sp.lopullinen, lahde: 'schwenk' };
+  }
+  var p = tiedot && tiedot.pumppu;
+  if (!p || typeof p !== 'object') return null;
+  var t = { saapui: aika(p.saapui), alku: aika(p.alku), loppu: aika(p.loppu), lahti: aika(p.lahti), lahde: 'ai' };
+  var h = parseFloat(String(p.tunnit == null ? '' : p.tunnit).replace(',', '.'));
+  if (isFinite(h) && h > 0) t.tunnit = h;
+  return (t.saapui || t.alku || t.loppu || t.lahti) ? t : null;
+}
+
 // kuormat = lueSchwenkKuorma-tulokset, pumput = lueSchwenkPumppu-tulokset
 function analysoiSchwenk(kuormat, pumput) {
   var pyor = function(x) { return Math.round(x * 100) / 100; };
@@ -1725,7 +1740,8 @@ Palauta VAIN JSON ilman muuta tekstiä:
   "valuAlkoi": "ensimmäisen kuorman purku alkoi aika HH:MM",
   "valuPaattyi": "viimeisen kuorman purku päättyi aika HH:MM",
   "totBetoni": null,
-  "valupaivamaara": "YYYY-MM-DD muodossa"
+  "valupaivamaara": "YYYY-MM-DD muodossa",
+  "pumppu": "jos joukossa on pumppulähete / pumppauslappu (esim. 'Pumppu', 'Pumppaus', 'Betonipumppu'): {\"saapui\": \"HH:MM\", \"alku\": \"pumppauksen alku HH:MM\", \"loppu\": \"pumppauksen loppu HH:MM\", \"lahti\": \"HH:MM tai null\", \"tunnit\": laskutetut tunnit numerona tai null}, muuten null"
 }`;
 
   var response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -1949,10 +1965,14 @@ async function tuoKuormakirjat(input, valmiit) {
       kuormat: kuormaLista.sort(function(a, b) { return (a.purkuAlkaa || '').localeCompare(b.purkuAlkaa || ''); }),
       totBetoni: (tiedot.totBetoni !== null && tiedot.totBetoni !== undefined) ? tiedot.totBetoni : null,
       tilaukset: swAnalyysi ? swAnalyysi.tilaukset.map(function(t) { return { tuote: t.tuote, tuotenimi: t.tuotenimi, lujuus: t.lujuus, rasitus: t.rasitus, tilattu: t.tilattu, toimitettu: t.toimitettu, kuormia: t.kuormia }; }) : [],
-      pumppu: swAnalyysi && swAnalyysi.pumppu ? { alku: swAnalyysi.pumppu.alku, loppu: swAnalyysi.pumppu.loppu } : null,
+      pumppu: pumppuTiedot(swAnalyysi, tiedot),
       valmis: swAnalyysi ? swAnalyysi.valmis : null,
       valuAlkoi: tiedot.valuAlkoi || '', valuPaattyi: tiedot.valuPaattyi || ''
     };
+    if (viimeisinTuonti.pumppu && viimeisinTuonti.pumppu.lahde === 'ai') {
+      var pp = viimeisinTuonti.pumppu;
+      tuontiHuomio += ' 🚚 Pumppu: ' + (pp.saapui ? 'saapui ' + pp.saapui + ', ' : '') + 'pumppaus ' + (pp.alku || '?') + '–' + (pp.loppu || '?') + (pp.lahti ? ', lähti ' + pp.lahti : '') + '.';
+    }
     taytaKentat(tiedot);
     if (swAnalyysi && swAnalyysi.massat.length > 1) asetaPaamassa(swAnalyysi);
     if (tuontiHuomio) naytaStatus('✅ Kentät täytetty.' + tuontiHuomio, /⚠️/.test(tuontiHuomio) ? 'red' : 'green');
