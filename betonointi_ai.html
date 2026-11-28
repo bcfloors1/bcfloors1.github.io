@@ -218,6 +218,7 @@ body {
   gap: 10px;
   margin-top: 4px;
 }
+.sig-tallenna { margin-left: 4px; }
 .sig-clear {
   background: none;
   border: 1px solid #c8d0d8;
@@ -685,9 +686,10 @@ body {
     <div class="sig-title">URAKOITSIJAN ALLEKIRJOITUS</div>
     <div class="sig-canvas-wrap">
       <canvas id="sig1" class="sig-canvas" width="360" height="80"></canvas>
-      <div class="sig-canvas-btns">
+      <div class="sig-canvas-btns" data-html2canvas-ignore="true">
         <button class="sig-clear" onclick="clearSig('sig1')">✕ Tyhjennä</button>
-        <span class="sig-hint">Allekirjoita sormella</span>
+        <button class="sig-clear sig-tallenna" onclick="tallennaOmaAllekirjoitus()" title="Tallentaa tämän allekirjoituksen ja nimen, jolloin ne täyttyvät jatkossa automaattisesti">💾 Tallenna omaksi</button>
+        <span class="sig-hint" id="sig1Vihje">Allekirjoita sormella</span>
       </div>
     </div>
     <div class="sig-info">Nimen selvennys:&nbsp;<input type="text" class="sig-name-input" placeholder="Kirjoita nimi"></div>
@@ -697,7 +699,7 @@ body {
     <div class="sig-title">TILAAJAN ALLEKIRJOITUS</div>
     <div class="sig-canvas-wrap">
       <canvas id="sig2" class="sig-canvas" width="360" height="80"></canvas>
-      <div class="sig-canvas-btns">
+      <div class="sig-canvas-btns" data-html2canvas-ignore="true">
         <button class="sig-clear" onclick="clearSig('sig2')">✕ Tyhjennä</button>
         <span class="sig-hint">Allekirjoita sormella</span>
       </div>
@@ -740,6 +742,55 @@ function initCanvas(id) {
   canvas.addEventListener('touchmove', draw, {passive: false});
   canvas.addEventListener('touchend', stop);
 }
+// ── Urakoitsijan allekirjoitus valmiiksi kirjautuneen käyttäjän tallennetusta allekirjoituksesta ──
+// Tallennus: asetukset/allekirjoitus_<sähköposti> { nimi, kuva (PNG dataURL), email, paivitetty }
+function omaAllekirjoitusDoc() {
+  var u = firebase.auth().currentUser;
+  return u && u.email ? fbDb.collection('asetukset').doc('allekirjoitus_' + u.email.toLowerCase().replace(/[^a-z0-9]/g, '_')) : null;
+}
+function canvasTyhja(canvas) {
+  var d = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+  for (var i = 3; i < d.length; i += 4) if (d[i] !== 0) return false;
+  return true;
+}
+function piirraAllekirjoitus(canvas, dataUrl) {
+  var img = new Image();
+  img.onload = function() {
+    var ctx = canvas.getContext('2d');
+    var s = Math.min(canvas.width / img.width, canvas.height / img.height);
+    var w = img.width * s, h = img.height * s;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, (canvas.width - w) / 2, (canvas.height - h) / 2, w, h);
+  };
+  img.src = dataUrl;
+}
+function lataaOmaAllekirjoitus() {
+  var ref = omaAllekirjoitusDoc(); if (!ref) return;
+  ref.get().then(function(doc) {
+    var vihje = document.getElementById('sig1Vihje');
+    if (!doc.exists || !doc.data().kuva) { if (vihje) vihje.textContent = 'Allekirjoita sormella – voit tallentaa sen omaksi'; return; }
+    var d = doc.data(), canvas = document.getElementById('sig1');
+    if (canvas && canvasTyhja(canvas)) piirraAllekirjoitus(canvas, d.kuva);
+    var nimi = document.querySelector('.sig .sig-name-input');
+    if (nimi && !nimi.value && d.nimi) nimi.value = d.nimi;
+    if (vihje) vihje.textContent = '✓ Oma allekirjoitus (' + (d.nimi || '') + ')';
+  }).catch(function(e) { console.warn('Allekirjoituksen haku:', e.message); });
+}
+function tallennaOmaAllekirjoitus() {
+  var ref = omaAllekirjoitusDoc();
+  if (!ref) { alert('Kirjaudu sisään tallentaaksesi allekirjoituksen.'); return; }
+  var canvas = document.getElementById('sig1');
+  if (canvasTyhja(canvas)) { alert('Piirrä ensin allekirjoitus urakoitsijan kenttään.'); return; }
+  var nimi = (document.querySelector('.sig .sig-name-input') || {}).value || '';
+  if (!nimi.trim()) { alert('Kirjoita myös nimen selvennys.'); return; }
+  ref.set({ nimi: nimi.trim(), kuva: canvas.toDataURL('image/png'), email: firebase.auth().currentUser.email, paivitetty: new Date().toISOString() })
+    .then(function() {
+      var vihje = document.getElementById('sig1Vihje'); if (vihje) vihje.textContent = '✓ Oma allekirjoitus (' + nimi.trim() + ')';
+      alert('Allekirjoitus tallennettu. Se täyttyy jatkossa automaattisesti, kun teet pöytäkirjan tällä tunnuksella.');
+    })
+    .catch(function(e) { alert('Tallennus epäonnistui: ' + e.message); });
+}
+
 function clearSig(id) { var canvas = document.getElementById(id); canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height); }
 document.addEventListener('DOMContentLoaded', function() {
   var today = new Date().toISOString().split('T')[0];
@@ -1311,7 +1362,7 @@ function asetaApiAvain() {
   });
 }
 
-bcKirjaudu(function() { haeApiAvain(); });
+bcKirjaudu(function() { haeApiAvain(); lataaOmaAllekirjoitus(); });
 
 // ── Kuormakirjojen taltioiminen ──
 var kuormakirjaTiedostot = []; // {nimi, data (Uint8Array)}
